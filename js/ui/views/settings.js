@@ -1,6 +1,6 @@
 // 설정과 시작 화면
 
-import { esc, icon, toast, loadScript, JSZIP, idStamp } from '../dom.js';
+import { esc, icon, toast, loadScript, confirmInline, JSZIP, idStamp } from '../dom.js';
 import { convertForExport } from '../../core/export.js';
 import { ATTACH_DIR } from '../../config.js';
 
@@ -100,8 +100,8 @@ export function settings(ctx) {
   });
   $('#out')?.addEventListener('click', () => { auth.signOut(); ctx.start(null); });
   $('#google')?.addEventListener('click', () => ctx.start('drive'));
-  $('#reset')?.addEventListener('click', async () => {
-    if (!confirm('체험 카드를 모두 지우고 예시 카드로 되돌릴까요?')) return;
+  $('#reset')?.addEventListener('click', async (e) => {
+    if (!await confirmInline(e.currentTarget, '체험 카드를 모두 지우고 예시 카드로 되돌릴까요?', '되돌리기')) return;
     await lib.adapter.reset(); await lib.load(); toast('예시 카드로 되돌렸어요.'); ctx.go('#/');
   });
   $('#leave')?.addEventListener('click', () => ctx.start(null));

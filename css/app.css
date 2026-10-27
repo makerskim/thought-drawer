@@ -376,3 +376,6 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1
 .app.bare { display: block; }
 .drop:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
 @media (min-width: 900px) { .graph-wrap { height: calc(100dvh - 200px); } }
+.confirm { flex-basis: 100%; display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-left: 3px solid var(--red); border-radius: var(--r-ui); background: var(--card); }
+.confirm p { margin: 0; font-size: 14.5px; }
+.confirm .row { display: flex; flex-wrap: wrap; gap: 8px; }

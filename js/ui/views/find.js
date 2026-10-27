@@ -35,7 +35,7 @@ export function find(ctx) {
       ? `<p class="hint">${hits.length}장 찾았어요.</p>${cardsHtml(hits, { terms: q.terms, hl: highlight })}`
       : `<div class="empty"><h3>"${esc(raw || type)}"에 맞는 카드가 없어요</h3><p>다른 말로 찾아보거나, 묻기에서 문장으로 물어보세요.</p><a class="btn" href="#/ask?q=${encodeURIComponent(raw)}">${icon('ask')}묻기로 가기</a></div>`;
     hydrateThumbs(res, lib);
-    history.replaceState(null, '', `#/s${raw ? `?q=${encodeURIComponent(raw)}` : ''}`);
+    ctx.setUrl(`#/s${raw ? `?q=${encodeURIComponent(raw)}` : ''}`);
   };
   let t;
   f.q.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 140); });
@@ -62,7 +62,7 @@ export function ask(ctx) {
   const run = () => {
     const question = f.q.value.trim();
     if (!question) { ans.innerHTML = ''; return; }
-    history.replaceState(null, '', `#/ask?q=${encodeURIComponent(question)}`);
+    ctx.setUrl(`#/ask?q=${encodeURIComponent(question)}`);
     const a = answerLocally(lib.all, question);
     if (!a.total) {
       ans.innerHTML = `<div class="empty"><h3>관련된 카드를 찾지 못했어요</h3><p>${a.terms.length ? `"${esc(a.terms.join(', '))}"이 들어간 카드가 없어요.` : '질문에서 찾을 말을 고르지 못했어요.'} 다른 말로 물어보세요.</p></div>`;

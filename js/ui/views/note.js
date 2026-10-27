@@ -1,6 +1,6 @@
 // 카드 펼쳐 보기와 고쳐 쓰기
 
-import { esc, icon, idStamp, dateLabel, toast, TYPE_ICON } from '../dom.js';
+import { esc, icon, idStamp, dateLabel, toast, confirmInline, TYPE_ICON } from '../dom.js';
 import { linkCardHtml } from '../cards.js';
 import { renderMarkdown, hydrateAttachments } from '../render.js';
 import { TYPES, displayTitle, categoryParts } from '../../core/note.js';
@@ -107,8 +107,9 @@ export async function noteView(ctx, id) {
       ctx.go(`#/n/${note.id}`, { replace: true });
     } catch (err) { toast(err.message); }
   };
-  ctx.el.querySelector('#del').onclick = async () => {
-    if (!confirm('이 카드를 지울까요? 드라이브 휴지통으로 가서 30일 안에는 되살릴 수 있어요.')) return;
+  ctx.el.querySelector('#del').onclick = async (e) => {
+    const where = ctx.mode === 'drive' ? '드라이브 휴지통으로 가서 30일 안에는 되살릴 수 있어요.' : '체험 카드는 되살릴 수 없어요.';
+    if (!await confirmInline(e.currentTarget, `이 카드를 지울까요? ${where}`, '카드 지우기')) return;
     try { await lib.remove(note); toast('카드를 지웠어요.'); ctx.go(back, { replace: true }); } catch (err) { toast(err.message); }
   };
 }

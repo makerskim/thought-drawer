@@ -23,6 +23,7 @@ let lib = null;
 let mode = null;
 let cleanups = [];
 let lastPath = null;
+let current = location.hash.startsWith('#/') ? location.hash : '#/'; // 지금 화면 주소. 주소창을 못 바꾸는 곳에서도 동작하도록 따로 들고 있는다
 let offlineResult = null; // 자동 정리 연결 결과 (설정 화면에 한 번 보여 준다)
 
 const store = {
@@ -50,13 +51,19 @@ const ROUTES = [
 ];
 
 function parseHash() {
-  const raw = location.hash.replace(/^#/, '') || '/';
+  const raw = current.replace(/^#/, '') || '/';
   const [path, query = ''] = raw.split('?');
   return { path, params: new URLSearchParams(query) };
 }
 
+function setUrl(hash, { push = false } = {}) {
+  current = hash;
+  try { history[push ? 'pushState' : 'replaceState'](null, '', hash); } catch { /* 주소창을 바꿀 수 없는 곳 */ }
+}
+
 function go(hash, { replace = false } = {}) {
-  if (replace) { history.replaceState(null, '', hash); render(); } else if (location.hash === hash) render(); else location.hash = hash;
+  setUrl(hash, { push: !replace && hash !== current });
+  render();
 }
 
 function setTop({ home: isHome = false, title = '', back = null, actions = '' } = {}) {
@@ -128,7 +135,7 @@ async function render({ live = false } = {}) {
 
 function context(params) {
   return {
-    lib, auth, mode, el: view, params, go, top: setTop, start,
+    lib, auth, mode, el: view, params, go, setUrl, top: setTop, start,
     takeOffline: () => { const r = offlineResult; offlineResult = null; return r; },
     cleanup: (fn) => cleanups.push(fn),
     banner: mode === 'demo' ? `<div class="banner"><p>체험 모드예요. 카드는 이 기기에만 저장되고, 자동 정리와 사진 글자 읽기는 구글로 연결하면 동작해요.</p><a class="btn small" href="#/settings">설정</a></div>` : '',
@@ -150,13 +157,14 @@ function reconnect() {
 async function start(next) {
   store.set('td.mode', next);
   if (next === 'drive' && !auth.signedIn) {
-    if (location.hash && location.hash !== '#/') store.set('td.pending', location.hash);
+    if (current !== '#/') store.set('td.pending', current);
     try { await auth.signIn(); } catch (e) { toast(e.message); return; }
   }
   await boot();
 }
 
 async function boot() {
+  if (location.hash.startsWith('#/')) current = location.hash;
   mode = store.get('td.mode');
   lib = null;
   if (mode === 'drive' && !auth.configured) mode = null;
@@ -181,7 +189,7 @@ async function boot() {
   lib = next;
   lib.onChange(() => render({ live: true }));
   const pending = store.get('td.pending');
-  if (pending) { store.set('td.pending', null); history.replaceState(null, '', pending); }
+  if (pending) { store.set('td.pending', null); setUrl(pending); }
   lastPath = null;
   render();
 }
@@ -191,7 +199,7 @@ function adoptShareQuery() {
   const q = new URLSearchParams(location.search);
   if (!q.has('url') && !q.has('text') && !q.has('paste')) return;
   const target = q.has('paste') ? '#/add/photo?paste=1' : `#/share?${q}`;
-  history.replaceState(null, '', location.pathname + target);
+  try { history.replaceState(null, '', location.pathname + target); } catch { location.hash = target; }
 }
 
 // 다른 기기에서 고친 카드를 다시 불러온다 (앱으로 돌아올 때, 최소 1분 간격)
@@ -202,11 +210,23 @@ document.addEventListener('visibilitychange', async () => {
   try { await lib.load(); } catch (e) { if (e instanceof AuthRequired) toast('구글 연결이 끊겼어요. 설정에서 다시 연결해 주세요.'); }
 });
 
-window.addEventListener('hashchange', () => render());
+// 앱 안 링크(#/...)는 직접 받아서 그린다
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[href^="#/"]');
+  if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || a.target) return;
+  e.preventDefault();
+  go(a.getAttribute('href'));
+});
+window.addEventListener('popstate', () => { current = location.hash.startsWith('#/') ? location.hash : '#/'; render(); });
+window.addEventListener('hashchange', () => {
+  if (location.hash === current || !location.hash.startsWith('#/')) return;
+  current = location.hash;
+  render();
+});
 
 applyTheme();
 adoptShareQuery();
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
+if ('serviceWorker' in navigator && location.protocol === 'https:' && window.self === window.top) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 auth.takeOfflineCode()

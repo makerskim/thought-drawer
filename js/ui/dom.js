@@ -82,3 +82,23 @@ export function loadScript(src) {
 }
 
 export const JSZIP = 'js/vendor/jszip.min.js';
+
+// 브라우저 확인 창 대신 버튼 옆에 묻는 칸을 띄운다 (확인 창이 막힌 곳에서도 동작)
+export function confirmInline(btn, question, yesLabel) {
+  return new Promise((resolve) => {
+    const box = document.createElement('div');
+    box.className = 'confirm';
+    box.setAttribute('role', 'group');
+    box.innerHTML = `<p>${esc(question)}</p><div class="row"><button type="button" class="btn small danger" data-y>${esc(yesLabel)}</button><button type="button" class="btn small ghost" data-n>취소</button></div>`;
+    btn.hidden = true;
+    btn.after(box);
+    box.querySelector('[data-y]').focus();
+    box.addEventListener('click', (e) => {
+      const yes = e.target.closest('[data-y]');
+      if (!yes && !e.target.closest('[data-n]')) return;
+      box.remove();
+      btn.hidden = false;
+      resolve(!!yes);
+    });
+  });
+}
