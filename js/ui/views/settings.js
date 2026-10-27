@@ -61,7 +61,14 @@ export function settings(ctx) {
       <section><h2>자동 정리</h2>
         <p>Claude Code 예약 작업이 하루 몇 번 「00_인박스」의 새 카드만 읽고, 제목, 요약, 태그를 붙여 서랍에 넣고 관련 카드끼리 이어 줘요. 지금 쓰는 Claude 구독으로 돌아서 추가 비용이 없어요.</p>
         <div class="stat-row"><div><b>${lib.inbox().length}</b><span>정리 대기</span></div><div><b>${lib.organized().length}</b><span>정리된 카드</span></div><div><b>${idx?.generatedAt ? esc(idStamp(idx.generatedAt.replace(/\D/g, '').slice(0, 14))) : '아직 없음'}</b><span>마지막 정리</span></div></div>
-        <p class="hint">설정 방법은 docs/설정가이드.md의 "3. 자동 정리 켜기"에 있어요.</p>
+        ${ctx.mode === 'drive' ? `
+        <div id="offline"></div>
+        <form id="of" class="field" style="margin-top:6px">
+          <span>정리기 연결 (처음 한 번)</span>
+          <input class="input" name="secret" type="password" autocomplete="off" placeholder="구글 클라우드의 클라이언트 보안 비밀">
+          <small>보안 비밀은 이 브라우저에서 구글로만 보내고 저장하지 않아요. 받은 토큰은 Claude Code 환경 설정에 넣어요. 순서는 docs/설정가이드.md 3단계에 있어요.</small>
+          <div class="row" style="margin-top:6px"><button class="btn" type="submit">정리기용 토큰 받기</button></div>
+        </form>` : '<p class="hint">자동 정리는 구글로 연결한 뒤에 켤 수 있어요.</p>'}
       </section>
       <section><h2>아이폰 「메모로 보내기」</h2>
         <p>단축어 앱에서 공유 시트용 단축어를 만들고, 마지막 동작의 주소를 아래 주소 + 공유한 내용으로 열게 하면 돼요. 자세한 순서는 docs/단축어.md에 있어요.</p>
@@ -76,6 +83,21 @@ export function settings(ctx) {
       </section>
     </div>`;
   const $ = (s) => ctx.el.querySelector(s);
+  const off = ctx.takeOffline?.();
+  if (off && $('#offline')) {
+    $('#offline').innerHTML = off.refreshToken
+      ? `<div class="banner" style="border-left-color:var(--brass)"><p><b>정리기용 토큰을 받았어요.</b> 아래 값을 복사해서 Claude Code 환경 설정의 <b>TD_GOOGLE_REFRESH_TOKEN</b>에 넣으세요. 이 화면을 벗어나면 다시 볼 수 없어요. 채팅창에는 붙여 넣지 마세요.</p>
+         <input class="input" readonly id="rt" value="${esc(off.refreshToken)}"><button class="btn small" id="rtc" type="button">${icon('copy')}복사</button></div>`
+      : `<div class="banner"><p>${esc(off.error)}</p></div>`;
+    $('#rtc')?.addEventListener('click', async () => { try { await navigator.clipboard.writeText(off.refreshToken); toast('토큰을 복사했어요.'); } catch { $('#rt').select(); } });
+    $('#offline').scrollIntoView({ block: 'center' });
+  }
+  $('#of')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const secret = e.target.secret.value.trim();
+    if (!secret) { toast('클라이언트 보안 비밀을 넣어 주세요.'); return; }
+    auth.requestOfflineCode(secret);
+  });
   $('#out')?.addEventListener('click', () => { auth.signOut(); ctx.start(null); });
   $('#google')?.addEventListener('click', () => ctx.start('drive'));
   $('#reset')?.addEventListener('click', async () => {

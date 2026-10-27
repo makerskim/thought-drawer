@@ -93,6 +93,46 @@ export function createAuth(clientId) {
       return signInPopup();
     },
     signInRedirect,
+    // 자동 정리기(Claude Code 예약 작업)용 오래가는 토큰 받기.
+    // 보안 비밀은 이 브라우저에서 구글로만 보내고 저장하지 않는다.
+    requestOfflineCode(secret) {
+      sessionStorage.setItem('td.sec', secret);
+      const p = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: location.origin + location.pathname,
+        response_type: 'code',
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        access_type: 'offline',
+        prompt: 'consent',
+        state: 'td-code',
+      });
+      if (state?.email) p.set('login_hint', state.email);
+      location.assign(`https://accounts.google.com/o/oauth2/v2/auth?${p}`);
+    },
+    async takeOfflineCode() {
+      const q = new URLSearchParams(location.search);
+      if (q.get('state') !== 'td-code') return null;
+      const secret = sessionStorage.getItem('td.sec');
+      sessionStorage.removeItem('td.sec');
+      history.replaceState(null, '', `${location.pathname}#/settings`);
+      if (q.get('error') || !q.get('code')) return { error: '구글에서 허용하지 않았어요. 다시 시도해 주세요.' };
+      if (!secret) return { error: '보안 비밀이 사라졌어요. 같은 창에서 다시 시도해 주세요.' };
+      try {
+        const r = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            code: q.get('code'), client_id: clientId, client_secret: secret,
+            redirect_uri: location.origin + location.pathname, grant_type: 'authorization_code',
+          }),
+        });
+        const j = await r.json();
+        if (!r.ok || !j.refresh_token) return { error: `토큰을 받지 못했어요: ${j.error_description || j.error || r.status}` };
+        return { refreshToken: j.refresh_token };
+      } catch {
+        return { error: '구글에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.' };
+      }
+    },
     token() {
       if (!valid()) throw new AuthRequired();
       return state.token;

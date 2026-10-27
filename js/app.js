@@ -23,6 +23,7 @@ let lib = null;
 let mode = null;
 let cleanups = [];
 let lastPath = null;
+let offlineResult = null; // 자동 정리 연결 결과 (설정 화면에 한 번 보여 준다)
 
 const store = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
@@ -128,6 +129,7 @@ async function render({ live = false } = {}) {
 function context(params) {
   return {
     lib, auth, mode, el: view, params, go, top: setTop, start,
+    takeOffline: () => { const r = offlineResult; offlineResult = null; return r; },
     cleanup: (fn) => cleanups.push(fn),
     banner: mode === 'demo' ? `<div class="banner"><p>체험 모드예요. 카드는 이 기기에만 저장되고, 자동 정리와 사진 글자 읽기는 구글로 연결하면 동작해요.</p><a class="btn small" href="#/settings">설정</a></div>` : '',
   };
@@ -207,4 +209,8 @@ adoptShareQuery();
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
-auth.handleRedirect().catch(() => false).then(boot);
+auth.takeOfflineCode()
+  .then((r) => { offlineResult = r; })
+  .then(() => auth.handleRedirect())
+  .catch(() => false)
+  .then(boot);
