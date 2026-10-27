@@ -28,7 +28,7 @@ export function welcome(ctx) {
       </div>
       <p class="fine">${can
         ? '앱은 자기가 만든 파일에만 접근해요. 내 드라이브의 다른 파일은 볼 수 없어요.'
-        : '구글 연결은 설정 가이드(docs/설정가이드.md)의 1단계를 마치면 켜져요. 체험 모드는 이 기기에만 저장돼요.'}</p>
+        : '구글 연결은 설정 가이드(docs/설정가이드.md)의 1~2단계를 마치면 켜져요. 체험 모드는 이 기기에만 저장돼요.'}</p>
     </div></div>`;
   ctx.el.querySelector('#demo').onclick = () => ctx.start('demo');
   const g = ctx.el.querySelector('#google');
@@ -66,7 +66,7 @@ export function settings(ctx) {
         <form id="of" class="field" style="margin-top:6px">
           <span>정리기 연결 (처음 한 번)</span>
           <input class="input" name="secret" type="password" autocomplete="off" placeholder="구글 클라우드의 클라이언트 보안 비밀">
-          <small>보안 비밀은 이 브라우저에서 구글로만 보내고 저장하지 않아요. 받은 토큰은 Claude Code 환경 설정에 넣어요. 순서는 docs/설정가이드.md 3단계에 있어요.</small>
+          <small>보안 비밀은 이 브라우저에서 구글로만 보내고 저장하지 않아요. 받은 토큰은 Claude Code 환경 설정에 넣어요. 순서는 docs/설정가이드.md 4단계에 있어요.</small>
           <div class="row" style="margin-top:6px"><button class="btn" type="submit">정리기용 토큰 받기</button></div>
         </form>` : '<p class="hint">자동 정리는 구글로 연결한 뒤에 켤 수 있어요.</p>'}
       </section>

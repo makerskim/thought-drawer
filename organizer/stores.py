@@ -48,7 +48,7 @@ class DriveStore:
     def from_env(cls) -> 'DriveStore':
         missing = [k for k in ('TD_GOOGLE_CLIENT_ID', 'TD_GOOGLE_CLIENT_SECRET', 'TD_GOOGLE_REFRESH_TOKEN') if not os.environ.get(k)]
         if missing:
-            raise DriveError('환경 변수가 없어요: ' + ', '.join(missing) + ' (docs/설정가이드.md 3단계 참고)')
+            raise DriveError('환경 변수가 없어요: ' + ', '.join(missing) + ' (docs/설정가이드.md 4단계 참고)')
         return cls(os.environ['TD_GOOGLE_CLIENT_ID'], os.environ['TD_GOOGLE_CLIENT_SECRET'], os.environ['TD_GOOGLE_REFRESH_TOKEN'])
 
     # --- HTTP ---------------------------------------------------------------
