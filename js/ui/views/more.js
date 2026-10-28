@@ -41,6 +41,7 @@ export function Login({ onSignIn, busy, error }) {
         : html`<div class="banner warn"><${Icon} name="alert" /><p>구글 로그인 설정이 아직 없어요. docs/설정가이드.md의 2단계를 마쳐 주세요.</p></div>`}
       ${error && html`<p class="fine" style="color:var(--danger)">${error}</p>`}
       <p class="fine">노트는 내 구글 드라이브의 「메모」 폴더에 저장돼요.<br />앱은 자기가 만든 파일에만 접근하고, 다른 파일은 볼 수 없어요.</p>
+      <nav class="login-links" aria-label="약관"><a href="privacy.html">개인정보처리방침</a><a href="terms.html">서비스 약관</a></nav>
     </div>
   </main>`;
 }
@@ -117,6 +118,9 @@ export function Settings({ offline }) {
         <div class="row-ctl"><button type="button" class="btn" onClick=${exportZip} disabled=${zip !== null}><${Icon} name="download" />노션용 zip 받기</button></div>
         ${zip !== null && html`<div class="progress"><i style=${`width:${zip}%`}></i></div>`}
         <small class="muted">노션의 가져오기, 텍스트와 마크다운에 zip을 올려요. 링크와 사진 경로를 노션이 읽는 형식으로 바꿔서 담아요.</small>
+      </${Section}>
+      <${Section} title="정보">
+        <div class="row-ctl"><a class="btn btn-ghost" href="privacy.html">개인정보처리방침</a><a class="btn btn-ghost" href="terms.html">서비스 약관</a></div>
       </${Section}>
     </div>`;
 }

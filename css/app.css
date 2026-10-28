@@ -545,3 +545,17 @@ a.tag:hover { filter: brightness(.97); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- 약관, 개인정보처리방침 ---------- */
+.doc { max-width: 720px; margin: 0 auto; padding: 48px 20px 96px; font-size: 15.5px; line-height: 1.75; color: var(--text); }
+.doc-brand { display: inline-block; font-weight: 650; color: var(--text-2); margin-bottom: 32px; }
+.doc h1 { font-size: 30px; line-height: 1.25; letter-spacing: -.02em; margin: 0 0 6px; }
+.doc h2 { font-size: 17px; margin: 34px 0 8px; }
+.doc p, .doc ul { margin: 0 0 12px; }
+.doc ul { padding-left: 1.3em; }
+.doc a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--border-2); }
+.doc code { font: .9em var(--mono); background: var(--bg-soft); padding: 2px 5px; border-radius: 4px; }
+.doc-date { color: var(--text-3); font-size: 13.5px; }
+.doc-foot { display: flex; gap: 18px; margin-top: 48px !important; padding-top: 18px; border-top: 1px solid var(--border); font-size: 14px; }
+.login-links { display: flex; justify-content: center; gap: 16px; margin-top: 14px; font-size: 12.5px; }
+.login-links a { color: var(--text-3); text-decoration: underline; text-underline-offset: 3px; }
