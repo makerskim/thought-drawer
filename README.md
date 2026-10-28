@@ -1,23 +1,25 @@
-# 생각서랍
+# Thought Drawer
 
-메모, 캡처, 웹사이트 북마크, 인스타 저장을 던져 넣으면 Claude가 서랍별로 정리해 주는 웹앱.
-카드는 내 구글 드라이브의 `메모` 폴더에 마크다운으로 저장돼서 폰·PC 어디서든 보고, 옵시디언에서 그대로 열린다.
+메모, 캡처, 링크, 인스타 저장을 한곳에 던져 넣으면 Claude가 폴더별로 정리하고 서로 이어 주는 노트 앱.
+노트는 내 구글 드라이브의 `메모` 폴더에 마크다운으로 저장돼서 폰과 PC 어디서든 열리고, 옵시디언에서도 그대로 보인다.
 
-- **넣기**: 메모, 사진·캡처(드라이브 무료 OCR로 글자 추출), 링크, 인스타 저장함 일괄 가져오기, 아이폰 공유 「메모로 보내기」
-- **정리**: Claude Code 예약 작업이 하루 몇 번 새 카드만 읽고 제목·서랍·태그·요약·연결을 붙인다 (지금 쓰는 Claude 구독, API 비용 0원)
-- **찾기**: 기기 안 검색 (`#태그`, `서랍:패션`, `종류:인스타`), 문장으로 묻기, 연결 지도
-- **옮기기**: 옵시디언은 폴더 그대로, 노션은 zip 내보내기
+- **넣기**: 홈의 빠른 기록, 사진 붙여넣기와 끌어다 놓기(드라이브 무료 OCR로 글자 추출), 링크, 인스타 저장함 일괄 가져오기, 아이폰 공유 「메모로 보내기」
+- **정리**: Claude Code 예약 작업이 하루 몇 번 인박스의 새 노트만 읽고 제목, 폴더, 태그, 요약, 연결을 붙인다 (지금 쓰는 Claude 구독, API 비용 0원)
+- **쓰기**: 노션처럼 제목과 속성(폴더, 태그, 출처), 누르면 편집되는 본문, 자동 저장
+- **찾기**: `Ctrl/⌘ K` 검색 팔레트 (`#태그`, `폴더:패션`, `종류:인스타`), 문장으로 묻기, 옵시디언 같은 연결 패널과 그래프
+- **옮기기**: 옵시디언은 드라이브 폴더 그대로, 노션은 zip 내보내기
 
-| 서랍장 | 카드 | PC |
+| 홈 | 노트 | 모바일 |
 |---|---|---|
-| ![서랍장](docs/screens/home.png) | ![카드](docs/screens/card.png) | ![PC](docs/screens/desktop.png) |
+| ![홈](docs/screens/home.png) | ![노트](docs/screens/note.png) | ![모바일](docs/screens/mobile.png) |
 
 ## 시작하기
 
-1. 체험: 앱을 열고 **먼저 체험해 보기** (설정 없이 이 기기에만 저장)
-2. 실제 사용: [docs/설정가이드.md](docs/설정가이드.md)
-3. 아이폰 공유 단축어: [docs/단축어.md](docs/단축어.md)
-4. 설계와 제텔카스텐 반영 방식: [docs/설계.md](docs/설계.md)
+1. 설정: [docs/설정가이드.md](docs/설정가이드.md)
+2. 아이폰 공유 단축어: [docs/단축어.md](docs/단축어.md)
+3. 설계와 제텔카스텐 반영 방식: [docs/설계.md](docs/설계.md)
+
+단축키: `Ctrl/⌘ K` 또는 `/` 검색, `N` 새 노트, `Ctrl/⌘ S` 바로 저장, `Esc` 편집 끝내기.
 
 ## 개발
 
@@ -25,16 +27,20 @@
 
 ```bash
 npm run serve                          # http://localhost:8080
-npm test                               # 웹앱 핵심 모듈
+npm test                               # 노트 형식, 검색, 인스타 파일 읽기, 묻기, 내보내기
 python3 -m pytest -q organizer/tests   # 자동 정리기
 ```
 
 ```
-index.html, css/app.css      화면
-js/core/                     카드 형식, 검색, 인스타 파일 읽기, 묻기, 내보내기 (DOM 없음, 테스트 대상)
-js/store/                    구글 로그인, 드라이브 저장소, 체험 저장소, 서랍장(라이브러리)
-js/ui/                       화면 조각과 화면들
+index.html, css/app.css      화면 뼈대와 디자인 (라이트/다크)
+js/main.js                   시작점
+js/core/                     노트 형식, 검색, 인스타 파일 읽기, 묻기, 내보내기 (DOM 없음, 테스트 대상)
+js/store/                    구글 로그인, 드라이브 저장소, 라이브러리(기기 사본 먼저 보여 주기), 시험용 저장소
+js/ui/                       Preact + htm 화면: App, parts(사이드바, 팔레트, 메뉴), views(홈, 노트, 폴더, 그래프…)
 organizer/                   Claude Code 예약 작업용 정리기 (파이썬 표준 라이브러리)
 ```
 
-포함한 외부 라이브러리: marked (MIT), DOMPurify (Apache-2.0/MPL-2.0), JSZip (MIT) — `js/vendor/`.
+자동 테스트에서는 `window.__TD_TEST__ = { files: [...] }`를 미리 넣으면 드라이브 대신 메모리 저장소로 열린다 (앱 화면에는 나오지 않음).
+
+포함한 외부 라이브러리 (`js/vendor/`): Preact (MIT), htm (Apache-2.0), marked (MIT), DOMPurify (Apache-2.0/MPL-2.0), JSZip (MIT).
+글꼴: Pretendard (OFL), JetBrains Mono, Noto Serif KR (OFL).

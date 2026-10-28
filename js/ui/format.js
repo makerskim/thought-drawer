@@ -1,0 +1,58 @@
+// 날짜, 색 같은 표시 도우미
+const pad = (n) => String(n).padStart(2, '0');
+
+export function relTime(iso) {
+  const t = Date.parse(iso ?? '');
+  if (!t) return '';
+  const d = new Date(t);
+  const diff = (Date.now() - t) / 1000;
+  if (diff < 60) return '방금';
+  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+  const today = new Date();
+  const days = Math.round((new Date(today.toDateString()) - new Date(d.toDateString())) / 86400000);
+  if (days === 0) return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (days === 1) return '어제';
+  if (days < 7) return `${days}일 전`;
+  if (d.getFullYear() === today.getFullYear()) return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
+}
+
+export function fullDate(iso) {
+  const t = Date.parse(iso ?? '');
+  if (!t) return '';
+  const d = new Date(t);
+  const h = d.getHours();
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${pad(d.getMinutes())}`;
+}
+
+export function todayLabel(d = new Date()) {
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${'일월화수목금토'[d.getDay()]}요일`;
+}
+
+export function greeting(d = new Date()) {
+  const h = d.getHours();
+  if (h < 5) return '늦은 밤이에요';
+  if (h < 11) return '좋은 아침이에요';
+  if (h < 17) return '좋은 오후예요';
+  if (h < 21) return '좋은 저녁이에요';
+  return '편안한 밤 보내세요';
+}
+
+const COLORS = ['blue', 'green', 'orange', 'purple', 'pink', 'yellow', 'red', 'brown', 'gray'];
+function hash(s) {
+  let x = 0;
+  for (const c of String(s)) x = (x * 31 + c.codePointAt(0)) >>> 0;
+  return x;
+}
+export const colorOf = (s) => COLORS[hash(s) % COLORS.length];
+// 그래프의 폴더 색 (회색은 인박스 몫이라 뺀다)
+export const folderColor = (s) => COLORS[hash(s) % (COLORS.length - 1)];
+export const GRAPH_COLORS = {
+  blue: '#4b8fd6', green: '#3f9a63', orange: '#d9822b', purple: '#8a63d2', pink: '#cf5a96',
+  yellow: '#c9a227', red: '#d0544a', brown: '#9a6a52', gray: '#8a8a86',
+};
+
+export const KIND_LABEL = { memo: '메모', capture: '캡처', bookmark: '링크', instagram: '인스타' };
+
+export const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+export const modKey = isMac ? '⌘' : 'Ctrl';

@@ -54,7 +54,7 @@ def run(root, *args):
 def test_prepare_builds_compact_batch(vault, capsys):
     run(vault, 'prepare')
     out = capsys.readouterr().out
-    assert '정리할 카드 3장' in out
+    assert '정리할 노트 3장' in out
     md = (organize.WORK / 'batch.md').read_text(encoding='utf-8')
     assert '패션/상의 (1)' in md and '요리/레시피 (1)' in md
     assert '달고나 라떼' in md, 'instagram caption fetched without AI'
@@ -67,7 +67,7 @@ def test_prepare_builds_compact_batch(vault, capsys):
 def test_prepare_nothing_to_do(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(organize, 'WORK', tmp_path / 'work')
     run(tmp_path / '메모', 'prepare')
-    assert '정리할 카드 없음' in capsys.readouterr().out
+    assert '정리할 노트 없음' in capsys.readouterr().out
 
 
 def test_apply_files_cards_links_and_index(vault, capsys):

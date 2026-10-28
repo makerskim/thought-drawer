@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""생각서랍 자동 정리기.
+"""Thought Drawer 자동 정리기.
 
 Claude Code 예약 작업이 이 순서로 부른다 (organizer/ROUTINE.md):
-  1) python3 organizer/organize.py prepare   정리할 카드를 모아 work/batch.md를 만든다 (토큰 안 씀)
+  1) python3 organizer/organize.py prepare   정리할 노트를 모아 work/batch.md를 만든다 (토큰 안 씀)
   2) Claude가 batch.md를 읽고 work/decisions.json을 쓴다          (여기서만 토큰을 씀)
-  3) python3 organizer/organize.py apply     결정대로 카드를 고치고 서랍으로 옮긴다 (토큰 안 씀)
+  3) python3 organizer/organize.py apply     결정대로 노트를 고치고 폴더로 옮긴다 (토큰 안 씀)
 
 그 밖에: status (대기 수 보기), index (색인만 다시 만들기)
 저장소는 기본이 구글 드라이브(환경 변수), --local 폴더를 주면 그 폴더를 쓴다.
@@ -41,15 +41,15 @@ FETCH_LIMIT = 600
 SHORT_OCR = 20  # 사진 속 글자가 이보다 적으면 사진을 직접 보게 한다
 
 RULES = """## 정리 규칙
-- 카드마다 아래 형식의 결정을 하나씩 쓴다. 결과는 JSON 배열 하나만 `organizer/work/decisions.json`에 저장한다.
-  `{"id": "카드 번호", "title": "제목", "category": "큰서랍/작은서랍", "tags": ["태그"], "summary": "한 문장 요약", "links": [{"id": "번호", "why": "이유"}]}`
+- 노트마다 아래 형식의 결정을 하나씩 쓴다. 결과는 JSON 배열 하나만 `organizer/work/decisions.json`에 저장한다.
+  `{"id": "노트 번호", "title": "제목", "category": "큰폴더/작은폴더", "tags": ["태그"], "summary": "한 문장 요약", "links": [{"id": "번호", "why": "이유"}]}`
 - title: 30자 이내, 무엇인지 바로 알 수 있게. 사용자가 단 제목이 있으면 그대로 둔다(빈 문자열로 쓴다).
-- category: 한국어, 최대 두 단계(예: "패션/상의", "요리/레시피", "여행/제주"). **기존 서랍 목록에 맞는 게 있으면 반드시 그걸 쓴다.**
-  새 서랍은 기존 것과 겹치지 않을 때만 만든다. 정보가 너무 부족하면 "확인 필요".
+- category: 한국어, 최대 두 단계(예: "패션/상의", "요리/레시피", "여행/제주"). **기존 폴더 목록에 맞는 게 있으면 반드시 그걸 쓴다.**
+  새 폴더는 기존 것과 겹치지 않을 때만 만든다. 정보가 너무 부족하면 "확인 필요".
 - tags: 2~5개, 짧은 명사. 사고 싶은 물건이면 "위시리스트"를 넣는다.
 - summary: 80자 이내 한 문장. 나중에 검색할 핵심 단어(브랜드, 가격, 장소, 재료 등)를 넣는다.
-- links: 그 카드의 "연결 후보"나 이번 묶음의 다른 카드 중 정말 관련 있는 것만, 0~3개. why는 15자 이내.
-- 사진 경로가 적힌 카드만 그 사진을 열어 본다. 다른 파일은 열지 않는다.
+- links: 그 노트의 "연결 후보"나 이번 묶음의 다른 노트 중 정말 관련 있는 것만, 0~3개. why는 15자 이내.
+- 사진 경로가 적힌 노트만 그 사진을 열어 본다. 다른 파일은 열지 않는다.
 """
 
 
@@ -81,7 +81,7 @@ def note_files(files):
 
 
 def read_all_meta(store, files, cached):
-    """모든 카드의 머리말. 색인에 있는 건 다시 읽지 않는다."""
+    """모든 노트의 머리말. 색인에 있는 건 다시 읽지 않는다."""
     out = []
     for f in note_files(files):
         e = cached.get(f['id'])
@@ -105,7 +105,7 @@ def section(body: str, head: str) -> str:
 def main_text(body: str) -> str:
     b = re.sub(r'(?ms)^## (사진 속 글자|연결|캡션|페이지 내용)\n.*?(?=^## |\Z)', '', body or '')
     # 앱이 자동으로 적은 안내 문장과 출처 링크는 빼서 토큰을 아낀다
-    b = re.sub(r'(?m)^.*의 (릴스|게시물)을 저장했어요\.\s*$', '', b)
+    b = re.sub(r'(?m)^.*의 (릴스|게시물)(을|를) 저장했어요\.\s*$', '', b)
     b = re.sub(r'(?m)^\[(인스타그램에서 보기|https?://[^\]]*)\]\([^)]*\)\s*$', '', b)
     b = re.sub(r'(?m)^인스타 컬렉션: .*$', '', b)
     b = re.sub(r'!\[\[[^\]]*\]\]', '[사진]', b)
@@ -153,7 +153,7 @@ def thumbnail(store, att_files, name):
 def cmd_status(store, args):
     files = store.list()
     inbox = [f for f in note_files(files) if f['dir'] == INBOX]
-    print(f'정리 대기 {len(inbox)}장, 전체 카드 {len(note_files(files))}장')
+    print(f'정리 대기 {len(inbox)}장, 전체 노트 {len(note_files(files))}장')
 
 
 def cmd_prepare(store, args):
@@ -166,7 +166,7 @@ def cmd_prepare(store, args):
     _, cached = load_index(store, files)
     inbox_files = sorted((f for f in note_files(files) if f['dir'] == INBOX), key=lambda f: f['name'], reverse=True)
     if not inbox_files:
-        print('정리할 카드 없음. 여기서 끝내세요.')
+        print('정리할 노트 없음. 여기서 끝내세요.')
         return
     all_meta = read_all_meta(store, [f for f in files if f['dir'] != INBOX], cached)
     organized = [o for o in all_meta if o['meta'].get('status') == 'organized']
@@ -211,10 +211,10 @@ def cmd_prepare(store, args):
 
     WORK.mkdir(parents=True, exist_ok=True)
     (WORK / 'batch.json').write_text(json.dumps(batch, ensure_ascii=False, indent=1), encoding='utf-8')
-    lines = [f'# 정리할 카드 {len(batch)}장 (전체 대기 {len(inbox_files)}장)', '', RULES, '## 기존 서랍 (카드 수)', '']
+    lines = [f'# 정리할 노트 {len(batch)}장 (전체 대기 {len(inbox_files)}장)', '', RULES, '## 기존 폴더 (노트 수)', '']
     drawers = drawer_counts(organized)
-    lines.append(', '.join(f'{c} ({n})' for c, n in drawers) if drawers else '(아직 없음. 필요한 서랍을 새로 만든다)')
-    lines += ['', '## 카드', '']
+    lines.append(', '.join(f'{c} ({n})' for c, n in drawers) if drawers else '(아직 없음. 필요한 폴더를 새로 만든다)')
+    lines += ['', '## 노트', '']
     kinds = {'memo': '메모', 'capture': '캡처', 'bookmark': '북마크', 'instagram': '인스타'}
     for c in batch:
         lines.append(f"### {c['id']} [{kinds.get(c['type'], c['type'])}]")
@@ -235,7 +235,7 @@ def cmd_prepare(store, args):
             lines += [f"- {x['id']} | {x['title']} | {x['category']} | {', '.join(x['tags'])}" for x in c['candidates']]
         lines.append('')
     (WORK / 'batch.md').write_text('\n'.join(lines), encoding='utf-8')
-    print(f'정리할 카드 {len(batch)}장을 organizer/work/batch.md에 모았어요. (남은 대기 {len(inbox_files) - len(batch)}장)')
+    print(f'정리할 노트 {len(batch)}장을 organizer/work/batch.md에 모았어요. (남은 대기 {len(inbox_files) - len(batch)}장)')
 
 
 def clean_category(raw: str) -> str:
@@ -330,7 +330,7 @@ def cmd_apply(store, args):
             backlinks.setdefault(lid, []).append((card['id'], title, why))
         done.append((card['id'], title, category))
 
-    # 거꾸로 걸린 연결도 상대 카드에 적어 둔다 (제텔카스텐: 양쪽에서 찾아갈 수 있게)
+    # 거꾸로 걸린 연결도 상대 노트에 적어 둔다 (제텔카스텐: 양쪽에서 찾아갈 수 있게)
     if backlinks:
         files = store.list()
         by_id = {}
@@ -378,10 +378,10 @@ def log_run(store, done):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description='생각서랍 자동 정리기')
+    ap = argparse.ArgumentParser(description='Thought Drawer 자동 정리기')
     ap.add_argument('command', choices=['status', 'prepare', 'apply', 'index'])
     ap.add_argument('--local', help='드라이브 대신 쓸 로컬 「메모」 폴더 경로')
-    ap.add_argument('--max', type=int, default=MAX_CARDS, help='한 번에 정리할 최대 카드 수')
+    ap.add_argument('--max', type=int, default=MAX_CARDS, help="한 번에 정리할 최대 노트 수")
     ap.add_argument('--budget', type=int, default=CHAR_BUDGET, help='한 번에 Claude에게 보여 줄 최대 글자 수')
     args = ap.parse_args(argv)
     store = open_store(args)

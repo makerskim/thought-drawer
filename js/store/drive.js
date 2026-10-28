@@ -139,6 +139,9 @@ export function createDriveAdapter(auth) {
     async trash(id) {
       await call(`${API}/files/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }) });
     },
+    async untrash(id) {
+      await call(`${API}/files/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: false }) });
+    },
     async uploadAttachment(blob, name) {
       const parent = await ensureDir(ATTACH_DIR);
       const { body, headers } = multipart({ name, parents: [parent] }, blob);

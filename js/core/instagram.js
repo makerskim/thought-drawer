@@ -138,7 +138,7 @@ export function instagramToNote(item, taken) {
   const kindLabel = item.kind === 'reel' ? '릴스' : '게시물';
   const who = item.author ? `@${item.author}` : '인스타그램';
   const lines = [
-    `${who}의 ${kindLabel}을 저장했어요.`,
+    `${who}의 ${kindLabel === '릴스' ? '릴스를' : '게시물을'} 저장했어요.`,
     '',
     `[인스타그램에서 보기](${item.url})`,
   ];

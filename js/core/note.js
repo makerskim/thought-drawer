@@ -178,6 +178,8 @@ export function idFromLink(target) {
 // 본문에서 첫 문단 일부를 뽑아 카드 미리보기로 쓴다.
 export function snippet(body, max = 140) {
   const plain = String(body ?? '')
+    .replace(/^.*의 (릴스|게시물)(을|를) 저장했어요\.\s*$/gm, ' ')
+    .replace(/^\[인스타그램에서 보기\]\([^)]*\)\s*$/gm, ' ')
     .replace(/!\[\[[^\]]*\]\]/g, ' ')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
     .replace(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g, (_, a, b) => b || a.replace(/^\d{14}\s*/, ''))
@@ -191,6 +193,13 @@ export function snippet(body, max = 140) {
 
 export function displayTitle(meta, body) {
   if (meta.title) return meta.title;
+  if (meta.type === 'instagram') {
+    const kind = /\/(reel|reels|tv)\//.test(meta.source ?? '') ? '릴스' : '게시물';
+    return meta.author ? `@${meta.author}의 ${kind}` : `인스타 ${kind}`;
+  }
+  if (meta.type === 'bookmark' && meta.source) {
+    try { const u = new URL(meta.source); return (u.hostname.replace(/^www\./, '') + u.pathname).replace(/\/$/, '').slice(0, 60); } catch { /* 주소가 아님 */ }
+  }
   const first = snippet(body, 34);
   if (first) return first;
   return `${TYPES[meta.type] ?? '카드'} ${meta.id ?? ''}`.trim();
@@ -198,4 +207,34 @@ export function displayTitle(meta, body) {
 
 export function categoryParts(category) {
   return String(category ?? '').split('/').map((s) => s.trim()).filter(Boolean);
+}
+
+const LINKS_HEAD = '## 연결';
+
+// 본문 끝의 "## 연결" 목록에 [번호, 제목, 이유]를 더한다. 같은 번호는 한 번만.
+// organizer/td_note.py 의 merge_links_section 과 같은 결과를 낸다.
+export function mergeLinksSection(body, entries) {
+  const src = String(body ?? '').replace(/\n+$/, '');
+  const marker = `\n${LINKS_HEAD}\n`;
+  let head;
+  let section;
+  if (src.startsWith(`${LINKS_HEAD}\n`) || src === LINKS_HEAD) { head = ''; section = src; }
+  else if (src.includes(marker)) { const i = src.indexOf(marker); head = src.slice(0, i); section = src.slice(i + 1); }
+  else if (src.endsWith(`\n${LINKS_HEAD}`)) { head = src.slice(0, -LINKS_HEAD.length - 1); section = LINKS_HEAD; }
+  else { head = src; section = ''; }
+  const lines = [];
+  const seen = new Set();
+  for (const line of section.split('\n').slice(1)) {
+    const m = /^- \[\[(\d{14})[^\]]*\]\]/.exec(line.trim());
+    if (m) seen.add(m[1]);
+    if (line.trim()) lines.push(line.trim());
+  }
+  for (const [id, title, why] of entries) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const target = `${id} ${safeName(title)}`.trim();
+    lines.push(`- [[${target}]]${why && why.trim() ? ` (${why.trim()})` : ''}`);
+  }
+  if (!lines.length) return head;
+  return `${head.replace(/\s+$/, '')}\n\n${LINKS_HEAD}\n\n${lines.join('\n')}\n`;
 }

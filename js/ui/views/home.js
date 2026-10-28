@@ -1,88 +1,103 @@
-// 서랍장(첫 화면), 정리 대기, 서랍 하나
+// 홈: 인사, 빠른 기록, 인박스, 최근 노트, 폴더
+import { html, useState, useRef, autosize } from '../h.js';
+import { Icon } from '../icons.js';
+import { app, useLib, toast } from '../state.js';
+import { go, noteHref, folderHref } from '../router.js';
+import { Topbar } from '../parts/shell.js';
+import { NoteRow, Empty, titleOf } from '../parts/common.js';
+import { greeting, todayLabel, modKey } from '../format.js';
+import { capturePhotos } from '../capture.js';
 
-import { esc, icon, on } from '../dom.js';
-import { cardsHtml, drawerHtml, hydrateThumbs } from '../cards.js';
-import { categoryParts } from '../../core/note.js';
+const URL_RE = /^(https?:\/\/\S+)\s*([\s\S]*)$/i;
 
-function lastOrganized(lib) {
-  const at = lib.index?.generatedAt;
-  if (!at) return null;
-  const d = new Date(at);
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+// 한 줄이면 내용만, 여러 줄이면 첫 줄을 제목으로 쓴다. 주소로 시작하면 링크 노트.
+export async function saveQuick(text) {
+  const t = text.trim();
+  if (!t) return null;
+  const m = URL_RE.exec(t);
+  if (m) return app.lib.addLink(m[1], m[2]);
+  const lines = t.split('\n');
+  if (lines.length > 1 && lines[0].length <= 60) return app.lib.create({ type: 'memo', title: lines[0].trim(), body: lines.slice(1).join('\n').trim() });
+  return app.lib.create({ type: 'memo', body: t });
 }
 
-function trayHtml(lib, ctx) {
-  const n = lib.inbox().length;
-  const last = lastOrganized(lib);
-  const sub = n
-    ? (ctx.mode === 'demo' ? '실제로 쓰면 Claude가 하루 몇 번 서랍에 넣어 줘요.' : `다음 정리 때 서랍에 들어가요.${last ? ` 마지막 정리 ${last}` : ''}`)
-    : '새로 들어온 카드가 없어요.';
-  return `<a class="tray" href="#/inbox">
-    <span class="tray-stack" aria-hidden="true"><i></i><i></i><b>${n}</b></span>
-    <span><strong>정리 대기 ${n}장</strong><span>${esc(sub)}</span></span>
-    ${icon('chevron')}
-  </a>`;
+function QuickCapture() {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [drag, setDrag] = useState(false);
+  const ref = useRef();
+  const submit = async () => {
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    try {
+      const n = await saveQuick(text);
+      setText('');
+      if (ref.current) { ref.current.value = ''; autosize(ref.current); }
+      toast('인박스에 저장했어요.', { action: '열기', onAction: () => go(noteHref(n.id)) });
+    } catch (e) { toast(e.message); }
+    setBusy(false);
+  };
+  const onPaste = (e) => {
+    const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
+    if (files.length) { e.preventDefault(); e.stopPropagation(); capturePhotos(files, text); setText(''); }
+  };
+  return html`<div class=${`capture${drag ? ' drag' : ''}`}
+      onDragOver=${(e) => { e.preventDefault(); e.stopPropagation(); setDrag(true); }}
+      onDragLeave=${() => setDrag(false)}
+      onDrop=${(e) => { e.preventDefault(); e.stopPropagation(); setDrag(false); capturePhotos([...e.dataTransfer.files], text); setText(''); }}>
+    <textarea ref=${ref} rows="1" value=${text} aria-label="빠른 기록"
+      placeholder="떠오른 생각, 링크, 사고 싶은 것. 무엇이든 적어 두세요"
+      onInput=${(e) => { setText(e.target.value); autosize(e.target); }}
+      onPaste=${onPaste}
+      onKeyDown=${(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit(); } }}></textarea>
+    <div class="bar">
+      <button type="button" class="icon-btn" aria-label="사진 넣기" title="사진 넣기" onClick=${() => app.pickPhotos(text)}><${Icon} name="capture" /></button>
+      <button type="button" class="icon-btn" aria-label="링크 넣기" title="링크 넣기" onClick=${() => app.openLinkDialog()}><${Icon} name="link" /></button>
+      <span class="hint hide-m">↵ 저장, Shift ↵ 줄바꿈</span>
+      <button type="button" class="btn btn-primary" disabled=${!text.trim() || busy} onClick=${submit}>저장</button>
+    </div>
+  </div>`;
 }
 
-// 서랍을 누르면 살짝 당겨지는 움직임을 보여 준 뒤 들어간다
-function bindDrawers(el, ctx) {
-  on(el, 'click', '[data-drawer]', (e, a) => {
-    if (e.metaKey || e.ctrlKey || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    e.preventDefault();
-    a.classList.add('pulling');
-    setTimeout(() => ctx.go(a.getAttribute('href')), 220);
-  });
-}
+export function Home() {
+  const lib = useLib();
+  const inbox = lib.inbox();
+  const recent = lib.recent(12).filter((n) => n.meta.status !== 'inbox').slice(0, 8);
+  const folders = lib.folders();
+  const name = (app.profile?.name ?? '').split(' ')[0];
+  return html`
+    <${Topbar} crumbs=${[{ label: '홈' }]} />
+    <div class="page">
+      <div class="greet"><h1>${name ? `${name}님, ` : ''}${greeting()}</h1><p>${todayLabel()}</p></div>
+      <${QuickCapture} />
+      <div class="stats">
+        <a class="stat hot" href="#/inbox">인박스 <b>${inbox.length}</b></a>
+        <span class="stat">노트 <b>${lib.all.length}</b></span>
+        <span class="stat">폴더 <b>${folders.length}</b></span>
+        <button type="button" class="stat hide-m" onClick=${() => app.openPalette()}><${Icon} name="search" size=${14} />검색 <kbd>${modKey} K</kbd></button>
+      </div>
 
-export function home(ctx) {
-  const { lib } = ctx;
-  ctx.top({ home: true });
-  const drawers = lib.drawers();
-  const recent = lib.organized().slice(0, 8);
-  ctx.el.innerHTML = `
-    ${ctx.banner ?? ''}
-    ${trayHtml(lib, ctx)}
-    <div class="section-head"><h2>서랍</h2><span class="hint">${lib.organized().length}장</span></div>
-    ${drawers.length ? `<div class="cabinet">${drawers.map(drawerHtml).join('')}</div>` : `
-      <div class="empty"><h3>아직 서랍이 없어요</h3><p>카드를 넣으면 Claude가 정리하면서 "패션", "요리" 같은 서랍을 만들어요.</p><a class="btn primary" href="#/add">${icon('plus')}첫 카드 넣기</a></div>`}
-    ${recent.length ? `<div class="section-head"><h2>최근에 정리된 카드</h2><a href="#/s">모두 찾기</a></div>${cardsHtml(recent)}` : ''}
-  `;
-  bindDrawers(ctx.el, ctx);
-  hydrateThumbs(ctx.el, lib);
-}
+      ${inbox.length > 0 && html`<section class="section">
+        <div class="section-head"><h2>인박스</h2><a href="#/inbox">모두 보기</a></div>
+        <div class="rows">${inbox.slice(0, 4).map((n) => html`<${NoteRow} key=${n.id} note=${n} showFolder=${false} />`)}</div>
+      </section>`}
 
-export function inbox(ctx) {
-  const { lib } = ctx;
-  ctx.top({ title: '정리 대기', back: '#/' });
-  const items = lib.inbox();
-  ctx.el.innerHTML = `
-    <div class="page-head"><h1>정리 대기</h1>
-    <p>${ctx.mode === 'demo'
-      ? '체험 모드에서는 자동 정리가 돌지 않아요. 카드를 열어 직접 서랍을 정할 수 있어요.'
-      : 'Claude가 하루 몇 번 이 카드들을 읽고 제목, 요약, 태그를 붙여 서랍에 넣어요. 급하면 카드를 열어 직접 서랍을 정해도 돼요.'}</p></div>
-    ${items.length ? cardsHtml(items) : `<div class="empty"><h3>다 정리됐어요</h3><p>새로 넣은 카드는 여기서 정리를 기다려요.</p><a class="btn" href="#/add">${icon('plus')}카드 넣기</a></div>`}
-  `;
-  hydrateThumbs(ctx.el, lib);
-}
+      <section class="section">
+        <div class="section-head"><h2>최근 수정</h2></div>
+        ${recent.length
+          ? html`<div class="rows">${recent.map((n) => html`<${NoteRow} key=${n.id} note=${n} />`)}</div>`
+          : html`<${Empty} icon="memo" title="첫 노트를 남겨 보세요" text="위 칸에 적고 Enter를 누르면 인박스에 들어가요. 사진은 끌어다 놓거나 붙여 넣어도 돼요." />`}
+      </section>
 
-export function drawer(ctx, path) {
-  const { lib } = ctx;
-  const parts = categoryParts(path);
-  const name = parts.at(-1) ?? path;
-  const parent = parts.length > 1 ? parts.slice(0, -1).join('/') : null;
-  ctx.top({ title: name, back: parent ? `#/d/${encodeURIComponent(parent)}` : '#/' });
-  const node = (function find(list) {
-    for (const d of list) { if (d.path === path) return d; const f = find(d.children); if (f) return f; }
-    return null;
-  })(lib.drawers());
-  const notes = lib.inDrawer(path);
-  const subs = node?.children ?? [];
-  ctx.el.innerHTML = `
-    <div class="page-head"><h1>${esc(name)}</h1><p>${esc(parts.join(' / '))} 서랍, 카드 ${notes.length}장</p></div>
-    ${subs.length ? `<div class="cabinet">${subs.map(drawerHtml).join('')}</div><div class="section-head"><h2>${esc(name)}의 모든 카드</h2></div>` : ''}
-    ${notes.length ? cardsHtml(notes) : '<div class="empty"><h3>빈 서랍이에요</h3><p>이 서랍에 맞는 카드가 들어오면 여기에 보여요.</p></div>'}
-    <p class="hint" style="margin-top:22px">찾기에서 <code>서랍:${esc(name)}</code>을 붙이면 이 서랍 안에서만 찾아요.</p>
-  `;
-  bindDrawers(ctx.el, ctx);
-  hydrateThumbs(ctx.el, lib);
+      ${folders.length > 0 && html`<section class="section">
+        <div class="section-head"><h2>폴더</h2></div>
+        <div class="folder-grid">${folders.map((f) => {
+          const notes = lib.inFolder(f.path).slice(0, 3);
+          return html`<a class="fcard" key=${f.path} href=${folderHref(f.path)}>
+            <div class="top"><${Icon} name="folder" />${f.name}<span class="n">${f.count}</span></div>
+            <ul>${notes.map((n) => html`<li key=${n.id}>${titleOf(n)}</li>`)}</ul>
+          </a>`;
+        })}</div>
+      </section>`}
+    </div>`;
 }

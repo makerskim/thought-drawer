@@ -158,3 +158,11 @@ test('sentence questions use the small thesaurus', () => {
   assert.equal(r[0].note.meta.id, '3', 'wishlist + clothes ranks first');
   assert.deepEqual(tokenize('10분 만에 할 수 있는 요리'), ['10분', '요리']);
 });
+
+test('mergeLinksSection matches python behaviour', async () => {
+  const { mergeLinksSection } = await import('../js/core/note.js');
+  const body = '본문\n\n## 연결\n\n- [[20260101000000 가]] (이유)\n';
+  const out = mergeLinksSection(body, [['20260101000000', '가', '중복'], ['20260102000000', '나', '']]);
+  assert.equal(out, '본문\n\n## 연결\n\n- [[20260101000000 가]] (이유)\n- [[20260102000000 나]]\n');
+  assert.equal(mergeLinksSection('글', [['20260103000000', '다/라', '같은 주제']]), '글\n\n## 연결\n\n- [[20260103000000 다 라]] (같은 주제)\n');
+});

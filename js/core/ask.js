@@ -1,5 +1,5 @@
-// "질문하기": 기기 안에서 관련 카드를 찾아 서랍별로 묶어 보여주고,
-// 더 깊은 답이 필요하면 관련 카드 요약을 붙인 질문을 Claude 앱으로 넘긴다(구독 사용, API 비용 없음).
+// "묻기": 기기 안에서 관련 노트를 찾아 폴더별로 묶어 보여주고,
+// 더 깊은 답이 필요하면 관련 노트 요약을 붙인 질문을 Claude 앱으로 넘긴다(구독 사용, API 비용 없음).
 
 import { search, parseQuery } from './search.js';
 import { displayTitle, TYPES } from './note.js';
@@ -23,20 +23,20 @@ const MAX_PROMPT = 5500;
 
 export function buildClaudePrompt(question, results) {
   const head = [
-    '아래는 내 메모 앱 "생각서랍"에 저장된 카드 중 질문과 관련된 것들이야.',
-    '이 카드들만 근거로 질문에 답해줘. 답할 때 근거가 된 카드 번호를 [번호]로 붙여줘.',
-    '카드에 없는 내용은 추측이라고 밝혀줘.',
+    '아래는 내 노트 앱 "Thought Drawer"에 저장된 노트 중 질문과 관련된 것들이야.',
+    '이 노트들만 근거로 질문에 답해줘. 답할 때 근거가 된 노트 번호를 [번호]로 붙여줘.',
+    '노트에 없는 내용은 추측이라고 밝혀줘.',
     '',
     `질문: ${question}`,
     '',
-    '카드:',
+    '노트:',
   ].join('\n');
   let text = head;
   results.forEach((r, i) => {
     const m = r.note.meta;
     const parts = [
       `[${i + 1}] ${displayTitle(m, r.note.body ?? r.note.snippet)}`,
-      `서랍: ${m.category || '정리 대기'}`,
+      `폴더: ${m.category || '인박스'}`,
       `종류: ${TYPES[m.type] ?? m.type}`,
       m.tags?.length ? `태그: ${m.tags.join(', ')}` : '',
       m.summary ? `요약: ${m.summary}` : '',

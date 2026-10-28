@@ -1,0 +1,74 @@
+// 앱 전체가 함께 쓰는 것: 라이브러리, 로그인, 설정값, 알림, 떠 있는 창
+import { useState, useEffect } from './h.js';
+
+export const app = {
+  lib: null,
+  auth: null,
+  profile: null,
+  // 화면이 여는 창들 (App이 채운다)
+  openPalette: () => {},
+  openLinkDialog: () => {},
+  pickPhotos: () => {},
+  reconnect: () => {},
+};
+
+// 라이브러리가 바뀔 때마다 다시 그리게 한다
+export function useLib() {
+  const [, set] = useState(0);
+  useEffect(() => app.lib?.onChange(() => set((x) => x + 1)), [app.lib]);
+  return app.lib;
+}
+
+// ---- 설정값 (이 기기에만) ----
+const PREFIX = 'td.';
+export const prefs = {
+  get(key, fallback = null) {
+    try { const v = localStorage.getItem(PREFIX + key); return v == null ? fallback : JSON.parse(v); } catch { return fallback; }
+  },
+  set(key, value) {
+    try { value == null ? localStorage.removeItem(PREFIX + key) : localStorage.setItem(PREFIX + key, JSON.stringify(value)); } catch { /* 저장 불가 */ }
+  },
+};
+
+export function usePref(key, fallback) {
+  const [v, setV] = useState(() => prefs.get(key, fallback));
+  return [v, (nv) => { prefs.set(key, nv); setV(nv); }];
+}
+
+export function applyAppearance() {
+  const root = document.documentElement;
+  const theme = prefs.get('theme', '');
+  const font = prefs.get('font', '');
+  if (theme) root.dataset.theme = theme; else delete root.dataset.theme;
+  if (font) root.dataset.font = font; else delete root.dataset.font;
+}
+
+// ---- 알림 ----
+let toasts = [];
+let seq = 0;
+const toastSubs = new Set();
+const emitToasts = () => toastSubs.forEach((fn) => fn([...toasts]));
+
+export function toast(message, { action, onAction, duration = 3200, busy = false } = {}) {
+  const id = ++seq;
+  let timer;
+  const close = () => { clearTimeout(timer); toasts = toasts.filter((t) => t.id !== id); emitToasts(); };
+  const arm = (ms) => { clearTimeout(timer); if (ms) timer = setTimeout(close, ms); };
+  toasts = [...toasts.slice(-2), { id, message, action, onAction: () => { close(); onAction?.(); }, busy }];
+  emitToasts();
+  arm(busy ? 0 : duration);
+  return {
+    update(msg, opts = {}) {
+      toasts = toasts.map((t) => (t.id === id ? { ...t, message: msg, busy: opts.busy ?? false, action: opts.action, onAction: () => { close(); opts.onAction?.(); } } : t));
+      emitToasts();
+      arm(opts.busy ? 0 : (opts.duration ?? 3200));
+    },
+    close,
+  };
+}
+
+export function useToasts() {
+  const [list, setList] = useState(toasts);
+  useEffect(() => { toastSubs.add(setList); return () => toastSubs.delete(setList); }, []);
+  return list;
+}
