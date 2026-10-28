@@ -9,20 +9,58 @@ const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 const FOLDER = 'application/vnd.google-apps.folder';
 const FIELDS = 'id,name,parents,mimeType,modifiedTime,size';
 
+// 드라이브 오류를 사람이 고칠 수 있는 원인으로 나눈다
+export class DriveError extends Error {
+  constructor(code, message, detail = '') {
+    super(message);
+    this.code = code;
+    this.detail = detail;
+  }
+}
+
+export function driveError(status, body) {
+  const err = body?.error ?? {};
+  const reasons = [
+    ...(err.errors ?? []).map((x) => x.reason),
+    ...(err.details ?? []).map((x) => x.reason),
+    err.status,
+  ].filter(Boolean).join(' ');
+  const detail = `${status} ${reasons} ${err.message ?? ''}`.trim();
+  if (/accessNotConfigured|SERVICE_DISABLED|has not been used in project|is disabled/i.test(detail)) {
+    const project = /project[= ](\d+)/.exec(err.message ?? '')?.[1];
+    const e = new DriveError('api_disabled', '구글 클라우드에서 Google Drive API가 꺼져 있어요.', detail);
+    e.project = project;
+    return e;
+  }
+  if (/insufficient|SCOPE_INSUFFICIENT|insufficientPermissions/i.test(detail)) {
+    return new DriveError('scope', '드라이브 권한이 허용되지 않았어요.', detail);
+  }
+  if (status === 429 || /rateLimit|userRateLimitExceeded/i.test(detail)) {
+    return new DriveError('rate', '드라이브가 잠시 바빠요. 조금 뒤에 다시 시도해 주세요.', detail);
+  }
+  if (status === 404) return new DriveError('not_found', '파일을 찾지 못했어요. 지워졌을 수 있어요.', detail);
+  return new DriveError('other', `드라이브 요청이 실패했어요 (${status}).`, detail);
+}
+
 export function createDriveAdapter(auth) {
   let rootId = null;
   const dirIds = new Map(); // '패션/상의' → folderId ('' = 메모 폴더)
   const dirOf = new Map(); // folderId → path
+  let listed = false; // list()로 폴더를 모두 읽었으면 없는 폴더는 정말 없는 것
 
   async function call(url, opts = {}, kind = 'json') {
-    const res = await fetch(url, { ...opts, headers: { ...(opts.headers ?? {}), Authorization: `Bearer ${auth.token()}` } });
+    let res;
+    try {
+      res = await fetch(url, { ...opts, headers: { ...(opts.headers ?? {}), Authorization: `Bearer ${auth.token()}` } });
+    } catch (err) {
+      if (err instanceof AuthRequired) throw err;
+      throw new DriveError('network', '인터넷에 연결되지 않았어요.', String(err?.message ?? err));
+    }
     if (res.status === 401) { auth.expire(); throw new AuthRequired(); }
     if (!res.ok) {
-      let msg = `드라이브 요청이 실패했어요 (${res.status}).`;
-      try { const j = await res.json(); if (j?.error?.message) msg += ` ${j.error.message}`; } catch { /* 본문 없음 */ }
-      const e = new Error(msg);
-      e.status = res.status;
-      throw e;
+      let j = null;
+      try { j = await res.json(); } catch { /* 본문 없음 */ }
+      throw driveError(res.status, j);
     }
     if (kind === 'none' || res.status === 204) return null;
     return kind === 'blob' ? res.blob() : kind === 'text' ? res.text() : res.json();
@@ -67,6 +105,12 @@ export function createDriveAdapter(auth) {
     return f.id;
   }
 
+  // 전체 목록을 읽기 전(크롬 확장 프로그램 등)에도 같은 이름 폴더를 두 번 만들지 않도록 먼저 찾아본다
+  async function findChild(name, parentId) {
+    const q = `name='${name.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}' and '${parentId}' in parents and mimeType='${FOLDER}' and trashed=false`;
+    return (await listAll(q))[0] ?? null;
+  }
+
   async function ensureDir(path) {
     if (dirIds.has(path)) return dirIds.get(path);
     const parts = path.split('/').filter(Boolean);
@@ -75,7 +119,7 @@ export function createDriveAdapter(auth) {
     for (const part of parts) {
       cur = cur ? `${cur}/${part}` : part;
       if (!dirIds.has(cur)) {
-        const f = await createFolder(part, parentId);
+        const f = (listed ? null : await findChild(part, parentId)) ?? await createFolder(part, parentId);
         dirIds.set(cur, f.id);
         dirOf.set(f.id, cur);
       }
@@ -113,6 +157,7 @@ export function createDriveAdapter(auth) {
         return p;
       };
       folders.forEach((f) => pathOf(f.id));
+      listed = true;
       const files = await listAll(`mimeType!='${FOLDER}' and trashed=false`);
       return {
         dirs: [...dirIds.keys()].filter(Boolean),
@@ -160,5 +205,6 @@ export function createDriveAdapter(auth) {
       }
     },
     canOcr: true,
+    mkdir: (path) => ensureDir(path),
   };
 }

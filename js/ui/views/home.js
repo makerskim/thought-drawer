@@ -1,7 +1,8 @@
 // 홈: 인사, 빠른 기록, 인박스, 최근 노트, 폴더
 import { html, useState, useRef, autosize } from '../h.js';
 import { Icon } from '../icons.js';
-import { app, useLib, toast } from '../state.js';
+import { app, useLib, usePref, toast } from '../state.js';
+import { isStandalone } from '../../store/auth.js';
 import { go, noteHref, folderHref } from '../router.js';
 import { Topbar } from '../parts/shell.js';
 import { NoteRow, Empty, titleOf } from '../parts/common.js';
@@ -11,14 +12,15 @@ import { capturePhotos } from '../capture.js';
 const URL_RE = /^(https?:\/\/\S+)\s*([\s\S]*)$/i;
 
 // 한 줄이면 내용만, 여러 줄이면 첫 줄을 제목으로 쓴다. 주소로 시작하면 링크 노트.
-export async function saveQuick(text) {
+// extra: 어디서 넣었는지(via) 같은 머리말 값
+export async function saveQuick(text, extra = {}) {
   const t = text.trim();
   if (!t) return null;
   const m = URL_RE.exec(t);
-  if (m) return app.lib.addLink(m[1], m[2]);
+  if (m) return app.lib.addLink(m[1], m[2], '', extra);
   const lines = t.split('\n');
-  if (lines.length > 1 && lines[0].length <= 60) return app.lib.create({ type: 'memo', title: lines[0].trim(), body: lines.slice(1).join('\n').trim() });
-  return app.lib.create({ type: 'memo', body: t });
+  if (lines.length > 1 && lines[0].length <= 60) return app.lib.create({ type: 'memo', title: lines[0].trim(), body: lines.slice(1).join('\n').trim(), ...extra });
+  return app.lib.create({ type: 'memo', body: t, ...extra });
 }
 
 function QuickCapture() {
@@ -59,6 +61,36 @@ function QuickCapture() {
   </div>`;
 }
 
+// 처음 쓰는 사람을 위한 할 일. 드라이브에 남은 흔적(어디서 넣은 노트인지 등)으로 끝냈는지 안다.
+function Starter() {
+  const lib = useLib();
+  const [hidden, setHidden] = usePref('starterHidden', false);
+  if (hidden || !lib.state.synced) return null;
+  const all = lib.all;
+  const steps = [
+    { key: 'first', done: all.length > 0, icon: 'memo', title: '첫 노트 넣기', text: '위 칸에 적고 Enter. 사진은 붙여 넣거나 끌어다 놓아요.', onClick: () => document.querySelector('.capture textarea')?.focus() },
+    { key: 'phone', done: isStandalone() || all.some((n) => n.meta.via === 'phone'), icon: 'phone', title: '폰에 설치하기', text: '공유 버튼으로 인스타, 사진, 링크를 바로 넣어요.', href: '#/connect' },
+    { key: 'chrome', done: all.some((n) => n.meta.via === 'chrome'), icon: 'puzzle', title: '크롬 확장 프로그램', text: '보는 페이지와 화면 캡처를 버튼 하나로 넣어요.', href: '#/connect' },
+    { key: 'insta', done: all.some((n) => n.meta.type === 'instagram'), icon: 'instagram', title: '인스타 저장함 가져오기', text: '저장해 둔 릴스와 게시물을 한 번에 넣어요.', href: '#/import' },
+    { key: 'auto', done: !!lib.index?.generatedAt, icon: 'sparkle', title: '자동 정리 켜기', text: 'Claude가 폴더, 태그, 연결을 붙여요.', href: '#/settings' },
+  ];
+  const done = steps.filter((x) => x.done).length;
+  if (done === steps.length) return null;
+  return html`<section class="starter" aria-label="시작하기">
+    <div class="starter-head">
+      <h2>시작하기</h2>
+      <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax=${steps.length} aria-valuenow=${done}><i style=${`width:${(done / steps.length) * 100}%`}></i></div>
+      <span class="num">${done}/${steps.length}</span>
+      <button type="button" class="icon-btn" aria-label="시작하기 숨기기" title="숨기기" onClick=${() => setHidden(true)}><${Icon} name="x" /></button>
+    </div>
+    <div class="starter-list">${steps.filter((x) => !x.done).map((x) => html`<a key=${x.key} class="step" href=${x.href ?? '#/'}
+        onClick=${x.onClick ? (e) => { e.preventDefault(); x.onClick(); } : undefined}>
+      <span class="ic"><${Icon} name=${x.icon} /></span>
+      <b>${x.title}</b><span class="t">${x.text}</span>
+    </a>`)}</div>
+  </section>`;
+}
+
 export function Home() {
   const lib = useLib();
   const inbox = lib.inbox();
@@ -76,6 +108,7 @@ export function Home() {
         <span class="stat">폴더 <b>${folders.length}</b></span>
         <button type="button" class="stat hide-m" onClick=${() => app.openPalette()}><${Icon} name="search" size=${14} />검색 <kbd>${modKey} K</kbd></button>
       </div>
+      <${Starter} />
 
       ${inbox.length > 0 && html`<section class="section">
         <div class="section-head"><h2>인박스</h2><a href="#/inbox">모두 보기</a></div>

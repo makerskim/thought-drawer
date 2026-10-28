@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thought Drawer</title>
+  <link rel="stylesheet" href="popup.css">
+  <script type="module" src="popup.js"></script>
+</head>
+<body>
+  <header class="top">
+    <svg class="logo" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="1" y="1" width="30" height="30" rx="8" fill="var(--text)"/>
+      <rect x="6.5" y="7.5" width="19" height="7" rx="2" fill="var(--bg)"/>
+      <rect x="6.5" y="17.5" width="19" height="7" rx="2" fill="var(--bg)" opacity=".55"/>
+      <rect x="13" y="10.2" width="6" height="1.6" rx=".8" fill="var(--text)"/>
+      <rect x="13" y="20.2" width="6" height="1.6" rx=".8" fill="var(--text)"/>
+    </svg>
+    <b>Thought Drawer</b>
+    <span class="grow"></span>
+    <button type="button" class="icon-btn" id="open-app" title="앱 열기" aria-label="앱 열기" hidden></button>
+    <button type="button" class="avatar" id="account" aria-haspopup="menu" aria-expanded="false" hidden></button>
+  </header>
+  <main id="view" aria-live="polite"></main>
+</body>
+</html>

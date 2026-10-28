@@ -48,6 +48,10 @@ const P = {
   cloudOff: '<path d="M7 18.5h10a4 4 0 0 0 1-7.9A6 6 0 0 0 7.2 9 4.8 4.8 0 0 0 7 18.5z"/><path d="M4 4l16 16"/>',
   paste: '<rect x="5.5" y="4.5" width="13" height="16" rx="2"/><path d="M9 4.5V3h6v1.5M9 11h6M9 14.5h4"/>',
   arrowUpDown: '<path d="M8 4.5v15M4.5 8 8 4.5 11.5 8M16 19.5v-15M12.5 16l3.5 3.5 3.5-3.5"/>',
+  star: '<path d="m12 4 2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/>',
+  qr: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 14h2M14 18h2M18 18h2v2"/>',
+  phone: '<rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M11 17.5h2"/>',
+  puzzle: '<path d="M9 4.5h3.5v2a1.75 1.75 0 1 0 3.5 0v-2h3.5V8h-2a1.75 1.75 0 1 0 0 3.5h2v8H12.5v-2a1.75 1.75 0 1 0-3.5 0v2H4.5V12h2a1.75 1.75 0 1 0 0-3.5h-2V4.5z"/>',
   sun: '<circle cx="12" cy="12" r="3.8"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>',
 };
 

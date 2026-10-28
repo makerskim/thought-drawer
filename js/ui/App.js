@@ -1,7 +1,7 @@
 // 앱 뼈대: 로그인 → 기기 사본으로 바로 열기 → 드라이브와 맞추기. 그 위에 화면, 단축키, 붙여넣기·끌어다 놓기.
 import { html, useState, useEffect, useRef, cx } from './h.js';
 import { Icon } from './icons.js';
-import { app, usePref, toast } from './state.js';
+import { app, usePref, toast, setConn } from './state.js';
 import { useRoute, go, syncFromLocation } from './router.js';
 import { Sidebar, TabBar } from './parts/shell.js';
 import { Layers, Toasts, modal, closeAll } from './parts/layers.js';
@@ -10,13 +10,16 @@ import { capturePhotos, pickPhotos } from './capture.js';
 import { Home } from './views/home.js';
 import { Inbox, Folder, TagView, NotFound } from './views/lists.js';
 import { NoteView } from './views/note.js';
+import { preloadEditor } from './editor.js';
 import { Ask } from './views/ask.js';
 import { Graph } from './views/graph.js';
 import { Login, Settings, Import, Share, Paste } from './views/more.js';
+import { Connect } from './views/connect.js';
 import { createLibrary } from '../store/library.js';
 import { createDriveAdapter } from '../store/drive.js';
 import { createMemoryAdapter } from '../store/memory.js';
 import { AuthRequired } from '../store/auth.js';
+import { DriveError } from '../store/drive.js';
 
 const isTyping = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 const mobile = () => matchMedia('(max-width: 860px)').matches;
@@ -33,6 +36,7 @@ function Routes({ route, offline }) {
   if (path === '/ask') return html`<${Ask} key=${`ask:${seq}`} params=${params} />`;
   if (path === '/graph') return html`<${Graph} />`;
   if (path === '/import') return html`<${Import} />`;
+  if (path === '/connect') return html`<${Connect} />`;
   if (path === '/settings') return html`<${Settings} offline=${offline} />`;
   if (path === '/share') return html`<${Share} params=${params} />`;
   if (path === '/paste') return html`<${Paste} />`;
@@ -48,7 +52,6 @@ export function App({ auth }) {
   const [open, setOpen] = useState(false);
   const [veil, setVeil] = useState(false);
   const offline = useRef(null);
-  const connToast = useRef(null);
 
   app.auth = auth;
   app.toggleSidebar = () => (mobile() ? setOpen((o) => !o) : setCollapsed(!collapsed));
@@ -56,24 +59,25 @@ export function App({ auth }) {
   app.openLinkDialog = () => modal((close) => html`<${LinkDialog} close=${close} />`);
   app.pickPhotos = pickPhotos;
 
-  // 드라이브와 맞추기. 연결이 끊겼으면 아래에 다시 연결 알림을 띄운다.
+  // 드라이브와 맞추기. 문제가 있으면 원인과 고치는 버튼을 위쪽 띠에 보여 준다.
   const sync = async () => {
     if (!app.lib) return;
     try {
-      if (app.lib.adapter.kind === 'drive' && !auth.signedIn) throw new AuthRequired();
+      if (app.lib.adapter.kind === 'drive') {
+        if (!auth.signedIn) throw new AuthRequired();
+        if (!auth.hasDrive) throw new DriveError('scope', '드라이브 권한이 허용되지 않았어요.', 'granted scope: drive.file 없음');
+      }
       await app.lib.adapter.init();
       await app.lib.sync();
-      connToast.current?.close(); connToast.current = null;
+      setConn(null);
     } catch (e) {
-      connToast.current?.close();
-      connToast.current = e instanceof AuthRequired
-        ? toast('구글 연결이 만료됐어요. 다시 연결하면 바뀐 내용을 맞춰요.', { action: '다시 연결', duration: 0, onAction: () => app.reconnect() })
-        : toast('드라이브에 연결하지 못했어요. 지금은 이 기기의 사본을 보여 줘요.', { action: '다시 시도', duration: 0, onAction: () => sync() });
+      console.warn('[sync]', e);
+      setConn(e instanceof AuthRequired ? { code: 'auth', message: e.message } : { code: e.code ?? 'other', message: e.message, detail: e.detail ?? String(e), project: e.project });
     }
   };
   app.resync = sync;
-  app.reconnect = async () => {
-    try { await auth.signIn(); await sync(); } catch (e) { toast(e.message); }
+  app.reconnect = async (opts) => {
+    try { await auth.signIn(opts); await sync(); } catch (e) { toast(e.message); }
   };
   app.signOut = async () => {
     await app.lib?.clearCache();
@@ -112,6 +116,14 @@ export function App({ auth }) {
     try { await auth.signIn(); await openLibrary(); } catch (e) { setError(e.message); }
     setBusy(false);
   };
+
+  // 편집기는 커서 첫 화면에 필요 없어서, 화면이 뜬 뒤 쉬는 틈에 받아 둔다
+  useEffect(() => {
+    if (phase !== 'ready') return undefined;
+    const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 1500));
+    const id = idle(() => preloadEditor());
+    return () => (window.cancelIdleCallback ?? clearTimeout)(id);
+  }, [phase]);
 
   // 모바일 사이드바는 화면을 옮기면 닫는다
   useEffect(() => { setOpen(false); }, [route.hash]);
@@ -170,7 +182,9 @@ export function App({ auth }) {
     <div class=${cx('app', collapsed && 'side-closed', open && 'side-open')}>
       <${Sidebar} />
       <div class="scrim" onClick=${() => setOpen(false)}></div>
-      <main class="main" id="main"><${Routes} route=${route} offline=${offline.current} /></main>
+      <main class="main" id="main">
+        <${Routes} route=${route} offline=${offline.current} />
+      </main>
       <${TabBar} />
     </div>
     <${Layers} />

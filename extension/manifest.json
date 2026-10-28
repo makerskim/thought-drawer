@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Thought Drawer",
+  "short_name": "Thought Drawer",
+  "description": "보고 있는 페이지, 고른 글, 화면 캡처, 메모를 구글 드라이브 「메모」 폴더의 Thought Drawer 인박스에 넣어요.",
+  "version": "1.0.0",
+  "minimum_chrome_version": "116",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuPwwJG7NalTJOOXr00oN6XB2P7bxrU+w55Py4NAAvQOuRF/fyklAfW0IHbNMKDfNT8d4r4pdgcpNdTGe0EJB4hZPyuDHXE/cGG1o67pWd6M/qT3gvHIUYhcWJUWI7sXwiXYElYQJDl2L6dsK8N9h4wRFnCThPPZzQogmDuf5opCeuWt4ZUFm2Y2wwAG4cnz+nVy07sDEne0cf6AYpwlOdiZFc0k/N6F070x8SmKJBET74sq/ggiwDyomOvYezrb0QNVEgUuZS5hqbgyZdWz/c2ZgBIdr4MRCdmJ7yhLIj4B88XObreBjnBv/KYSsl8V+ennWEOrHi/MKew95MQOs7wIDAQAB",
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "action": {
+    "default_title": "Thought Drawer에 넣기",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icons/16.png", "32": "icons/32.png" }
+  },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "permissions": ["identity", "activeTab", "scripting", "contextMenus", "storage", "notifications"],
+  "host_permissions": ["https://www.googleapis.com/*", "https://oauth2.googleapis.com/*"],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Ctrl+Shift+Y", "mac": "Command+Shift+Y" },
+      "description": "넣기 창 열기"
+    },
+    "save-page": {
+      "suggested_key": { "default": "Alt+Shift+S", "mac": "Alt+Shift+S" },
+      "description": "보고 있는 페이지 바로 넣기"
+    }
+  }
+}

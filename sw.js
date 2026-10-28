@@ -14,6 +14,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(request.url);
   const same = url.origin === self.location.origin;
   if (!same && !FONTS.test(request.url)) return;
+  if (same && url.pathname.includes('/downloads/')) return; // 받기용 파일은 늘 새로 받는다
   e.respondWith((async () => {
     const cache = await caches.open(VERSION);
     if (same) {

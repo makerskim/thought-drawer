@@ -1,7 +1,8 @@
 // 구글 로그인. 앱이 만든 파일에만 접근하는 drive.file 권한만 받는다.
 // 일반 브라우저는 팝업, 아이폰 홈 화면 앱은 팝업이 막히기 쉬워 페이지 이동 방식으로 로그인한다.
 
-const SCOPES = 'https://www.googleapis.com/auth/drive.file openid email profile';
+export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const SCOPES = `${DRIVE_SCOPE} openid email profile`;
 const KEY = 'td.google';
 
 export class AuthRequired extends Error {
@@ -40,27 +41,28 @@ export function createAuth(clientId) {
     }
   }
 
-  function accept(token, expiresIn) {
-    state = { ...(state ?? {}), token, exp: Date.now() + Number(expiresIn || 3600) * 1000 };
+  // scope: 사용자가 실제로 허용한 권한 (구글 동의 화면에서 드라이브 체크를 뺄 수 있다)
+  function accept(token, expiresIn, scope) {
+    state = { ...(state ?? {}), token, exp: Date.now() + Number(expiresIn || 3600) * 1000, scope: scope ?? state?.scope ?? '' };
     write(state);
   }
 
-  async function signInPopup() {
+  async function signInPopup({ consent = false } = {}) {
     if (!window.google?.accounts?.oauth2) await loadScript('https://accounts.google.com/gsi/client');
     await new Promise((resolve, reject) => {
       const client = window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: SCOPES,
         login_hint: state?.email,
-        callback: (r) => (r.error ? reject(new Error(r.error_description || r.error)) : (accept(r.access_token, r.expires_in), resolve())),
-        error_callback: (e) => reject(new Error(e?.type === 'popup_closed' ? '로그인 창이 닫혔어요.' : '로그인 창을 열지 못했어요.')),
+        callback: (r) => (r.error ? reject(new Error(r.error_description || r.error)) : (accept(r.access_token, r.expires_in, r.scope), resolve())),
+        error_callback: (e) => reject(new Error(e?.type === 'popup_closed' ? '로그인 창이 닫혔어요.' : '로그인 창을 열지 못했어요. 팝업 차단을 풀어 주세요.')),
       });
-      client.requestAccessToken({ prompt: state?.email ? '' : 'consent' });
+      client.requestAccessToken({ prompt: consent || !state?.email ? 'consent' : '' });
     });
     await fetchProfile();
   }
 
-  function signInRedirect() {
+  function signInRedirect({ consent = false } = {}) {
     const p = new URLSearchParams({
       client_id: clientId,
       redirect_uri: location.origin + location.pathname,
@@ -70,11 +72,13 @@ export function createAuth(clientId) {
       state: 'td-login',
     });
     if (state?.email) p.set('login_hint', state.email);
+    if (consent) p.set('prompt', 'consent');
     location.assign(`https://accounts.google.com/o/oauth2/v2/auth?${p}`);
   }
 
   return {
     get configured() { return !!clientId; },
+    clientId,
     get profile() { return state && { email: state.email, name: state.name, picture: state.picture }; },
     get signedIn() { return valid(); },
     get everSignedIn() { return !!state?.email; },
@@ -83,14 +87,16 @@ export function createAuth(clientId) {
       if (!location.hash.includes('access_token=')) return false;
       const p = new URLSearchParams(location.hash.slice(1));
       if (p.get('state') !== 'td-login') return false;
-      accept(p.get('access_token'), p.get('expires_in'));
+      accept(p.get('access_token'), p.get('expires_in'), p.get('scope'));
       history.replaceState(null, '', location.pathname + location.search);
       await fetchProfile();
       return true;
     },
-    async signIn() {
-      if (isStandalone()) return signInRedirect();
-      return signInPopup();
+    // 드라이브 권한까지 허용했는지 (예전 로그인 기록에는 정보가 없으니 있다고 본다)
+    get hasDrive() { return !state?.scope || state.scope.includes(DRIVE_SCOPE); },
+    async signIn(opts = {}) {
+      if (isStandalone()) return signInRedirect(opts);
+      return signInPopup(opts);
     },
     signInRedirect,
     // 자동 정리기(Claude Code 예약 작업)용 오래가는 토큰 받기.

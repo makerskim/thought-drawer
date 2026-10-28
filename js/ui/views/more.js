@@ -196,7 +196,7 @@ export function Share({ params }) {
     const url = (params.get('url') ?? '').trim();
     const full = [url, text].filter(Boolean).join('\n').trim();
     if (!full) { go('#/paste', { replace: true }); return; }
-    saveQuick(full)
+    saveQuick(full, { via: 'phone' })
       .then((n) => { toast(isInstagramUrl(full) ? '인스타 게시물을 인박스에 넣었어요.' : '인박스에 저장했어요.'); go(noteHref(n.id), { replace: true }); })
       .catch((e) => setError(e.message));
   }, []);

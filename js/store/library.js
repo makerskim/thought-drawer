@@ -9,6 +9,7 @@ import {
 } from '../core/note.js';
 import { docFor, tokenize } from '../core/search.js';
 import { instagramToNote, postKey } from '../core/instagram.js';
+import { linkNote, captureBody, imageExt } from '../core/compose.js';
 import { openStore } from './idb.js';
 import { downscale } from './image.js';
 
@@ -278,6 +279,15 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
       if (meta.status === STATUS.organized && !meta.category) meta.status = STATUS.inbox;
       return write(full, { meta, body: changes.body ?? full.body });
     },
+    async createFolder(path) {
+      const clean = categoryParts(path).slice(0, 2).join('/');
+      if (!clean) throw new Error('폴더 이름을 적어 주세요.');
+      await adapter.mkdir(clean);
+      if (!dirs.includes(clean)) dirs = [...dirs, clean];
+      emit();
+      return clean;
+    },
+    pinned() { return lib.all.filter((n) => n.meta.pinned); },
     async moveTo(note, folder) {
       const cat = categoryParts(folder).join('/');
       return lib.update(note, { meta: { category: cat || undefined, status: cat ? STATUS.organized : STATUS.inbox } });
@@ -309,8 +319,7 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
       onStep?.('사진을 줄이는 중');
       const blob = await downscale(file);
       const draft = newNote({ type: 'capture', taken });
-      const ext = blob.type === 'image/svg+xml' ? 'svg' : blob.type === 'image/png' ? 'png' : 'jpg';
-      const attName = `${draft.meta.id}.${ext}`;
+      const attName = `${draft.meta.id}.${imageExt(blob.type)}`;
       onStep?.('드라이브에 올리는 중');
       const att = await adapter.uploadAttachment(blob, attName);
       attachments.set(attName, { id: att.id });
@@ -319,20 +328,19 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
         onStep?.('사진 속 글자를 읽는 중');
         try { ocr = await adapter.ocr(blob); } catch { ocr = ''; }
       }
-      const parts = [`![[${attName}]]`];
-      if (memo.trim()) parts.push('', memo.trim());
-      if (ocr) parts.push('', '## 사진 속 글자', '', ocr);
-      return write(null, { meta: { ...draft.meta, attachments: [attName] }, body: parts.join('\n') });
+      return write(null, { meta: { ...draft.meta, attachments: [attName] }, body: captureBody({ attName, memo, ocr }) });
     },
-    async addLink(url, memo = '', title = '') {
-      const ig = postKey(url);
-      if (ig) {
-        const { meta, body } = instagramToNote({ ...ig, author: '', savedAt: new Date(), collection: null }, taken);
-        if (memo.trim()) meta.thought = memo.trim();
-        return write(null, { meta, body });
-      }
-      const body = [`[${title || url}](${url})`, memo.trim() ? `\n${memo.trim()}` : ''].join('\n');
-      return lib.create({ type: 'bookmark', title, body, source: url });
+    // 노트 안에 넣을 사진만 올린다 (사진 노트를 따로 만들지 않음). 첨부 이름을 돌려준다.
+    async attach(file) {
+      const blob = await downscale(file);
+      const id = newNote({ taken: new Set(taken) }).meta.id;
+      const name = `${id}-${Math.random().toString(36).slice(2, 6)}.${imageExt(blob.type)}`;
+      const att = await adapter.uploadAttachment(blob, name);
+      attachments.set(name, { id: att.id });
+      return name;
+    },
+    async addLink(url, memo = '', title = '', extra = {}) {
+      return write(null, linkNote({ url, title, memo, taken, ...extra }));
     },
     // 이미 가져온 게시물은 건너뛴다
     async importInstagram(items, onProgress) {

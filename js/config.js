@@ -7,3 +7,8 @@ export const ROOT_FOLDER = '메모';
 export const INBOX_DIR = '00_인박스';
 export const ATTACH_DIR = '_첨부';
 export const SYSTEM_DIR = '_시스템';
+
+// 앱 주소와 크롬 확장 프로그램 번호 (확장 프로그램의 구글 로그인 돌아올 주소에 쓰인다)
+export const APP_URL = 'https://makerskim.github.io/thought-drawer/';
+export const EXTENSION_ID = 'fifpgndooniiilnpibpjfkchpfmkppen';
+export const EXTENSION_ZIP = 'downloads/thought-drawer-chrome.zip';

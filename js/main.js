@@ -1,7 +1,7 @@
 // Thought Drawer 시작점
 import { html, render } from './ui/h.js';
 import { App } from './ui/App.js';
-import { applyAppearance } from './ui/state.js';
+import { app, applyAppearance } from './ui/state.js';
 import { createAuth } from './store/auth.js';
 import { GOOGLE_CLIENT_ID } from './config.js';
 
@@ -13,6 +13,13 @@ function adoptShareQuery() {
   const target = q.has('paste') ? '#/paste' : `#/share?${q}`;
   try { history.replaceState(null, '', location.pathname + target); } catch { location.hash = target; }
 }
+
+// 안드로이드 크롬의 "앱 설치" 제안을 받아 두었다가 버튼으로 띄운다
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  app.installPrompt = e;
+  window.dispatchEvent(new Event('td-installable'));
+});
 
 applyAppearance();
 adoptShareQuery();

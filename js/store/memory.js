@@ -2,6 +2,7 @@
 // window.__TD_TEST__ = { files: [{ dir, name, text | dataUrl }] } 로 내용을 넣는다.
 
 import { INBOX_DIR } from '../config.js';
+import { DriveError } from './drive.js';
 
 export function createMemoryAdapter(seed = {}) {
   const files = new Map();
@@ -30,7 +31,10 @@ export function createMemoryAdapter(seed = {}) {
     kind: 'memory',
     canOcr: false,
     async init() { return { name: seed.name ?? '테스트', email: seed.email ?? 'test@example.com' }; },
-    async list() { return { dirs: [...dirs], files: [...files.values()].map(pub) }; },
+    async list() {
+      if (seed.fail) throw new DriveError(seed.fail, '시험용 오류', `test ${seed.fail}`);
+      return { dirs: [...dirs], files: [...files.values()].map(pub) };
+    },
     async readText(id) { const f = files.get(id); if (!f) throw new Error('없는 파일'); return typeof f.data === 'string' ? f.data : f.data.text(); },
     async readBlob(id) { return files.get(id).data; },
     async writeNote({ id, dir, name, text }) {
@@ -42,5 +46,6 @@ export function createMemoryAdapter(seed = {}) {
     async untrash(id) { files.set(id, trashed.get(id)); trashed.delete(id); },
     async uploadAttachment(blob, name) { return pub(add('_첨부', name, blob, blob.type)); },
     async ocr() { return ''; },
+    async mkdir(path) { dirs.add(path); },
   };
 }

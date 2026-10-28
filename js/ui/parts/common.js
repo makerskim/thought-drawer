@@ -40,12 +40,14 @@ export function useThumb(name) {
   return [ref, url];
 }
 
-export function NoteRow({ note, showFolder = true, right, hl }) {
+export function NoteRow({ note, showFolder = true, right, hl, selectable = false, selected = false, onSelect }) {
   const m = note.meta;
   const sub = m.summary || note.snippet || '';
   const t = titleOf(note);
-  return html`<div class="row">
-    <${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} />
+  return html`<div class=${`row${selectable ? ' selectable' : ''}${selected ? ' selected' : ''}`}>
+    ${selectable
+      ? html`<label class="pick" title="고르기"><input type="checkbox" checked=${selected} onChange=${(e) => onSelect?.(e.target.checked)} aria-label=${`${t} 고르기`} /><${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} /></label>`
+      : html`<${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} />`}
     <a class="t" href=${noteHref(note.id)}>
       <b>${hl ? hl(t) : t}</b>
       ${sub && sub !== t && html`<span>${hl ? hl(sub) : sub}</span>`}

@@ -1,15 +1,16 @@
-// 노트 화면: 제목, 속성(폴더·태그·출처·날짜), Claude 요약, 내 생각, 본문(누르면 편집, 자동 저장),
+// 노트 화면: 제목, 속성(폴더·태그·출처·날짜), Claude 요약, 내 생각, 본문(바로 쓰는 편집기, 자동 저장),
 // 오른쪽 패널(연결, 비슷한 노트). /new 는 아무것도 적기 전까지 파일을 만들지 않는다.
 import { html, useState, useEffect, useLayoutEffect, useRef, useCallback, autosize } from '../h.js';
 import { Icon, TYPE_ICON } from '../icons.js';
 import { app, useLib, usePref, toast } from '../state.js';
 import { go, setUrl, noteHref, folderHref } from '../router.js';
 import { Topbar, SaveState } from '../parts/shell.js';
-import { Tag, MenuItem, Empty, titleOf } from '../parts/common.js';
+import { Tag, MenuItem, Empty, SkeletonRows, titleOf } from '../parts/common.js';
 import { popover, modal } from '../parts/layers.js';
 import { FolderPicker, Lightbox, ConfirmDialog } from '../parts/dialogs.js';
-import { renderMarkdown, hydrate, withoutLinks } from '../render.js';
-import { categoryParts } from '../../core/note.js';
+import { NoteEditor } from '../editor.js';
+import { splitLinks, joinLinks } from '../../core/wiki.js';
+import { categoryParts, embeds } from '../../core/note.js';
 import { relTime, fullDate, KIND_LABEL } from '../format.js';
 
 function Grow({ value, onInput, class: cls, placeholder, onKeyDown, inputRef, label, autofocus }) {
@@ -70,60 +71,45 @@ function Links({ note }) {
     </div>`}`;
 }
 
-function Body({ note, body, setBody, editing, setEditing }) {
-  const lib = useLib();
-  const viewRef = useRef();
-  const edRef = useRef();
-  const shown = withoutLinks(body);
-  useEffect(() => {
-    if (!editing && viewRef.current) hydrate(viewRef.current, lib, (src) => modal((close) => html`<${Lightbox} src=${src} close=${close} />`));
-  });
-  // 편집으로 바뀌는 그 순간 바로 커서를 옮긴다 (다음 글자가 제목에 들어가지 않게)
-  useLayoutEffect(() => {
-    if (editing && edRef.current) { const el = edRef.current; el.focus(); el.setSelectionRange(el.value.length, el.value.length); autosize(el); }
-  }, [editing]);
-  if (editing) {
-    return html`<div>
-      <${Grow} inputRef=${edRef} class="editor" value=${body} onInput=${setBody} label="본문"
-        placeholder="여기에 쓰세요. 마크다운을 쓸 수 있고, [[노트 제목]]으로 다른 노트를 이어요."
-        onKeyDown=${(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setEditing(false); } }} />
-      <div class="edit-hint"><span>Esc 보기로 돌아가기</span><span># 제목, - 목록, **굵게**, [[노트 잇기]]</span></div>
-    </div>`;
-  }
-  const onClick = (e) => { if (!e.target.closest('a, img')) setEditing(true); };
-  return html`<div ref=${viewRef} class=${`prose body-view${shown ? '' : ' empty'}`} tabindex="0" role="button" aria-label="본문 편집"
-    data-placeholder="여기를 눌러 내용을 쓰세요."
-    onClick=${onClick} onKeyDown=${(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) { e.preventDefault(); setEditing(true); } }}
-    dangerouslySetInnerHTML=${{ __html: shown ? renderMarkdown(shown, lib) : '' }}></div>`;
-}
-
 export function NoteView({ id, params }) {
   const lib = useLib();
   const [noteId, setNoteId] = useState(id === 'new' ? null : id);
   const note = noteId ? lib.get(noteId) : null;
-  const [loaded, setLoaded] = useState(!note || note.body !== undefined);
+  // 아직 못 불러온 노트는 내용이 들어온 뒤에 편집기를 연다 (빈 편집기에 쓰다 내용이 덮이지 않게)
+  const [loaded, setLoaded] = useState(!noteId || (!!note && note.body !== undefined));
+  const seeded = useRef(!noteId || !!note);
   const [title, setTitle] = useState(note?.meta.title ?? params?.get('title') ?? '');
-  const [body, setBody] = useState(note?.body ?? '');
+  const [main, setMain] = useState(splitLinks(note?.body).main);
   const [thought, setThought] = useState(note?.meta.thought ?? '');
-  const [editing, setEditing] = useState(false);
   const [saveState, setSaveState] = useState(null);
   const [panel, setPanel] = usePref('panel', true);
   const dirty = useRef(false);
   const queue = useRef(Promise.resolve());
   const latest = useRef({});
-  latest.current = { title, body, thought, noteId };
+  const editorRef = useRef(null);
+  const wantBody = useRef(false); // 편집기가 아직 준비 중일 때 제목에서 Enter를 누르면 준비되는 대로 옮긴다
+  const focusBody = () => { if (editorRef.current) editorRef.current.commands.focus('start'); else wantBody.current = true; };
+  latest.current = { title, main, thought, noteId };
 
   // 본문이 아직 없으면(색인에서만 읽은 노트) 드라이브에서 가져온다
   useEffect(() => {
-    if (!note || note.body !== undefined) { setLoaded(true); return; }
-    lib.ensureBody(note).then((n) => { setBody(n.body ?? ''); setTitle(n.meta.title ?? ''); setThought(n.meta.thought ?? ''); setLoaded(true); })
+    if (!note) return;
+    if (!seeded.current) {
+      seeded.current = true;
+      setTitle(note.meta.title ?? '');
+      setThought(note.meta.thought ?? '');
+      if (note.body !== undefined) setMain(splitLinks(note.body).main);
+    }
+    if (note.body !== undefined) { setLoaded(true); return; }
+    lib.ensureBody(note).then((n) => { setMain(splitLinks(n.body).main); setTitle(n.meta.title ?? ''); setThought(n.meta.thought ?? ''); setLoaded(true); })
       .catch((e) => { toast(e.message); setLoaded(true); });
-  }, [noteId]);
+  }, [noteId, !!note]);
 
   // 다른 기기에서 바뀐 내용은, 내가 고치는 중이 아닐 때만 받아들인다
   useEffect(() => {
     if (!note || dirty.current || note.body === undefined) return;
-    if (note.body !== body) setBody(note.body);
+    const fresh = splitLinks(note.body).main;
+    if (fresh !== main) setMain(fresh);
     if ((note.meta.title ?? '') !== title) setTitle(note.meta.title ?? '');
     if ((note.meta.thought ?? '') !== thought) setThought(note.meta.thought ?? '');
   }, [note?.modifiedTime]);
@@ -131,20 +117,23 @@ export function NoteView({ id, params }) {
   const flush = useCallback(() => {
     if (!dirty.current) return queue.current;
     dirty.current = false;
-    const { title: t, body: b, thought: th, noteId: nid } = latest.current;
+    const { title: t, main: mn, thought: th, noteId: nid } = latest.current;
     setSaveState('saving');
     queue.current = queue.current.then(async () => {
       try {
         if (!nid) {
-          if (!t.trim() && !b.trim() && !th.trim()) { setSaveState(null); return; }
-          const n = await lib.create({ type: 'memo', title: t.trim(), body: b, thought: th.trim() || undefined });
+          if (!t.trim() && !mn.trim() && !th.trim()) { setSaveState(null); return; }
+          const atts = embeds(mn);
+          const n = await lib.create({ type: 'memo', title: t.trim(), body: joinLinks(mn, ''), thought: th.trim() || undefined, attachments: atts.length ? atts : undefined });
           setNoteId(n.id);
           latest.current.noteId = n.id;
           setUrl(noteHref(n.id));
         } else {
           const cur = lib.get(nid);
           if (!cur) return;
-          await lib.update(cur, { meta: { title: t.trim(), thought: th.trim() }, body: b });
+          // 연결 목록은 그 사이 바뀌었을 수 있으니 지금 파일의 것을 붙인다
+          const body = joinLinks(mn, splitLinks(cur.body).links);
+          await lib.update(cur, { meta: { title: t.trim(), thought: th.trim(), attachments: embeds(body) }, body });
         }
         setSaveState(dirty.current ? 'saving' : 'saved');
       } catch (e) {
@@ -173,6 +162,9 @@ export function NoteView({ id, params }) {
     return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('visibilitychange', onLeave); };
   }, []);
 
+  if (noteId && !note && !lib.state.synced && !lib.state.error) {
+    return html`<${Topbar} crumbs=${[{ label: '노트' }]} /><div class="page narrow"><${SkeletonRows} n=${4} /></div>`;
+  }
   if (noteId && !note) {
     return html`<${Topbar} crumbs=${[{ label: '노트' }]} /><div class="page narrow"><${Empty} icon="alert" title="노트를 찾지 못했어요" text="지워졌거나 아직 불러오지 못했어요."><button type="button" class="btn" onClick=${() => go('#/')}>홈으로</button></${Empty}></div>`;
   }
@@ -209,7 +201,10 @@ export function NoteView({ id, params }) {
         toast('노트를 지웠어요.', { action: '되돌리기', duration: 6000, onAction: async () => { await undo(); go(noteHref(n.id)); } });
       } catch (e) { toast(e.message); }
     }} />`);
+  const pinned = !!m.pinned;
+  const togglePin = () => update({ pinned: pinned ? undefined : true }).then(() => toast(pinned ? '즐겨찾기에서 뺐어요.' : '즐겨찾기에 넣었어요.'));
   const more = (anchor) => popover(anchor, (close) => html`
+    <${MenuItem} icon="star" label=${pinned ? '즐겨찾기에서 빼기' : '즐겨찾기에 넣기'} onClick=${() => { close(); togglePin(); }} />
     <${MenuItem} icon="folder" label="폴더 옮기기" onClick=${() => { close(); pickFolder(anchor); }} />
     ${m.source && html`<${MenuItem} icon="external" label="원문 열기" onClick=${() => { close(); window.open(m.source, '_blank', 'noopener'); }} />`}
     <${MenuItem} icon="copy" label="노트 링크 복사" onClick=${async () => { close(); try { await navigator.clipboard.writeText(location.href); toast('링크를 복사했어요.'); } catch { toast('복사하지 못했어요.'); } }} />
@@ -219,6 +214,7 @@ export function NoteView({ id, params }) {
   return html`
     <${Topbar} crumbs=${crumbs} right=${html`
       <${SaveState} state=${saveState} />
+      ${note && html`<button type="button" class=${`icon-btn${pinned ? ' starred' : ''}`} aria-pressed=${pinned} aria-label="즐겨찾기" title="즐겨찾기" onClick=${togglePin}><${Icon} name="star" /></button>`}
       <button type="button" class="icon-btn hide-m" aria-pressed=${panel} aria-label="연결 패널" title="연결 패널" onClick=${() => setPanel(!panel)}><${Icon} name="panel" /></button>
       <button type="button" class="icon-btn" aria-label="더 보기" onClick=${(e) => more(e.currentTarget)}><${Icon} name="more" /></button>`} />
     <div class="note-wrap">
@@ -226,7 +222,7 @@ export function NoteView({ id, params }) {
         <article class="note-page">
           <div class="note-icon"><${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} /></div>
           <${Grow} class="note-title" value=${title} onInput=${change(setTitle)} placeholder=${note ? titleOf(note) : '제목 없음'} label="제목" autofocus=${!noteId}
-            onKeyDown=${(e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); setEditing(true); } }} />
+            onKeyDown=${(e) => { if ((e.key === 'Enter' || e.key === 'ArrowDown') && !e.isComposing) { e.preventDefault(); focusBody(); } }} />
           <div class="props">
             <${Prop} icon="folder" label="폴더">
               <button type="button" class="val-btn" onClick=${(e) => pickFolder(e.currentTarget)}>
@@ -245,13 +241,16 @@ export function NoteView({ id, params }) {
           </div></div>
           <div class="divider"></div>
           ${loaded
-            ? html`<${Body} note=${note} body=${body} setBody=${change(setBody)} editing=${editing} setEditing=${setEditing} />`
+            ? html`<${NoteEditor} noteId=${noteId} value=${main} onChange=${change(setMain)} editorRef=${editorRef}
+                onReady=${(ed) => { if (wantBody.current) { wantBody.current = false; ed.commands.focus('start'); } }}
+                placeholder="내용을 쓰세요. / 를 치면 제목·목록·사진, [[ 를 치면 다른 노트를 이어요."
+                onImage=${(src) => modal((close) => html`<${Lightbox} src=${src} close=${close} />`)} />`
             : html`<div class="sk" style="height:16px;width:80%;margin-bottom:10px"></div><div class="sk" style="height:16px;width:60%"></div>`}
           ${note && html`<section class=${`note-links-inline${panel ? ' wide-only' : ''}`}><${Links} note=${note} /></section>`}
         </article>
       </div>
       ${note && panel && html`<aside class="rpanel" aria-label="연결"><${Links} note=${note} />
-        <div class="rp-sec"><h3><span>정보</span></h3><p class="rp-empty">수정 ${relTime(m.updated || m.created)}<br />글자 ${withoutLinks(body).length.toLocaleString()}자<br />번호 ${note.id}</p></div>
+        <div class="rp-sec"><h3><span>정보</span></h3><p class="rp-empty">수정 ${relTime(m.updated || m.created)}<br />글자 ${main.length.toLocaleString()}자<br />번호 ${note.id}</p></div>
       </aside>`}
     </div>`;
 }

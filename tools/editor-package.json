@@ -1,0 +1,39 @@
+{
+  "name": "thought-drawer-editor-bundle",
+  "private": true,
+  "description": "js/vendor/editor.bundle.js 를 만들 때만 쓰는 패키지 목록",
+  "dependencies": {
+    "@tiptap/core": "2.10.3",
+    "@tiptap/extension-image": "2.10.3",
+    "@tiptap/extension-link": "2.10.3",
+    "@tiptap/extension-placeholder": "2.10.3",
+    "@tiptap/extension-task-item": "2.10.3",
+    "@tiptap/extension-task-list": "2.10.3",
+    "@tiptap/pm": "2.10.3",
+    "@tiptap/starter-kit": "2.10.3",
+    "esbuild": "0.24.0",
+    "qrcode-generator": "1.4.4",
+    "tiptap-markdown": "0.8.10"
+  },
+  "overrides": {
+    "@tiptap/extension-blockquote": "2.10.3",
+    "@tiptap/extension-bold": "2.10.3",
+    "@tiptap/extension-bullet-list": "2.10.3",
+    "@tiptap/extension-code": "2.10.3",
+    "@tiptap/extension-code-block": "2.10.3",
+    "@tiptap/extension-document": "2.10.3",
+    "@tiptap/extension-dropcursor": "2.10.3",
+    "@tiptap/extension-gapcursor": "2.10.3",
+    "@tiptap/extension-hard-break": "2.10.3",
+    "@tiptap/extension-heading": "2.10.3",
+    "@tiptap/extension-history": "2.10.3",
+    "@tiptap/extension-horizontal-rule": "2.10.3",
+    "@tiptap/extension-italic": "2.10.3",
+    "@tiptap/extension-list-item": "2.10.3",
+    "@tiptap/extension-ordered-list": "2.10.3",
+    "@tiptap/extension-paragraph": "2.10.3",
+    "@tiptap/extension-strike": "2.10.3",
+    "@tiptap/extension-text": "2.10.3",
+    "@tiptap/extension-text-style": "2.10.3"
+  }
+}

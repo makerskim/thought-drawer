@@ -149,3 +149,28 @@ export function ConfirmDialog({ title, text, yes = '확인', danger, onYes, clos
     <button type="button" ref=${yesRef} class=${`btn ${danger ? 'btn-danger' : 'btn-primary'}`} onClick=${() => { close(); onYes(); }}>${yes}</button></div>
   </div>`;
 }
+
+export function NewFolderDialog({ close, onMade }) {
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const ref = useFocus();
+  const parents = app.lib.folders().map((f) => f.path);
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setBusy(true);
+    try {
+      const path = await app.lib.createFolder(name);
+      close();
+      toast(`${categoryParts(path).join(' / ')} 폴더를 만들었어요.`);
+      if (onMade) onMade(path); else go(folderHref(path));
+    } catch (err) { setBusy(false); toast(err.message); }
+  };
+  return html`<form class="modal" onSubmit=${submit}>
+    <h2>새 폴더</h2>
+    <p class="desc">“큰 폴더/작은 폴더”처럼 빗금으로 나누면 안쪽에 만들어요. Claude도 정리할 때 이 폴더를 써요.</p>
+    <label class="field"><span>이름</span><input class="input" ref=${ref} value=${name} onInput=${(e) => setName(e.target.value)} placeholder="예: 패션/신발" list="folder-parents" /></label>
+    <datalist id="folder-parents">${parents.map((p) => html`<option value=${`${p}/`} />`)}</datalist>
+    <div class="actions"><button type="button" class="btn btn-ghost" onClick=${close}>취소</button><button class="btn btn-primary" disabled=${busy || !name.trim()}>만들기</button></div>
+  </form>`;
+}

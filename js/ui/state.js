@@ -72,3 +72,13 @@ export function useToasts() {
   useEffect(() => { toastSubs.add(setList); return () => toastSubs.delete(setList); }, []);
   return list;
 }
+
+// ---- 드라이브 연결 문제 (위 막대 아래 띠로 보여 준다) ----
+let conn = null;
+const connSubs = new Set();
+export function setConn(v) { conn = v; connSubs.forEach((fn) => fn(v)); }
+export function useConn() {
+  const [v, setV] = useState(conn);
+  useEffect(() => { connSubs.add(setV); return () => connSubs.delete(setV); }, []);
+  return v;
+}

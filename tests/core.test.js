@@ -166,3 +166,19 @@ test('mergeLinksSection matches python behaviour', async () => {
   assert.equal(out, '본문\n\n## 연결\n\n- [[20260101000000 가]] (이유)\n- [[20260102000000 나]]\n');
   assert.equal(mergeLinksSection('글', [['20260103000000', '다/라', '같은 주제']]), '글\n\n## 연결\n\n- [[20260103000000 다 라]] (같은 주제)\n');
 });
+
+test('wiki syntax converts to editor markdown and back', async () => {
+  const { toEditorMarkdown, fromEditorMarkdown, splitLinks, joinLinks } = await import('../js/core/wiki.js');
+  const src = '![[20261020093000.jpg]]\n\n셔츠 [[20261022120000 가을 코디]] 와 [[메모법|별칭 글]] 참고';
+  const ed = toEditorMarkdown(src);
+  assert.ok(ed.includes('![20261020093000.jpg](td-att:20261020093000.jpg)'));
+  assert.ok(ed.includes('[가을 코디](td-wiki:20261022120000%20%EA%B0%80%EC%9D%84%20%EC%BD%94%EB%94%94)'));
+  assert.equal(fromEditorMarkdown(ed), src);
+  // 편집기에서 링크 글자를 바꾸면 별칭으로 남는다
+  assert.equal(fromEditorMarkdown('[다른 이름](td-wiki:20261022120000%20%EA%B0%80%EC%9D%84%20%EC%BD%94%EB%94%94)'), '[[20261022120000 가을 코디|다른 이름]]');
+  const { main, links } = splitLinks('본문\n\n## 사진 속 글자\n\n글자\n\n## 연결\n\n- [[20260101000000 가]] (이유)\n');
+  assert.equal(main, '본문\n\n## 사진 속 글자\n\n글자');
+  assert.equal(links, '## 연결\n\n- [[20260101000000 가]] (이유)');
+  assert.equal(joinLinks(main, links), '본문\n\n## 사진 속 글자\n\n글자\n\n## 연결\n\n- [[20260101000000 가]] (이유)\n');
+  assert.equal(joinLinks('글', ''), '글\n');
+});

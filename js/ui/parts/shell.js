@@ -1,10 +1,12 @@
 // 사이드바, 위 막대, 아래 탭(모바일), 추가 메뉴
 import { html } from '../h.js';
-import { Icon, Logo } from '../icons.js';
-import { app, useLib, usePref } from '../state.js';
-import { useRoute, folderHref, go } from '../router.js';
-import { popover } from './layers.js';
-import { MenuItem, Tag } from './common.js';
+import { Icon, Logo, TYPE_ICON } from '../icons.js';
+import { app, useLib, usePref, useConn } from '../state.js';
+import { useRoute, folderHref, noteHref, go } from '../router.js';
+import { popover, modal } from './layers.js';
+import { MenuItem, Tag, titleOf } from './common.js';
+import { NewFolderDialog } from './dialogs.js';
+import { ConnBanner } from './conn.js';
 import { modKey } from '../format.js';
 
 function FolderTree({ folders, depth = 0, path, open, toggle }) {
@@ -45,8 +47,12 @@ export function Sidebar() {
       <a class="sb-item" href="#/inbox" aria-current=${cur('/inbox')}><${Icon} name="inbox" /><span class="label">인박스</span>${inboxN > 0 && html`<span class="badge hot">${inboxN}</span>`}</a>
       <a class="sb-item" href="#/ask" aria-current=${cur('/ask')}><${Icon} name="ask" /><span class="label">묻기</span></a>
       <a class="sb-item" href="#/graph" aria-current=${cur('/graph')}><${Icon} name="graph" /><span class="label">그래프</span></a>
+      ${lib.pinned().length > 0 && html`<div class="sb-group">
+        <div class="sb-title"><span>즐겨찾기</span></div>
+        ${lib.pinned().map((n) => html`<a key=${n.id} class="sb-item" href=${noteHref(n.id)} aria-current=${path === noteHref(n.id).slice(1) ? 'page' : undefined}><${Icon} name=${TYPE_ICON[n.meta.type] ?? 'memo'} /><span class="label">${titleOf(n)}</span></a>`)}
+      </div>`}
       <div class="sb-group">
-        <div class="sb-title"><span>폴더</span></div>
+        <div class="sb-title"><span>폴더</span><button type="button" aria-label="새 폴더" title="새 폴더" onClick=${() => modal((close) => html`<${NewFolderDialog} close=${close} />`)}><${Icon} name="plus" size=${15} /></button></div>
         ${lib.folders().length
           ? html`<${FolderTree} folders=${lib.folders()} path=${path} open=${open} toggle=${toggle} />`
           : html`<p class="muted" style="font-size:12.5px;padding:2px 8px;margin:0">정리되면 Claude가 폴더를 만들어요.</p>`}
@@ -54,6 +60,7 @@ export function Sidebar() {
       ${tags.length > 0 && html`<div class="sb-group"><div class="sb-title"><span>태그</span></div><div class="sb-tags">${tags.map(([t]) => html`<${Tag} key=${t} name=${t} />`)}</div></div>`}
     </div>
     <div class="sb-foot">
+      <a class="sb-item" href="#/connect" aria-current=${cur('/connect')}><${Icon} name="phone" /><span class="label">폰과 크롬에서 쓰기</span></a>
       <a class="sb-item" href="#/import" aria-current=${cur('/import')}><${Icon} name="instagram" /><span class="label">인스타 가져오기</span></a>
       <a class="sb-item" href="#/settings" aria-current=${cur('/settings')}><${Icon} name="gear" /><span class="label">설정</span></a>
     </div>
@@ -68,6 +75,7 @@ export function SaveState({ state }) {
 
 // crumbs: [{ label, href }] — 마지막이 지금 화면
 export function Topbar({ crumbs = [], right = null, lined = false }) {
+  const conn = useConn();
   return html`<header class=${`topbar${lined ? ' lined' : ''}`}>
     <button type="button" class="icon-btn" aria-label="사이드바" onClick=${() => app.toggleSidebar()}><${Icon} name="sidebar" /></button>
     <nav class="crumbs" aria-label="위치">
@@ -77,7 +85,8 @@ export function Topbar({ crumbs = [], right = null, lined = false }) {
     </nav>
     ${right}
     <button type="button" class="icon-btn show-m" aria-label="검색" onClick=${() => app.openPalette()}><${Icon} name="search" /></button>
-  </header>`;
+  </header>
+  ${conn && html`<${ConnBanner} conn=${conn} onRetry=${() => app.resync()} onReconnect=${(o) => app.reconnect(o)} clientId=${app.auth?.clientId} />`}`;
 }
 
 export function openAddMenu(anchor) {
