@@ -2,9 +2,9 @@
 import { html } from '../h.js';
 import { Icon, Logo, TYPE_ICON } from '../icons.js';
 import { app, useLib, usePref, useConn } from '../state.js';
-import { useRoute, folderHref, noteHref, go } from '../router.js';
+import { useRoute, folderHref, noteHref, tagHref, go } from '../router.js';
 import { popover, modal } from './layers.js';
-import { MenuItem, Tag, titleOf } from './common.js';
+import { MenuItem, titleOf } from './common.js';
 import { NewFolderDialog } from './dialogs.js';
 import { ConnBanner } from './conn.js';
 import { modKey } from '../format.js';
@@ -33,20 +33,19 @@ export function Sidebar() {
   const inboxN = lib.inbox().length;
   const cur = (p) => (path === p ? 'page' : undefined);
   const tags = lib.tags().slice(0, 14);
-  const p = app.profile ?? {};
   return html`<aside class="sidebar" aria-label="탐색">
-    <a class="sb-ws" href="#/settings">
-      <${Logo} size=${24} />
-      <div><div class="ws-name">Thought Drawer</div>${p.email && html`<div class="ws-mail">${p.email}</div>`}</div>
-    </a>
+    <a class="sb-brand" href="#/"><${Logo} size=${26} /><span>Thought Drawer</span></a>
+    <div class="sb-actions">
+      <button type="button" class="sb-search" onClick=${() => app.openPalette()}><${Icon} name="search" /><span>검색</span><kbd class="hide-m">${modKey} K</kbd></button>
+      <a class="sb-new" href="#/new" aria-label="새 노트" title="새 노트 (N)"><${Icon} name="plus" /></a>
+    </div>
     <div class="sb-scroll">
-      <button type="button" class="sb-item" onClick=${() => app.openPalette()}><${Icon} name="search" /><span class="label">검색</span><kbd>${modKey} K</kbd></button>
-      <a class="sb-item" href="#/new"><${Icon} name="plus" /><span class="label">새 노트</span></a>
-      <div style="height:10px"></div>
-      <a class="sb-item" href="#/" aria-current=${cur('/')}><${Icon} name="home" /><span class="label">홈</span></a>
-      <a class="sb-item" href="#/inbox" aria-current=${cur('/inbox')}><${Icon} name="inbox" /><span class="label">인박스</span>${inboxN > 0 && html`<span class="badge hot">${inboxN}</span>`}</a>
-      <a class="sb-item" href="#/ask" aria-current=${cur('/ask')}><${Icon} name="ask" /><span class="label">묻기</span></a>
-      <a class="sb-item" href="#/graph" aria-current=${cur('/graph')}><${Icon} name="graph" /><span class="label">그래프</span></a>
+      <nav class="sb-nav">
+        <a class="sb-item" href="#/" aria-current=${cur('/')}><${Icon} name="home" /><span class="label">홈</span></a>
+        <a class="sb-item" href="#/inbox" aria-current=${cur('/inbox')}><${Icon} name="inbox" /><span class="label">인박스</span>${inboxN > 0 && html`<span class="badge hot">${inboxN}</span>`}</a>
+        <a class="sb-item" href="#/ask" aria-current=${cur('/ask')}><${Icon} name="ask" /><span class="label">묻기</span></a>
+        <a class="sb-item" href="#/graph" aria-current=${cur('/graph')}><${Icon} name="graph" /><span class="label">그래프</span></a>
+      </nav>
       ${lib.pinned().length > 0 && html`<div class="sb-group">
         <div class="sb-title"><span>즐겨찾기</span></div>
         ${lib.pinned().map((n) => html`<a key=${n.id} class="sb-item" href=${noteHref(n.id)} aria-current=${path === noteHref(n.id).slice(1) ? 'page' : undefined}><${Icon} name=${TYPE_ICON[n.meta.type] ?? 'memo'} /><span class="label">${titleOf(n)}</span></a>`)}
@@ -55,9 +54,10 @@ export function Sidebar() {
         <div class="sb-title"><span>폴더</span><button type="button" aria-label="새 폴더" title="새 폴더" onClick=${() => modal((close) => html`<${NewFolderDialog} close=${close} />`)}><${Icon} name="plus" size=${15} /></button></div>
         ${lib.folders().length
           ? html`<${FolderTree} folders=${lib.folders()} path=${path} open=${open} toggle=${toggle} />`
-          : html`<p class="muted" style="font-size:12.5px;padding:2px 8px;margin:0">정리되면 Claude가 폴더를 만들어요.</p>`}
+          : html`<p class="sb-note">정리되면 Claude가 폴더를 만들어요.</p>`}
       </div>
-      ${tags.length > 0 && html`<div class="sb-group"><div class="sb-title"><span>태그</span></div><div class="sb-tags">${tags.map(([t]) => html`<${Tag} key=${t} name=${t} />`)}</div></div>`}
+      ${tags.length > 0 && html`<div class="sb-group"><div class="sb-title"><span>태그</span></div>
+        <div class="sb-tags">${tags.map(([t]) => html`<a key=${t} class="sb-tag" href=${tagHref(t)} aria-current=${path === tagHref(t).slice(1) ? 'page' : undefined}>#${t}</a>`)}</div></div>`}
     </div>
     <div class="sb-foot">
       <a class="sb-item" href="#/connect" aria-current=${cur('/connect')}><${Icon} name="phone" /><span class="label">폰과 크롬에서 쓰기</span></a>

@@ -55,7 +55,7 @@ export function Connect() {
   return html`
     <${Topbar} crumbs=${[{ label: '폰과 크롬에서 쓰기' }]} />
     <div class="page narrow">
-      <div class="page-head"><${Icon} name="phone" class="icon-lg" /><h1>어디서든 바로 넣기</h1>
+      <div class="page-head"><h1>어디서든 바로 넣기</h1>
         <p>폰에서는 앱처럼 설치하고 공유 버튼으로, PC에서는 크롬 확장 프로그램으로 보는 페이지를 바로 넣어요. 모두 같은 구글 드라이브에 저장돼서 어디서 봐도 같아요.</p></div>
 
       <section class="connect-card">

@@ -1,7 +1,7 @@
 // 오프라인에서도 앱이 열리도록, 한 번 받은 앱 파일과 글꼴을 저장해 둔다.
 // 앱 파일은 늘 새 버전을 먼저 확인하고(no-cache), 안 되면 저장본을 쓴다. 구글 API는 저장하지 않는다.
 const VERSION = 'td-v2';
-const FONTS = /^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.jsdelivr\.net\/npm\/pretendard)/;
+const FONTS = /^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.jsdelivr\.net\/npm\/(pretendard|wanted-sans))/;
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {

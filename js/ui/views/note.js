@@ -13,6 +13,9 @@ import { splitLinks, joinLinks } from '../../core/wiki.js';
 import { categoryParts, embeds } from '../../core/note.js';
 import { relTime, fullDate, KIND_LABEL } from '../format.js';
 
+const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
+const shortDate = (iso) => { const d = new Date(iso); return Number.isNaN(+d) ? '' : `${d.getFullYear() === new Date().getFullYear() ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월 ${d.getDate()}일`; };
+
 function Grow({ value, onInput, class: cls, placeholder, onKeyDown, inputRef, label, autofocus }) {
   const ref = useRef();
   useLayoutEffect(() => autosize(ref.current), [value]);
@@ -29,7 +32,7 @@ function TagEditor({ tags, onChange }) {
     setText('');
   };
   return html`${tags.map((t) => html`<${Tag} key=${t} name=${t} onRemove=${() => onChange(tags.filter((x) => x !== t))} />`)}
-    <input class="tag-input" value=${text} placeholder=${tags.length ? '' : '태그 추가'} aria-label="태그 추가"
+    <input class="tag-input" value=${text} placeholder="+ 태그" aria-label="태그 추가"
       onInput=${(e) => setText(e.target.value)}
       onKeyDown=${(e) => {
         if (e.isComposing) return;
@@ -37,10 +40,6 @@ function TagEditor({ tags, onChange }) {
         else if (e.key === 'Backspace' && !text && tags.length) onChange(tags.slice(0, -1));
       }}
       onBlur=${add} />`;
-}
-
-function Prop({ icon, label, children }) {
-  return html`<div class="prop"><div class="k"><${Icon} name=${icon} />${label}</div><div class="v">${children}</div></div>`;
 }
 
 function Links({ note }) {
@@ -220,26 +219,23 @@ export function NoteView({ id, params }) {
     <div class="note-wrap">
       <div class="scroll">
         <article class="note-page">
-          <div class="note-icon"><${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} /></div>
           <${Grow} class="note-title" value=${title} onInput=${change(setTitle)} placeholder=${note ? titleOf(note) : '제목 없음'} label="제목" autofocus=${!noteId}
             onKeyDown=${(e) => { if ((e.key === 'Enter' || e.key === 'ArrowDown') && !e.isComposing) { e.preventDefault(); focusBody(); } }} />
-          <div class="props">
-            <${Prop} icon="folder" label="폴더">
-              <button type="button" class="val-btn" onClick=${(e) => pickFolder(e.currentTarget)}>
-                ${folder ? categoryParts(folder).join(' / ') : html`<span class="empty-val">인박스, Claude가 정리할 예정</span>`}
-              </button>
-            </${Prop}>
-            <${Prop} icon="tag" label="태그"><${TagEditor} tags=${m.tags ?? []} onChange=${(tags) => update({ tags })} /></${Prop}>
-            <${Prop} icon="type" label="종류"><span>${KIND_LABEL[m.type] ?? '메모'}${m.author ? html` <span class="muted">@${m.author}</span>` : ''}</span></${Prop}>
-            ${m.source && html`<${Prop} icon="link" label="출처"><a class="src" href=${m.source} target="_blank" rel="noopener">${m.source.replace(/^https?:\/\/(www\.)?/, '')}</a></${Prop}>`}
-            <${Prop} icon="calendar" label="만든 날"><span title=${fullDate(m.created)}>${note ? fullDate(m.created) : '지금'}</span></${Prop}>
-            ${m.organized && html`<${Prop} icon="sparkle" label="정리"><span class="muted">Claude가 ${relTime(m.organized)} 정리함</span></${Prop}>`}
+          <div class="meta-row">
+            <button type="button" class=${`mpill${folder ? '' : ' quiet'}`} title="폴더 옮기기" onClick=${(e) => pickFolder(e.currentTarget)}>
+              <${Icon} name=${folder ? 'folder' : 'inbox'} />${folder ? categoryParts(folder).join(' / ') : '인박스'}
+            </button>
+            <${TagEditor} tags=${m.tags ?? []} onChange=${(tags) => update({ tags })} />
+            ${m.source && html`<a class="mpill" href=${m.source} target="_blank" rel="noopener" title=${m.source}><${Icon} name="external" />${hostOf(m.source)}</a>`}
+            <span class="mtext">${KIND_LABEL[m.type] ?? '메모'}${m.author ? ` @${m.author}` : ''}</span>
+            <span class="mtext" title=${note ? fullDate(m.created) : ''}>${note ? shortDate(m.created) : '지금'}</span>
           </div>
-          ${m.summary && html`<div class="callout ai"><${Icon} name="sparkle" /><div class="c-body"><div class="c-label">Claude 요약</div>${m.summary}</div></div>`}
-          <div class="callout"><${Icon} name="thought" /><div class="c-body"><div class="c-label">내 생각</div>
-            <${Grow} value=${thought} onInput=${change(setThought)} label="내 생각" placeholder="왜 저장했는지, 어디에 쓸지 내 말로 한 줄" />
-          </div></div>
-          <div class="divider"></div>
+          <div class="annot">
+            ${m.summary && html`<div class="annot-ai"><${Icon} name="sparkle" /><p>${m.summary}</p></div>`}
+            <div class="annot-me"><${Icon} name="thought" />
+              <${Grow} value=${thought} onInput=${change(setThought)} label="내 생각" placeholder="내 생각: 왜 저장했는지, 어디에 쓸지 한 줄" />
+            </div>
+          </div>
           ${loaded
             ? html`<${NoteEditor} noteId=${noteId} value=${main} onChange=${change(setMain)} editorRef=${editorRef}
                 onReady=${(ed) => { if (wantBody.current) { wantBody.current = false; ed.commands.focus('start'); } }}
@@ -250,7 +246,15 @@ export function NoteView({ id, params }) {
         </article>
       </div>
       ${note && panel && html`<aside class="rpanel" aria-label="연결"><${Links} note=${note} />
-        <div class="rp-sec"><h3><span>정보</span></h3><p class="rp-empty">수정 ${relTime(m.updated || m.created)}<br />글자 ${main.length.toLocaleString()}자<br />번호 ${note.id}</p></div>
+        <div class="rp-sec"><h3><span>정보</span></h3>
+          <dl class="facts">
+            <dt>만든 날</dt><dd>${fullDate(m.created)}</dd>
+            <dt>수정</dt><dd>${relTime(m.updated || m.created)}</dd>
+            ${m.organized && html`<dt>정리</dt><dd>Claude가 ${relTime(m.organized)}</dd>`}
+            <dt>글자</dt><dd>${main.length.toLocaleString()}자</dd>
+            <dt>번호</dt><dd class="num">${note.id}</dd>
+          </dl>
+        </div>
       </aside>`}
     </div>`;
 }

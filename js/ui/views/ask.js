@@ -24,7 +24,7 @@ export function Ask({ params }) {
   return html`
     <${Topbar} crumbs=${[{ label: '묻기' }]} />
     <div class="page narrow">
-      <div class="page-head"><${Icon} name="ask" class="icon-lg" /><h1>무엇이 궁금하세요?</h1><p>문장으로 물으면 관련 노트를 폴더별로 모아 보여 줘요.</p></div>
+      <div class="page-head"><h1>무엇이 궁금하세요?</h1><p>문장으로 물으면 관련 노트를 폴더별로 모아 보여 줘요.</p></div>
       <form class="capture" style="margin-top:0" onSubmit=${submit}>
         <textarea rows="1" value=${q} aria-label="질문" placeholder="예: 사고 싶었던 셔츠 뭐 있었지?"
           onInput=${(e) => setQ(e.target.value)} onKeyDown=${(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) submit(e); }}></textarea>

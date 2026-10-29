@@ -3,11 +3,11 @@ import { html, useState, useEffect, useRef } from '../h.js';
 import { Icon, TYPE_ICON } from '../icons.js';
 import { app } from '../state.js';
 import { noteHref, tagHref, folderHref } from '../router.js';
-import { relTime, colorOf, KIND_LABEL } from '../format.js';
+import { relTime, KIND_LABEL } from '../format.js';
 import { displayTitle, categoryParts } from '../../core/note.js';
 
 export function Tag({ name, href = true, onRemove }) {
-  const cls = `tag c-${colorOf(name)}`;
+  const cls = 'tag';
   const inner = html`${name}${onRemove && html`<button type="button" aria-label=${`${name} 태그 빼기`} onClick=${(e) => { e.preventDefault(); onRemove(); }}><${Icon} name="x" /></button>`}`;
   return href && !onRemove ? html`<a class=${cls} href=${tagHref(name)}>${inner}</a>` : html`<span class=${cls}>${inner}</span>`;
 }
@@ -40,25 +40,50 @@ export function useThumb(name) {
   return [ref, url];
 }
 
+// 줄 앞: 사진이 있으면 작은 사진, 없으면 종류 아이콘
+function Lead({ note, url }) {
+  return url
+    ? html`<span class="rlead thumb"><img src=${url} alt="" loading="lazy" /></span>`
+    : html`<span class="rlead"><${Icon} name=${TYPE_ICON[note.meta.type] ?? 'memo'} /></span>`;
+}
+
 export function NoteRow({ note, showFolder = true, right, hl, selectable = false, selected = false, onSelect }) {
   const m = note.meta;
   const sub = m.summary || note.snippet || '';
   const t = titleOf(note);
-  return html`<div class=${`row${selectable ? ' selectable' : ''}${selected ? ' selected' : ''}`}>
+  const [ref, url] = useThumb((m.attachments ?? [])[0]);
+  return html`<div ref=${ref} class=${`row${selectable ? ' selectable' : ''}${selected ? ' selected' : ''}`}>
     ${selectable
-      ? html`<label class="pick" title="고르기"><input type="checkbox" checked=${selected} onChange=${(e) => onSelect?.(e.target.checked)} aria-label=${`${t} 고르기`} /><${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} /></label>`
-      : html`<${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} />`}
+      ? html`<label class="pick" title="고르기"><input type="checkbox" checked=${selected} onChange=${(e) => onSelect?.(e.target.checked)} aria-label=${`${t} 고르기`} /><${Lead} note=${note} url=${url} /></label>`
+      : html`<${Lead} note=${note} url=${url} />`}
     <a class="t" href=${noteHref(note.id)}>
       <b>${hl ? hl(t) : t}</b>
       ${sub && sub !== t && html`<span>${hl ? hl(sub) : sub}</span>`}
     </a>
     <div class="r">
       ${right ?? html`
-        <span class="hide-m" style="display:flex;gap:4px">${(m.tags ?? []).slice(0, 2).map((x) => html`<${Tag} key=${x} name=${x} />`)}</span>
+        <span class="hide-m tags-mini">${(m.tags ?? []).slice(0, 2).map((x) => html`<${Tag} key=${x} name=${x} />`)}</span>
         ${showFolder && html`<span class="hide-m">${folderLabel(note)}</span>`}
         <span class="num">${relTime(m.updated || m.created)}</span>`}
     </div>
   </div>`;
+}
+
+// 홈의 최근 노트: 사진이 있으면 사진이 앞에, 없으면 글이 앞에
+export function MCard({ note }) {
+  const m = note.meta;
+  const att = (m.attachments ?? [])[0];
+  const [ref, url] = useThumb(att);
+  const t = titleOf(note);
+  const sub = m.summary || note.snippet || '';
+  return html`<a class=${`mcard${att ? ' has-img' : ''}`} href=${noteHref(note.id)} ref=${ref}>
+    ${att && html`<div class="img">${url ? html`<img src=${url} alt="" loading="lazy" />` : html`<div class="sk"></div>`}</div>`}
+    <div class="tx">
+      <b>${t}</b>
+      ${!att && sub && sub !== t && html`<p>${sub}</p>`}
+    </div>
+    <div class="ft"><${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} /><span>${folderLabel(note)}</span><span class="num">${relTime(m.updated || m.created)}</span></div>
+  </a>`;
 }
 
 export function NoteCard({ note }) {

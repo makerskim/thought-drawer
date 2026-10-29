@@ -57,8 +57,8 @@ export function Inbox() {
   return html`
     <${Topbar} crumbs=${[{ label: '인박스' }]} />
     <div class="page narrow">
-      <div class="page-head"><${Icon} name="inbox" class="icon-lg" /><h1>인박스</h1>
-        <p>새로 넣은 노트가 여기서 정리를 기다려요. Claude가 하루 몇 번 제목, 요약, 태그를 붙여 폴더에 넣고 관련 노트끼리 이어 줘요.${last ? ` 마지막 정리는 ${relTime(last)}이에요.` : ''}</p>
+      <div class="page-head"><h1>인박스</h1>
+        <p>${last ? `마지막 정리 ${relTime(last)}` : '아직 정리 전이에요.'}</p>
       </div>
       ${items.length > 0 && html`<div class=${`bulkbar${chosen.length ? ' on' : ''}`}>
         <label class="pick-all"><input type="checkbox" checked=${chosen.length === items.length} indeterminate=${chosen.length > 0 && chosen.length < items.length}
@@ -93,7 +93,7 @@ export function Folder({ path }) {
   return html`
     <${Topbar} crumbs=${crumbs} />
     <div class="page">
-      <div class="page-head"><${Icon} name="folder" class="icon-lg" /><h1>${parts.at(-1)}</h1><p>노트 ${notes.length}개</p></div>
+      <div class="page-head"><h1>${parts.at(-1)}</h1><p>노트 ${notes.length}개</p></div>
       ${node?.children.length > 0 && html`<div class="chips" style="margin-bottom:18px">${node.children.map((c) => html`
         <a class="chip" key=${c.path} href=${folderHref(c.path)}><${Icon} name="folder" />${c.name}<span class="n">${c.count}</span></a>`)}</div>`}
       <${ViewControls} view=${view} setView=${setView} sort=${sort} setSort=${setSort} />
@@ -111,7 +111,7 @@ export function TagView({ tag }) {
   return html`
     <${Topbar} crumbs=${[{ label: '태그' }, { label: `#${tag}` }]} />
     <div class="page">
-      <div class="page-head"><${Icon} name="tag" class="icon-lg" /><h1>#${tag}</h1><p>노트 ${notes.length}개</p></div>
+      <div class="page-head"><h1>#${tag}</h1><p>노트 ${notes.length}개</p></div>
       <${ViewControls} view=${view} setView=${setView} sort=${sort} setSort=${setSort} />
       ${notes.length ? html`<${NoteList} notes=${notes} view=${view} />` : html`<${Empty} icon="tag" title="이 태그가 붙은 노트가 없어요" />`}
     </div>`;

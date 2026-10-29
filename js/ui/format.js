@@ -25,26 +25,12 @@ export function fullDate(iso) {
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${pad(d.getMinutes())}`;
 }
 
-export function todayLabel(d = new Date()) {
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${'일월화수목금토'[d.getDay()]}요일`;
-}
-
-export function greeting(d = new Date()) {
-  const h = d.getHours();
-  if (h < 5) return '늦은 밤이에요';
-  if (h < 11) return '좋은 아침이에요';
-  if (h < 17) return '좋은 오후예요';
-  if (h < 21) return '좋은 저녁이에요';
-  return '편안한 밤 보내세요';
-}
-
 const COLORS = ['blue', 'green', 'orange', 'purple', 'pink', 'yellow', 'red', 'brown', 'gray'];
 function hash(s) {
   let x = 0;
   for (const c of String(s)) x = (x * 31 + c.codePointAt(0)) >>> 0;
   return x;
 }
-export const colorOf = (s) => COLORS[hash(s) % COLORS.length];
 // 그래프의 폴더 색 (회색은 인박스 몫이라 뺀다)
 export const folderColor = (s) => COLORS[hash(s) % (COLORS.length - 1)];
 export const GRAPH_COLORS = {

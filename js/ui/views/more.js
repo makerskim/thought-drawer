@@ -166,7 +166,7 @@ export function Import() {
   return html`
     <${Topbar} crumbs=${[{ label: '인스타 가져오기' }]} />
     <div class="page narrow">
-      <div class="page-head"><${Icon} name="instagram" class="icon-lg" /><h1>인스타 저장함 가져오기</h1>
+      <div class="page-head"><h1>인스타 저장함 가져오기</h1>
         <p>비밀번호는 필요 없어요. 인스타그램이 주는 내 정보 파일을 올리면 저장한 게시물과 릴스가 노트가 돼요.</p></div>
       <ol class="steps">
         <li><span>인스타그램 앱에서 <b>설정 및 활동, 계정 센터, 내 정보 및 권한, 내 정보 다운로드</b>로 가요.</span></li>

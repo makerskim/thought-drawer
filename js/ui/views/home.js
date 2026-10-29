@@ -1,12 +1,10 @@
-// 홈: 인사, 빠른 기록, 인박스, 최근 노트, 폴더
+// 홈: 빠른 기록, 인박스, 최근 노트, 폴더
 import { html, useState, useRef, autosize } from '../h.js';
 import { Icon } from '../icons.js';
-import { app, useLib, usePref, toast } from '../state.js';
-import { isStandalone } from '../../store/auth.js';
+import { app, useLib, toast } from '../state.js';
 import { go, noteHref, folderHref } from '../router.js';
 import { Topbar } from '../parts/shell.js';
-import { NoteRow, Empty, titleOf } from '../parts/common.js';
-import { greeting, todayLabel, modKey } from '../format.js';
+import { NoteRow, MCard, Empty, titleOf } from '../parts/common.js';
 import { capturePhotos } from '../capture.js';
 
 const URL_RE = /^(https?:\/\/\S+)\s*([\s\S]*)$/i;
@@ -55,71 +53,33 @@ function QuickCapture() {
     <div class="bar">
       <button type="button" class="icon-btn" aria-label="사진 넣기" title="사진 넣기" onClick=${() => app.pickPhotos(text)}><${Icon} name="capture" /></button>
       <button type="button" class="icon-btn" aria-label="링크 넣기" title="링크 넣기" onClick=${() => app.openLinkDialog()}><${Icon} name="link" /></button>
+      <span class="grow"></span>
       <span class="hint hide-m">↵ 저장, Shift ↵ 줄바꿈</span>
       <button type="button" class="btn btn-primary" disabled=${!text.trim() || busy} onClick=${submit}>저장</button>
     </div>
   </div>`;
 }
 
-// 처음 쓰는 사람을 위한 할 일. 드라이브에 남은 흔적(어디서 넣은 노트인지 등)으로 끝냈는지 안다.
-function Starter() {
-  const lib = useLib();
-  const [hidden, setHidden] = usePref('starterHidden', false);
-  if (hidden || !lib.state.synced) return null;
-  const all = lib.all;
-  const steps = [
-    { key: 'first', done: all.length > 0, icon: 'memo', title: '첫 노트 넣기', text: '위 칸에 적고 Enter. 사진은 붙여 넣거나 끌어다 놓아요.', onClick: () => document.querySelector('.capture textarea')?.focus() },
-    { key: 'phone', done: isStandalone() || all.some((n) => n.meta.via === 'phone'), icon: 'phone', title: '폰에 설치하기', text: '공유 버튼으로 인스타, 사진, 링크를 바로 넣어요.', href: '#/connect' },
-    { key: 'chrome', done: all.some((n) => n.meta.via === 'chrome'), icon: 'puzzle', title: '크롬 확장 프로그램', text: '보는 페이지와 화면 캡처를 버튼 하나로 넣어요.', href: '#/connect' },
-    { key: 'insta', done: all.some((n) => n.meta.type === 'instagram'), icon: 'instagram', title: '인스타 저장함 가져오기', text: '저장해 둔 릴스와 게시물을 한 번에 넣어요.', href: '#/import' },
-    { key: 'auto', done: !!lib.index?.generatedAt, icon: 'sparkle', title: '자동 정리 켜기', text: 'Claude가 폴더, 태그, 연결을 붙여요.', href: '#/settings' },
-  ];
-  const done = steps.filter((x) => x.done).length;
-  if (done === steps.length) return null;
-  return html`<section class="starter" aria-label="시작하기">
-    <div class="starter-head">
-      <h2>시작하기</h2>
-      <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax=${steps.length} aria-valuenow=${done}><i style=${`width:${(done / steps.length) * 100}%`}></i></div>
-      <span class="num">${done}/${steps.length}</span>
-      <button type="button" class="icon-btn" aria-label="시작하기 숨기기" title="숨기기" onClick=${() => setHidden(true)}><${Icon} name="x" /></button>
-    </div>
-    <div class="starter-list">${steps.filter((x) => !x.done).map((x) => html`<a key=${x.key} class="step" href=${x.href ?? '#/'}
-        onClick=${x.onClick ? (e) => { e.preventDefault(); x.onClick(); } : undefined}>
-      <span class="ic"><${Icon} name=${x.icon} /></span>
-      <b>${x.title}</b><span class="t">${x.text}</span>
-    </a>`)}</div>
-  </section>`;
-}
-
 export function Home() {
   const lib = useLib();
   const inbox = lib.inbox();
-  const recent = lib.recent(12).filter((n) => n.meta.status !== 'inbox').slice(0, 8);
+  const recent = lib.recent(24).filter((n) => n.meta.status !== 'inbox').slice(0, 12);
   const folders = lib.folders();
-  const name = (app.profile?.name ?? '').split(' ')[0];
   return html`
     <${Topbar} crumbs=${[{ label: '홈' }]} />
-    <div class="page">
-      <div class="greet"><h1>${name ? `${name}님, ` : ''}${greeting()}</h1><p>${todayLabel()}</p></div>
+    <div class="page home">
       <${QuickCapture} />
-      <div class="stats">
-        <a class="stat hot" href="#/inbox">인박스 <b>${inbox.length}</b></a>
-        <span class="stat">노트 <b>${lib.all.length}</b></span>
-        <span class="stat">폴더 <b>${folders.length}</b></span>
-        <button type="button" class="stat hide-m" onClick=${() => app.openPalette()}><${Icon} name="search" size=${14} />검색 <kbd>${modKey} K</kbd></button>
-      </div>
-      <${Starter} />
 
       ${inbox.length > 0 && html`<section class="section">
-        <div class="section-head"><h2>인박스</h2><a href="#/inbox">모두 보기</a></div>
-        <div class="rows">${inbox.slice(0, 4).map((n) => html`<${NoteRow} key=${n.id} note=${n} showFolder=${false} />`)}</div>
+        <div class="section-head"><h2>인박스 <span class="count">${inbox.length}</span></h2><a href="#/inbox">모두 보기</a></div>
+        <div class="rows">${inbox.slice(0, 3).map((n) => html`<${NoteRow} key=${n.id} note=${n} showFolder=${false} />`)}</div>
       </section>`}
 
       <section class="section">
-        <div class="section-head"><h2>최근 수정</h2></div>
+        <div class="section-head"><h2>최근</h2></div>
         ${recent.length
-          ? html`<div class="rows">${recent.map((n) => html`<${NoteRow} key=${n.id} note=${n} />`)}</div>`
-          : html`<${Empty} icon="memo" title="첫 노트를 남겨 보세요" text="위 칸에 적고 Enter를 누르면 인박스에 들어가요. 사진은 끌어다 놓거나 붙여 넣어도 돼요." />`}
+          ? html`<div class="masonry">${recent.map((n) => html`<${MCard} key=${n.id} note=${n} />`)}</div>`
+          : html`<${Empty} icon="memo" title="아직 정리된 노트가 없어요" text="위 칸에 적고 Enter를 누르면 인박스에 들어가요. 사진은 끌어다 놓거나 붙여 넣어도 돼요." />`}
       </section>
 
       ${folders.length > 0 && html`<section class="section">
@@ -127,7 +87,7 @@ export function Home() {
         <div class="folder-grid">${folders.map((f) => {
           const notes = lib.inFolder(f.path).slice(0, 3);
           return html`<a class="fcard" key=${f.path} href=${folderHref(f.path)}>
-            <div class="top"><${Icon} name="folder" />${f.name}<span class="n">${f.count}</span></div>
+            <div class="top"><span>${f.name}</span><span class="n">${f.count}</span></div>
             <ul>${notes.map((n) => html`<li key=${n.id}>${titleOf(n)}</li>`)}</ul>
           </a>`;
         })}</div>

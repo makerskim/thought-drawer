@@ -68,7 +68,7 @@ export function Logo({ size = 24 }) {
     <rect x="1" y="1" width="30" height="30" rx="8" fill="var(--text)"/>
     <rect x="6.5" y="7.5" width="19" height="7" rx="2" fill="var(--bg)"/>
     <rect x="6.5" y="17.5" width="19" height="7" rx="2" fill="var(--bg)" opacity=".55"/>
-    <rect x="13" y="10.2" width="6" height="1.6" rx=".8" fill="var(--text)"/>
+    <rect x="12.5" y="10" width="7" height="2" rx="1" fill="var(--hl)"/>
     <rect x="13" y="20.2" width="6" height="1.6" rx=".8" fill="var(--text)"/>
   </svg>`;
 }
