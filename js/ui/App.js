@@ -1,14 +1,11 @@
 // 앱 뼈대: 로그인 → 기기 사본으로 바로 열기 → 드라이브와 맞추기. 그 위에 화면, 단축키, 붙여넣기·끌어다 놓기.
 import { html, useState, useEffect, useRef, cx } from './h.js';
 import { Icon } from './icons.js';
-import { app, usePref, toast, setConn } from './state.js';
-import { useRoute, go, syncFromLocation } from './router.js';
-import { Sidebar, TabBar } from './parts/shell.js';
-import { Layers, Toasts, modal, closeAll } from './parts/layers.js';
-import { Palette, LinkDialog } from './parts/dialogs.js';
+import { app, toast, setConn } from './state.js';
+import { useRoute, go, parse, syncFromLocation } from './router.js';
+import { Layers, Toasts, closeAll } from './parts/layers.js';
 import { capturePhotos, pickPhotos } from './capture.js';
-import { Home } from './views/home.js';
-import { Inbox, Folder, TagView, NotFound } from './views/lists.js';
+import { Drawer } from './views/drawer.js';
 import { NoteView } from './views/note.js';
 import { preloadEditor } from './editor.js';
 import { Ask } from './views/ask.js';
@@ -22,25 +19,29 @@ import { AuthRequired } from '../store/auth.js';
 import { DriveError } from '../store/drive.js';
 
 const isTyping = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
-const mobile = () => matchMedia('(max-width: 860px)').matches;
 
-function Routes({ route, offline }) {
+// 서랍 위에 옆 창으로 여는 것: 노트, 새 노트, 묻기
+const SHEET = /^\/(n\/.+|new|ask)$/;
+// 서랍 대신 화면을 채우는 것
+const PAGES = new Set(['/settings', '/import', '/connect', '/graph', '/share', '/paste']);
+let listHash = '#/'; // 옆 창을 닫으면 돌아갈 서랍 주소
+
+function Sheet({ route }) {
   const { path, params, seq } = route;
-  let m;
-  if (path === '/' || path === '') return html`<${Home} />`;
-  if (path === '/inbox') return html`<${Inbox} />`;
-  if ((m = /^\/f\/(.+)$/.exec(path))) return html`<${Folder} key=${path} path=${decodeURIComponent(m[1])} />`;
-  if ((m = /^\/t\/(.+)$/.exec(path))) return html`<${TagView} key=${path} tag=${decodeURIComponent(m[1])} />`;
-  if ((m = /^\/n\/(.+)$/.exec(path))) return html`<${NoteView} key=${`n:${m[1]}`} id=${decodeURIComponent(m[1])} />`;
+  const m = /^\/n\/(.+)$/.exec(path);
+  if (m) return html`<${NoteView} key=${`n:${m[1]}`} id=${decodeURIComponent(m[1])} />`;
   if (path === '/new') return html`<${NoteView} key=${`new:${seq}`} id="new" params=${params} />`;
-  if (path === '/ask') return html`<${Ask} key=${`ask:${seq}`} params=${params} />`;
+  return html`<${Ask} key=${`ask:${seq}`} params=${params} />`;
+}
+
+function Page({ route, offline }) {
+  const { path, params } = route;
   if (path === '/graph') return html`<${Graph} />`;
   if (path === '/import') return html`<${Import} />`;
   if (path === '/connect') return html`<${Connect} />`;
   if (path === '/settings') return html`<${Settings} offline=${offline} />`;
   if (path === '/share') return html`<${Share} params=${params} />`;
-  if (path === '/paste') return html`<${Paste} />`;
-  return html`<${NotFound} />`;
+  return html`<${Paste} />`;
 }
 
 export function App({ auth }) {
@@ -48,16 +49,17 @@ export function App({ auth }) {
   const [phase, setPhase] = useState('boot');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const [collapsed, setCollapsed] = usePref('sideClosed', false);
-  const [open, setOpen] = useState(false);
   const [veil, setVeil] = useState(false);
   const offline = useRef(null);
 
   app.auth = auth;
-  app.toggleSidebar = () => (mobile() ? setOpen((o) => !o) : setCollapsed(!collapsed));
-  app.openPalette = () => modal((close) => html`<${Palette} close=${close} />`);
-  app.openLinkDialog = () => modal((close) => html`<${LinkDialog} close=${close} />`);
   app.pickPhotos = pickPhotos;
+  const isSheet = SHEET.test(route.path);
+  const isPage = PAGES.has(route.path);
+  if (!isSheet && !isPage) listHash = route.hash;
+  app.closeSheet = () => go(listHash);
+  // 어디서든 칸으로: 다른 화면이면 서랍으로 돌아온 뒤
+  app.find = () => { if (isPage) go(listHash); setTimeout(() => app.focusOmni?.(), 0); };
 
   // 드라이브와 맞추기. 문제가 있으면 원인과 고치는 버튼을 위쪽 띠에 보여 준다.
   const sync = async () => {
@@ -117,6 +119,9 @@ export function App({ auth }) {
     setBusy(false);
   };
 
+  // 설정 같은 화면은 맨 위부터 연다
+  useEffect(() => { if (isPage) window.scrollTo(0, 0); }, [route.path]);
+
   // 편집기는 커서 첫 화면에 필요 없어서, 화면이 뜬 뒤 쉬는 틈에 받아 둔다
   useEffect(() => {
     if (phase !== 'ready') return undefined;
@@ -125,17 +130,22 @@ export function App({ auth }) {
     return () => (window.cancelIdleCallback ?? clearTimeout)(id);
   }, [phase]);
 
-  // 모바일 사이드바는 화면을 옮기면 닫는다
-  useEffect(() => { setOpen(false); }, [route.hash]);
-
   // 단축키, 붙여넣기, 끌어다 놓기, 앱으로 돌아왔을 때 맞추기
   useEffect(() => {
     if (phase !== 'ready') return undefined;
     const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); app.openPalette(); return; }
-      if (isTyping(document.activeElement) || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('.overlay')) return;
-      if (e.key === '/') { e.preventDefault(); app.openPalette(); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); app.find(); return; }
+      if (document.querySelector('.overlay, .pop')) return;
+      if (e.key === 'Escape') {
+        if (isTyping(document.activeElement)) { if (!document.activeElement.closest('.omni')) document.activeElement.blur(); return; }
+        if (isSheet) { e.preventDefault(); app.closeSheet(); }
+        return;
+      }
+      if (isTyping(document.activeElement) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === '/') { e.preventDefault(); app.find(); }
       else if (e.key === 'n') { e.preventDefault(); go('#/new'); }
+      else if (isSheet && (e.key === 'j' || e.key === 'ArrowDown')) { e.preventDefault(); app.sheetNav?.(1); }
+      else if (isSheet && (e.key === 'k' || e.key === 'ArrowUp')) { e.preventDefault(); app.sheetNav?.(-1); }
     };
     const onPaste = (e) => {
       if (isTyping(document.activeElement) || route.path === '/paste') return;
@@ -171,21 +181,24 @@ export function App({ auth }) {
       window.removeEventListener('drop', onDrop);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [phase, route.path]);
+  }, [phase, route.path, isSheet]);
 
   if (phase === 'boot') {
     return html`<div class="login" aria-busy="true"><div class="login-card"><div class="sk" style="width:52px;height:52px;margin:0 auto;border-radius:12px"></div></div></div>`;
   }
   if (phase === 'login') return html`<${Login} onSignIn=${signIn} busy=${busy} error=${error} /><${Toasts} />`;
 
+  if (isPage) {
+    return html`<div class="page-shell"><${Page} route=${route} offline=${offline.current} /></div>
+    <${Layers} />
+    <${Toasts} />`;
+  }
+  const sheetNote = /^\/n\/(.+)$/.exec(route.path)?.[1];
   return html`
-    <div class=${cx('app', collapsed && 'side-closed', open && 'side-open')}>
-      <${Sidebar} />
-      <div class="scrim" onClick=${() => setOpen(false)}></div>
-      <main class="main" id="main">
-        <${Routes} route=${route} offline=${offline.current} />
-      </main>
-      <${TabBar} />
+    <div class=${cx('stage', isSheet && 'with-sheet')}>
+      <div class="stage-main"><${Drawer} path=${parse(listHash).path} activeId=${sheetNote && decodeURIComponent(sheetNote)} /></div>
+      ${isSheet && html`<div class="sheet-scrim" onClick=${() => app.closeSheet()}></div>
+        <aside class="sheet" aria-label=${route.path === '/ask' ? '묻기' : '노트'}><${Sheet} route=${route} /></aside>`}
     </div>
     <${Layers} />
     <${Toasts} />

@@ -1,71 +1,11 @@
-// 사이드바, 위 막대, 아래 탭(모바일), 추가 메뉴
+// 화면 틀 조각: 메뉴 단추, 보조 화면(설정 등)의 머리줄, 저장 상태, 연결 문제 띠
 import { html } from '../h.js';
-import { Icon, Logo, TYPE_ICON } from '../icons.js';
-import { app, useLib, usePref, useConn } from '../state.js';
-import { useRoute, folderHref, noteHref, tagHref, go } from '../router.js';
-import { popover, modal } from './layers.js';
-import { MenuItem, titleOf } from './common.js';
-import { NewFolderDialog } from './dialogs.js';
+import { Icon, Logo } from '../icons.js';
+import { app, useConn } from '../state.js';
+import { go } from '../router.js';
+import { popover } from './layers.js';
+import { MenuItem } from './common.js';
 import { ConnBanner } from './conn.js';
-import { modKey } from '../format.js';
-
-function FolderTree({ folders, depth = 0, path, open, toggle }) {
-  return html`${folders.map((f) => {
-    const isOpen = open.includes(f.path);
-    const href = folderHref(f.path);
-    return html`<div key=${f.path}>
-      <div class="tree-row">
-        <button type="button" class=${`twisty${f.children.length ? '' : ' none'}${isOpen ? ' open' : ''}`} aria-label=${isOpen ? '접기' : '펼치기'} onClick=${() => toggle(f.path)}><${Icon} name="chevron" /></button>
-        <a class="sb-item" href=${href} aria-current=${path === href.slice(1) ? 'page' : undefined}>
-          <${Icon} name="folder" /><span class="label">${f.name}</span><span class="badge">${f.count || ''}</span>
-        </a>
-      </div>
-      ${isOpen && f.children.length > 0 && html`<div class="tree-kids"><${FolderTree} folders=${f.children} depth=${depth + 1} path=${path} open=${open} toggle=${toggle} /></div>`}
-    </div>`;
-  })}`;
-}
-
-export function Sidebar() {
-  const lib = useLib();
-  const { path } = useRoute();
-  const [open, setOpen] = usePref('openFolders', []);
-  const toggle = (p) => setOpen(open.includes(p) ? open.filter((x) => x !== p) : [...open, p]);
-  const inboxN = lib.inbox().length;
-  const cur = (p) => (path === p ? 'page' : undefined);
-  const tags = lib.tags().slice(0, 14);
-  return html`<aside class="sidebar" aria-label="탐색">
-    <a class="sb-brand" href="#/"><${Logo} size=${26} /><span>Thought Drawer</span></a>
-    <div class="sb-actions">
-      <button type="button" class="sb-search" onClick=${() => app.openPalette()}><${Icon} name="search" /><span>검색</span><kbd class="hide-m">${modKey} K</kbd></button>
-      <a class="sb-new" href="#/new" aria-label="새 노트" title="새 노트 (N)"><${Icon} name="plus" /></a>
-    </div>
-    <div class="sb-scroll">
-      <nav class="sb-nav">
-        <a class="sb-item" href="#/" aria-current=${cur('/')}><${Icon} name="home" /><span class="label">홈</span></a>
-        <a class="sb-item" href="#/inbox" aria-current=${cur('/inbox')}><${Icon} name="inbox" /><span class="label">인박스</span>${inboxN > 0 && html`<span class="badge hot">${inboxN}</span>`}</a>
-        <a class="sb-item" href="#/ask" aria-current=${cur('/ask')}><${Icon} name="ask" /><span class="label">묻기</span></a>
-        <a class="sb-item" href="#/graph" aria-current=${cur('/graph')}><${Icon} name="graph" /><span class="label">그래프</span></a>
-      </nav>
-      ${lib.pinned().length > 0 && html`<div class="sb-group">
-        <div class="sb-title"><span>즐겨찾기</span></div>
-        ${lib.pinned().map((n) => html`<a key=${n.id} class="sb-item" href=${noteHref(n.id)} aria-current=${path === noteHref(n.id).slice(1) ? 'page' : undefined}><${Icon} name=${TYPE_ICON[n.meta.type] ?? 'memo'} /><span class="label">${titleOf(n)}</span></a>`)}
-      </div>`}
-      <div class="sb-group">
-        <div class="sb-title"><span>폴더</span><button type="button" aria-label="새 폴더" title="새 폴더" onClick=${() => modal((close) => html`<${NewFolderDialog} close=${close} />`)}><${Icon} name="plus" size=${15} /></button></div>
-        ${lib.folders().length
-          ? html`<${FolderTree} folders=${lib.folders()} path=${path} open=${open} toggle=${toggle} />`
-          : html`<p class="sb-note">정리되면 Claude가 폴더를 만들어요.</p>`}
-      </div>
-      ${tags.length > 0 && html`<div class="sb-group"><div class="sb-title"><span>태그</span></div>
-        <div class="sb-tags">${tags.map(([t]) => html`<a key=${t} class="sb-tag" href=${tagHref(t)} aria-current=${path === tagHref(t).slice(1) ? 'page' : undefined}>#${t}</a>`)}</div></div>`}
-    </div>
-    <div class="sb-foot">
-      <a class="sb-item" href="#/connect" aria-current=${cur('/connect')}><${Icon} name="phone" /><span class="label">폰과 크롬에서 쓰기</span></a>
-      <a class="sb-item" href="#/import" aria-current=${cur('/import')}><${Icon} name="instagram" /><span class="label">인스타 가져오기</span></a>
-      <a class="sb-item" href="#/settings" aria-current=${cur('/settings')}><${Icon} name="gear" /><span class="label">설정</span></a>
-    </div>
-  </aside>`;
-}
 
 export function SaveState({ state }) {
   if (!state) return null;
@@ -73,40 +13,40 @@ export function SaveState({ state }) {
   return html`<span class=${`save-state ${state}`} role="status"><span class="dot"></span>${label}</span>`;
 }
 
-// crumbs: [{ label, href }] — 마지막이 지금 화면
-export function Topbar({ crumbs = [], right = null, lined = false }) {
+export function Conn() {
   const conn = useConn();
-  return html`<header class=${`topbar${lined ? ' lined' : ''}`}>
-    <button type="button" class="icon-btn" aria-label="사이드바" onClick=${() => app.toggleSidebar()}><${Icon} name="sidebar" /></button>
-    <nav class="crumbs" aria-label="위치">
-      ${crumbs.map((c, i) => html`${i > 0 && html`<span class="sep">/</span>`}${i === crumbs.length - 1 || !c.href
-        ? html`<span class="cur" title=${c.label}>${c.label}</span>`
-        : html`<a href=${c.href} title=${c.label}>${c.label}</a>`}`)}
-    </nav>
-    ${right}
-    <button type="button" class="icon-btn show-m" aria-label="검색" onClick=${() => app.openPalette()}><${Icon} name="search" /></button>
-  </header>
-  ${conn && html`<${ConnBanner} conn=${conn} onRetry=${() => app.resync()} onReconnect=${(o) => app.reconnect(o)} clientId=${app.auth?.clientId} />`}`;
+  return conn && html`<${ConnBanner} conn=${conn} onRetry=${() => app.resync()} onReconnect=${(o) => app.reconnect(o)} clientId=${app.auth?.clientId} />`;
 }
 
-export function openAddMenu(anchor) {
+// 서랍 밖의 것들: 새 노트, 사진, 그래프, 폰과 크롬, 인스타 가져오기, 설정
+export function openMenu(anchor) {
+  const to = (close, hash) => () => { close(); go(hash); };
   popover(anchor, (close) => html`
-    <${MenuItem} icon="memo" label="새 노트" sub="N" onClick=${() => { close(); go('#/new'); }} />
-    <${MenuItem} icon="capture" label="사진·캡처" onClick=${() => { close(); app.pickPhotos(); }} />
-    <${MenuItem} icon="link" label="링크" onClick=${() => { close(); app.openLinkDialog(); }} />
+    <${MenuItem} icon="memo" label="새 노트" sub="N" onClick=${to(close, '#/new')} />
+    <${MenuItem} icon="capture" label="사진 넣기" onClick=${() => { close(); app.pickPhotos(); }} />
     <div class="mi-sep"></div>
-    <${MenuItem} icon="instagram" label="인스타 저장함 가져오기" onClick=${() => { close(); go('#/import'); }} />`);
+    <${MenuItem} icon="graph" label="그래프" onClick=${to(close, '#/graph')} />
+    <${MenuItem} icon="phone" label="폰과 크롬에서 쓰기" onClick=${to(close, '#/connect')} />
+    <${MenuItem} icon="instagram" label="인스타 가져오기" onClick=${to(close, '#/import')} />
+    <${MenuItem} icon="gear" label="설정" onClick=${to(close, '#/settings')} />`, { width: 240 });
 }
 
-export function TabBar() {
-  const lib = useLib();
-  const { path } = useRoute();
-  const n = lib.inbox().length;
-  return html`<nav class="tabbar" aria-label="주요 메뉴">
-    <a href="#/" aria-current=${path === '/' ? 'page' : undefined}><${Icon} name="home" />홈</a>
-    <button type="button" onClick=${() => app.openPalette()}><${Icon} name="search" />검색</button>
-    <button type="button" class="add-btn" aria-label="추가" onClick=${(e) => openAddMenu(e.currentTarget)}><${Icon} name="plus" /></button>
-    <a href="#/inbox" aria-current=${path === '/inbox' ? 'page' : undefined}><${Icon} name="inbox" />인박스${n > 0 && html`<span class="dot">${n}</span>`}</a>
-    <button type="button" onClick=${() => app.toggleSidebar()}><${Icon} name="menu" />메뉴</button>
-  </nav>`;
+export function MenuButton() {
+  const p = app.profile ?? {};
+  const letter = (p.name || p.email || '나').trim()[0].toUpperCase();
+  return html`<button type="button" class="me" aria-label="메뉴" aria-haspopup="menu" aria-expanded="false" onClick=${(e) => openMenu(e.currentTarget)}>
+    ${p.picture ? html`<img src=${p.picture} alt="" referrerpolicy="no-referrer" />` : letter}
+  </button>`;
+}
+
+// 보조 화면 위쪽: 서랍으로 돌아가기, 제목
+export function PageBar({ title, right = null }) {
+  return html`<header class="pagebar">
+    <a class="pb-back" href="#/" aria-label="서랍으로 돌아가기"><${Icon} name="back" /><${Logo} size=${24} /></a>
+    <b class="pb-title">${title}</b>
+    <span class="grow"></span>
+    ${right}
+    <${MenuButton} />
+  </header>
+  <${Conn} />`;
 }

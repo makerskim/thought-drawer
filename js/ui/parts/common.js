@@ -2,8 +2,8 @@
 import { html, useState, useEffect, useRef } from '../h.js';
 import { Icon, TYPE_ICON } from '../icons.js';
 import { app } from '../state.js';
-import { noteHref, tagHref, folderHref } from '../router.js';
-import { relTime, KIND_LABEL } from '../format.js';
+import { noteHref, tagHref } from '../router.js';
+import { relTime } from '../format.js';
 import { displayTitle, categoryParts } from '../../core/note.js';
 
 export function Tag({ name, href = true, onRemove }) {
@@ -47,12 +47,12 @@ function Lead({ note, url }) {
     : html`<span class="rlead"><${Icon} name=${TYPE_ICON[note.meta.type] ?? 'memo'} /></span>`;
 }
 
-export function NoteRow({ note, showFolder = true, right, hl, selectable = false, selected = false, onSelect }) {
+export function NoteRow({ note, showFolder = true, right, hl, active = false, selectable = false, selected = false, onSelect }) {
   const m = note.meta;
   const sub = m.summary || note.snippet || '';
   const t = titleOf(note);
   const [ref, url] = useThumb((m.attachments ?? [])[0]);
-  return html`<div ref=${ref} class=${`row${selectable ? ' selectable' : ''}${selected ? ' selected' : ''}`}>
+  return html`<div ref=${ref} class=${`row${selectable ? ' selectable' : ''}${selected ? ' selected' : ''}${active ? ' active' : ''}`}>
     ${selectable
       ? html`<label class="pick" title="고르기"><input type="checkbox" checked=${selected} onChange=${(e) => onSelect?.(e.target.checked)} aria-label=${`${t} 고르기`} /><${Lead} note=${note} url=${url} /></label>`
       : html`<${Lead} note=${note} url=${url} />`}
@@ -69,52 +69,21 @@ export function NoteRow({ note, showFolder = true, right, hl, selectable = false
   </div>`;
 }
 
-// 홈의 최근 노트: 사진이 있으면 사진이 앞에, 없으면 글이 앞에
-export function MCard({ note }) {
+// 서랍의 벽에 꽂히는 카드: 사진이 있으면 사진이 앞에, 없으면 글이 앞에
+export function MCard({ note, hl, active = false }) {
   const m = note.meta;
   const att = (m.attachments ?? [])[0];
   const [ref, url] = useThumb(att);
   const t = titleOf(note);
   const sub = m.summary || note.snippet || '';
-  return html`<a class=${`mcard${att ? ' has-img' : ''}`} href=${noteHref(note.id)} ref=${ref}>
+  return html`<a class=${`mcard${att ? ' has-img' : ''}${active ? ' active' : ''}`} href=${noteHref(note.id)} ref=${ref} aria-current=${active ? 'true' : undefined}>
     ${att && html`<div class="img">${url ? html`<img src=${url} alt="" loading="lazy" />` : html`<div class="sk"></div>`}</div>`}
     <div class="tx">
-      <b>${t}</b>
-      ${!att && sub && sub !== t && html`<p>${sub}</p>`}
+      <b>${hl ? hl(t) : t}</b>
+      ${sub && sub !== t && (!att || hl) && html`<p>${hl ? hl(sub) : sub}</p>`}
     </div>
     <div class="ft"><${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} /><span>${folderLabel(note)}</span><span class="num">${relTime(m.updated || m.created)}</span></div>
   </a>`;
-}
-
-export function NoteCard({ note }) {
-  const m = note.meta;
-  const [ref, url] = useThumb((m.attachments ?? [])[0]);
-  return html`<a class="gcard" href=${noteHref(note.id)} ref=${ref}>
-    <div class="cover">${url ? html`<img src=${url} alt="" loading="lazy" />` : html`<div class="ph">${m.summary || note.snippet || ''}</div>`}</div>
-    <div class="body">
-      <b><${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} /><span>${titleOf(note)}</span></b>
-      <div class="meta">${(m.tags ?? []).slice(0, 3).map((x) => html`<${Tag} key=${x} name=${x} href=${false} />`)}${!(m.tags ?? []).length && html`<span>${relTime(m.updated || m.created)}</span>`}</div>
-    </div>
-  </a>`;
-}
-
-export function NoteTable({ notes }) {
-  return html`<div class="table-wrap"><table class="table">
-    <thead><tr><th>이름</th><th>종류</th><th>태그</th><th>폴더</th><th>만든 날</th></tr></thead>
-    <tbody>${notes.map((n) => html`<tr key=${n.id}>
-      <td class="title"><a href=${noteHref(n.id)}><${Icon} name=${TYPE_ICON[n.meta.type] ?? 'memo'} />${titleOf(n)}</a></td>
-      <td class="muted">${KIND_LABEL[n.meta.type] ?? '메모'}</td>
-      <td><div class="tags">${(n.meta.tags ?? []).slice(0, 3).map((x) => html`<${Tag} key=${x} name=${x} />`)}</div></td>
-      <td>${n.meta.category ? html`<a class="muted" href=${folderHref(n.meta.category)}>${folderLabel(n)}</a>` : html`<span class="muted">인박스</span>`}</td>
-      <td class="muted num">${relTime(n.meta.created)}</td>
-    </tr>`)}</tbody>
-  </table></div>`;
-}
-
-export function NoteList({ notes, view = 'list', showFolder = true }) {
-  if (view === 'gallery') return html`<div class="gallery">${notes.map((n) => html`<${NoteCard} key=${n.id} note=${n} />`)}</div>`;
-  if (view === 'table') return html`<${NoteTable} notes=${notes} />`;
-  return html`<div class="rows">${notes.map((n) => html`<${NoteRow} key=${n.id} note=${n} showFolder=${showFolder} />`)}</div>`;
 }
 
 export function MenuItem({ icon, label, sub, onClick, danger, on }) {

@@ -3,7 +3,7 @@ import { html, useState, useMemo } from '../h.js';
 import { Icon } from '../icons.js';
 import { useLib, toast } from '../state.js';
 import { setUrl, folderHref } from '../router.js';
-import { Topbar } from '../parts/shell.js';
+import { SheetBar } from './note.js';
 import { NoteRow, Empty, highlighter } from '../parts/common.js';
 import { answerLocally, buildClaudePrompt, claudeUrl } from '../../core/ask.js';
 import { categoryParts } from '../../core/note.js';
@@ -22,13 +22,14 @@ export function Ask({ params }) {
   const hl = result ? highlighter(result.terms) : null;
   const prompt = result?.total ? buildClaudePrompt(asked, result.results.slice(0, 15)) : '';
   return html`
-    <${Topbar} crumbs=${[{ label: '묻기' }]} />
-    <div class="page narrow">
-      <div class="page-head"><h1>무엇이 궁금하세요?</h1><p>문장으로 물으면 관련 노트를 폴더별로 모아 보여 줘요.</p></div>
-      <form class="capture" style="margin-top:0" onSubmit=${submit}>
+    <${SheetBar} />
+    <div class="sheet-body"><div class="note-page">
+      <h1 class="sheet-title">무엇이 궁금하세요?</h1>
+      <form class="ask-box" onSubmit=${submit}>
+        <${Icon} name="sparkle" />
         <textarea rows="1" value=${q} aria-label="질문" placeholder="예: 사고 싶었던 셔츠 뭐 있었지?"
           onInput=${(e) => setQ(e.target.value)} onKeyDown=${(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) submit(e); }}></textarea>
-        <div class="bar"><span class="hint">↵ 묻기</span><button class="btn btn-primary" disabled=${!q.trim()}>묻기</button></div>
+        <button class="btn btn-primary" disabled=${!q.trim()}>묻기</button>
       </form>
       ${!result && suggestions.length > 0 && html`<div class="chips" style="margin-top:14px">${suggestions.map((s) => html`
         <button type="button" class="chip" key=${s} onClick=${() => { setQ(s); setAsked(s); setUrl(`#/ask?q=${encodeURIComponent(s)}`); }}>${s}</button>`)}</div>`}
@@ -45,5 +46,5 @@ export function Ask({ params }) {
             ${g.category !== '정리 대기' && html`<a href=${folderHref(g.category)}>폴더 열기</a>`}</div>
           <div class="rows">${g.items.map(({ note }) => html`<${NoteRow} key=${note.id} note=${note} showFolder=${false} hl=${hl} />`)}</div>
         </section>`)}`}
-    </div>`;
+    </div></div>`;
 }

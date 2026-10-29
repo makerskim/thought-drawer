@@ -3,12 +3,12 @@ import { html, useState, useEffect } from '../h.js';
 import { Icon, Logo, GoogleG } from '../icons.js';
 import { app, useLib, usePref, applyAppearance, toast } from '../state.js';
 import { go, noteHref } from '../router.js';
-import { Topbar } from '../parts/shell.js';
+import { PageBar } from '../parts/shell.js';
 import { Empty } from '../parts/common.js';
 import { modal } from '../parts/layers.js';
 import { ConfirmDialog } from '../parts/dialogs.js';
 import { capturePhotos } from '../capture.js';
-import { saveQuick } from './home.js';
+import { saveQuick } from './drawer.js';
 import { parseInstagramFile, mergeSaved, isInstagramUrl } from '../../core/instagram.js';
 import { convertForExport } from '../../core/export.js';
 import { ATTACH_DIR } from '../../config.js';
@@ -84,7 +84,7 @@ export function Settings({ offline }) {
   };
   const seg = (value, set, opts) => html`<div class="seg" role="group">${opts.map(([v, l]) => html`<button type="button" key=${v} aria-pressed=${value === v} onClick=${() => { set(v); applyAppearance(); }}>${l}</button>`)}</div>`;
   return html`
-    <${Topbar} crumbs=${[{ label: '설정' }]} />
+    <${PageBar} title="설정" />
     <div class="page narrow">
       <div class="page-head"><h1>설정</h1></div>
       <${Section} title="계정" desc="노트는 이 구글 계정의 드라이브 「메모」 폴더에 있어요.">
@@ -164,7 +164,7 @@ export function Import() {
   const reels = items?.filter((i) => i.kind === 'reel').length ?? 0;
   const cols = new Set(items?.map((i) => i.collection).filter(Boolean));
   return html`
-    <${Topbar} crumbs=${[{ label: '인스타 가져오기' }]} />
+    <${PageBar} title="인스타 가져오기" />
     <div class="page narrow">
       <div class="page-head"><h1>인스타 저장함 가져오기</h1>
         <p>비밀번호는 필요 없어요. 인스타그램이 주는 내 정보 파일을 올리면 저장한 게시물과 릴스가 노트가 돼요.</p></div>
@@ -200,7 +200,7 @@ export function Share({ params }) {
       .then((n) => { toast(isInstagramUrl(full) ? '인스타 게시물을 인박스에 넣었어요.' : '인박스에 저장했어요.'); go(noteHref(n.id), { replace: true }); })
       .catch((e) => setError(e.message));
   }, []);
-  return html`<${Topbar} crumbs=${[{ label: '받는 중' }]} />
+  return html`<${PageBar} title="받는 중" />
     <div class="page narrow">${error
       ? html`<${Empty} icon="alert" title="저장하지 못했어요" text=${error}><button type="button" class="btn" onClick=${() => go('#/')}>홈으로</button></${Empty}>`
       : html`<${Empty} icon="inbox" title="인박스에 넣는 중" text="잠시만요." />`}</div>`;
@@ -228,7 +228,7 @@ export function Paste() {
       if (made[0]) go(noteHref(made[0].id), { replace: true });
     } catch { toast('붙여넣기를 허용해 주세요. 또는 길게 눌러 붙여넣기를 골라요.'); }
   };
-  return html`<${Topbar} crumbs=${[{ label: '사진 붙여넣기' }]} />
+  return html`<${PageBar} title="사진 붙여넣기" />
     <div class="page narrow">
       <${Empty} icon="paste" title="복사한 사진을 붙여 넣어요" text="버튼을 누르고, 아이폰이 묻는 '붙여넣기'를 한 번 더 누르면 인박스에 저장돼요.">
         <button type="button" class="btn btn-primary btn-lg" onClick=${fromClipboard}><${Icon} name="paste" />붙여넣기</button>

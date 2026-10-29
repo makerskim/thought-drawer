@@ -5,11 +5,12 @@ export const app = {
   lib: null,
   auth: null,
   profile: null,
-  // 화면이 여는 창들 (App이 채운다)
-  openPalette: () => {},
-  openLinkDialog: () => {},
+  // 화면이 채우는 동작들 (App, 서랍, 옆 창)
   pickPhotos: () => {},
   reconnect: () => {},
+  find: () => {}, // 위쪽 칸으로 커서 옮기기
+  closeSheet: () => {},
+  visible: [], // 지금 서랍에 보이는 노트 순서 (옆 창의 이전·다음)
 };
 
 // 라이브러리가 바뀔 때마다 다시 그리게 한다

@@ -20,8 +20,6 @@ export function setUrl(hash, { push = false } = {}) {
 export function go(hash, { replace = false } = {}) {
   if (hash === current) { notify(); return; }
   setUrl(hash, { push: !replace });
-  window.scrollTo(0, 0);
-  document.getElementById('main')?.scrollTo(0, 0); // 넓은 화면은 내용 판 안에서 스크롤한다
   notify();
 }
 

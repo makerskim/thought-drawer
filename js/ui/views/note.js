@@ -2,9 +2,9 @@
 // 오른쪽 패널(연결, 비슷한 노트). /new 는 아무것도 적기 전까지 파일을 만들지 않는다.
 import { html, useState, useEffect, useLayoutEffect, useRef, useCallback, autosize } from '../h.js';
 import { Icon, TYPE_ICON } from '../icons.js';
-import { app, useLib, usePref, toast } from '../state.js';
-import { go, setUrl, noteHref, folderHref } from '../router.js';
-import { Topbar, SaveState } from '../parts/shell.js';
+import { app, useLib, toast } from '../state.js';
+import { go, setUrl, noteHref } from '../router.js';
+import { SaveState } from '../parts/shell.js';
 import { Tag, MenuItem, Empty, SkeletonRows, titleOf } from '../parts/common.js';
 import { popover, modal } from '../parts/layers.js';
 import { FolderPicker, Lightbox, ConfirmDialog } from '../parts/dialogs.js';
@@ -20,6 +20,14 @@ function Grow({ value, onInput, class: cls, placeholder, onKeyDown, inputRef, la
   const ref = useRef();
   useLayoutEffect(() => autosize(ref.current), [value]);
   useLayoutEffect(() => { if (autofocus) ref.current?.focus(); }, []);
+  // 옆 창이 열리며 폭이 바뀌면 높이를 다시 잰다
+  useEffect(() => {
+    if (!('ResizeObserver' in window) || !ref.current) return undefined;
+    let w = 0;
+    const ro = new ResizeObserver(([e]) => { const nw = Math.round(e.contentRect.width); if (nw !== w) { w = nw; autosize(ref.current); } });
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
   return html`<textarea ref=${(el) => { ref.current = el; if (inputRef) inputRef.current = el; }} class=${cls} rows="1" value=${value} placeholder=${placeholder} aria-label=${label}
     onInput=${(e) => { onInput(e.target.value); autosize(e.target); }} onKeyDown=${onKeyDown}></textarea>`;
 }
@@ -40,6 +48,21 @@ function TagEditor({ tags, onChange }) {
         else if (e.key === 'Backspace' && !text && tags.length) onChange(tags.slice(0, -1));
       }}
       onBlur=${add} />`;
+}
+
+// 옆 창 위쪽: 닫기, 이전·다음 노트(지금 서랍에 보이는 순서), 오른쪽 단추들
+export function SheetBar({ noteId = null, right = null }) {
+  const ids = app.visible ?? [];
+  const i = noteId ? ids.indexOf(noteId) : -1;
+  const prev = i > 0 ? ids[i - 1] : null;
+  const next = i >= 0 && i < ids.length - 1 ? ids[i + 1] : null;
+  app.sheetNav = (d) => { const id = d < 0 ? prev : next; if (id) go(noteHref(id), { replace: true }); };
+  return html`<div class="sheet-bar">
+    <button type="button" class="icon-btn" aria-label="닫기" title="닫기 (Esc)" onClick=${() => app.closeSheet()}><${Icon} name="x" /></button>
+    ${noteId && html`<button type="button" class="icon-btn" aria-label="이전 노트" title="이전 노트 (K)" disabled=${!prev} onClick=${() => app.sheetNav(-1)}><${Icon} name="up" /></button>
+      <button type="button" class="icon-btn" aria-label="다음 노트" title="다음 노트 (J)" disabled=${!next} onClick=${() => app.sheetNav(1)}><${Icon} name="down" /></button>`}
+    ${right}
+  </div>`;
 }
 
 function Links({ note }) {
@@ -81,7 +104,6 @@ export function NoteView({ id, params }) {
   const [main, setMain] = useState(splitLinks(note?.body).main);
   const [thought, setThought] = useState(note?.meta.thought ?? '');
   const [saveState, setSaveState] = useState(null);
-  const [panel, setPanel] = usePref('panel', true);
   const dirty = useRef(false);
   const queue = useRef(Promise.resolve());
   const latest = useRef({});
@@ -162,18 +184,14 @@ export function NoteView({ id, params }) {
   }, []);
 
   if (noteId && !note && !lib.state.synced && !lib.state.error) {
-    return html`<${Topbar} crumbs=${[{ label: '노트' }]} /><div class="page narrow"><${SkeletonRows} n=${4} /></div>`;
+    return html`<${SheetBar} /><div class="sheet-body"><article class="note-page"><${SkeletonRows} n=${4} /></article></div>`;
   }
   if (noteId && !note) {
-    return html`<${Topbar} crumbs=${[{ label: '노트' }]} /><div class="page narrow"><${Empty} icon="alert" title="노트를 찾지 못했어요" text="지워졌거나 아직 불러오지 못했어요."><button type="button" class="btn" onClick=${() => go('#/')}>홈으로</button></${Empty}></div>`;
+    return html`<${SheetBar} /><div class="sheet-body"><article class="note-page"><${Empty} icon="alert" title="노트를 찾지 못했어요" text="지워졌거나 아직 불러오지 못했어요." /></article></div>`;
   }
 
   const m = note?.meta ?? { type: 'memo', status: 'inbox' };
   const folder = m.status === 'organized' ? m.category : null;
-  const crumbs = [
-    ...(folder ? categoryParts(folder).map((p, i, a) => ({ label: p, href: folderHref(a.slice(0, i + 1).join('/')) })) : [{ label: '인박스', href: '#/inbox' }]),
-    { label: title.trim() || (note ? titleOf(note) : '새 노트') },
-  ];
 
   const ensureSaved = async () => { await flush(); return lib.get(latest.current.noteId); };
   const update = async (meta) => {
@@ -193,10 +211,10 @@ export function NoteView({ id, params }) {
   const remove = () => modal((close) => html`<${ConfirmDialog} close=${close} title="이 노트를 지울까요?" text="구글 드라이브 휴지통으로 옮겨요. 30일 안에는 되살릴 수 있어요." yes="지우기" danger
     onYes=${async () => {
       const n = lib.get(latest.current.noteId);
-      if (!n) { go('#/'); return; }
+      if (!n) { app.closeSheet(); return; }
       try {
         const undo = await lib.remove(n);
-        go(folder ? folderHref(folder) : '#/inbox', { replace: true });
+        app.closeSheet();
         toast('노트를 지웠어요.', { action: '되돌리기', duration: 6000, onAction: async () => { await undo(); go(noteHref(n.id)); } });
       } catch (e) { toast(e.message); }
     }} />`);
@@ -211,14 +229,13 @@ export function NoteView({ id, params }) {
     <${MenuItem} icon="trash" label="지우기" danger onClick=${() => { close(); remove(); }} />`);
 
   return html`
-    <${Topbar} crumbs=${crumbs} right=${html`
+    <${SheetBar} noteId=${noteId} right=${html`
       <${SaveState} state=${saveState} />
+      <span class="grow"></span>
       ${note && html`<button type="button" class=${`icon-btn${pinned ? ' starred' : ''}`} aria-pressed=${pinned} aria-label="즐겨찾기" title="즐겨찾기" onClick=${togglePin}><${Icon} name="star" /></button>`}
-      <button type="button" class="icon-btn hide-m" aria-pressed=${panel} aria-label="연결 패널" title="연결 패널" onClick=${() => setPanel(!panel)}><${Icon} name="panel" /></button>
       <button type="button" class="icon-btn" aria-label="더 보기" onClick=${(e) => more(e.currentTarget)}><${Icon} name="more" /></button>`} />
-    <div class="note-wrap">
-      <div class="scroll">
-        <article class="note-page">
+    <div class="sheet-body">
+      <article class="note-page">
           <${Grow} class="note-title" value=${title} onInput=${change(setTitle)} placeholder=${note ? titleOf(note) : '제목 없음'} label="제목" autofocus=${!noteId}
             onKeyDown=${(e) => { if ((e.key === 'Enter' || e.key === 'ArrowDown') && !e.isComposing) { e.preventDefault(); focusBody(); } }} />
           <div class="meta-row">
@@ -242,19 +259,13 @@ export function NoteView({ id, params }) {
                 placeholder="내용을 쓰세요. / 를 치면 제목·목록·사진, [[ 를 치면 다른 노트를 이어요."
                 onImage=${(src) => modal((close) => html`<${Lightbox} src=${src} close=${close} />`)} />`
             : html`<div class="sk" style="height:16px;width:80%;margin-bottom:10px"></div><div class="sk" style="height:16px;width:60%"></div>`}
-          ${note && html`<section class=${`note-links-inline${panel ? ' wide-only' : ''}`}><${Links} note=${note} /></section>`}
+          ${note && html`<section class="note-links"><${Links} note=${note} /></section>
+            <dl class="facts">
+              <dt>만든 날</dt><dd>${fullDate(m.created)}</dd>
+              <dt>수정</dt><dd>${relTime(m.updated || m.created)}</dd>
+              ${m.organized && html`<dt>정리</dt><dd>Claude가 ${relTime(m.organized)}</dd>`}
+              <dt>번호</dt><dd class="num">${note.id}</dd>
+            </dl>`}
         </article>
-      </div>
-      ${note && panel && html`<aside class="rpanel" aria-label="연결"><${Links} note=${note} />
-        <div class="rp-sec"><h3><span>정보</span></h3>
-          <dl class="facts">
-            <dt>만든 날</dt><dd>${fullDate(m.created)}</dd>
-            <dt>수정</dt><dd>${relTime(m.updated || m.created)}</dd>
-            ${m.organized && html`<dt>정리</dt><dd>Claude가 ${relTime(m.organized)}</dd>`}
-            <dt>글자</dt><dd>${main.length.toLocaleString()}자</dd>
-            <dt>번호</dt><dd class="num">${note.id}</dd>
-          </dl>
-        </div>
-      </aside>`}
     </div>`;
 }

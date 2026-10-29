@@ -3,7 +3,7 @@ import { html, useEffect, useRef } from '../h.js';
 import { Icon } from '../icons.js';
 import { useLib } from '../state.js';
 import { go, noteHref } from '../router.js';
-import { Topbar } from '../parts/shell.js';
+import { PageBar } from '../parts/shell.js';
 import { Empty, titleOf } from '../parts/common.js';
 import { categoryParts } from '../../core/note.js';
 import { folderColor, GRAPH_COLORS } from '../format.js';
@@ -154,7 +154,7 @@ export function Graph() {
   }, [notes.length, lib.edges().length]);
 
   return html`
-    <${Topbar} crumbs=${[{ label: '그래프' }]} lined />
+    <${PageBar} title="그래프" />
     ${notes.length
       ? html`<div class="graph" ref=${wrap}>
           <canvas ref=${canvas} aria-label="노트 연결 그래프. 점을 누르면 노트가 열려요."></canvas>

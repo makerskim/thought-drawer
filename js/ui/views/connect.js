@@ -2,7 +2,7 @@
 import { html, useEffect, useRef, useState } from '../h.js';
 import { Icon } from '../icons.js';
 import { app, toast } from '../state.js';
-import { Topbar } from '../parts/shell.js';
+import { PageBar } from '../parts/shell.js';
 import { APP_URL, EXTENSION_ID, EXTENSION_ZIP } from '../../config.js';
 import { isStandalone } from '../../store/auth.js';
 
@@ -53,7 +53,7 @@ export function Connect() {
     setCanInstall(false);
   };
   return html`
-    <${Topbar} crumbs=${[{ label: '폰과 크롬에서 쓰기' }]} />
+    <${PageBar} title="폰과 크롬에서 쓰기" />
     <div class="page narrow">
       <div class="page-head"><h1>어디서든 바로 넣기</h1>
         <p>폰에서는 앱처럼 설치하고 공유 버튼으로, PC에서는 크롬 확장 프로그램으로 보는 페이지를 바로 넣어요. 모두 같은 구글 드라이브에 저장돼서 어디서 봐도 같아요.</p></div>
