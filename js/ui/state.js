@@ -40,8 +40,10 @@ export function applyAppearance() {
   const root = document.documentElement;
   const theme = prefs.get('theme', '');
   const font = prefs.get('font', '');
+  const palette = prefs.get('palette', '');
   if (theme) root.dataset.theme = theme; else delete root.dataset.theme;
   if (font) root.dataset.font = font; else delete root.dataset.font;
+  if (palette) root.dataset.palette = palette; else delete root.dataset.palette;
 }
 
 // ---- 알림 ----

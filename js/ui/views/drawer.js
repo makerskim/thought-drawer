@@ -12,7 +12,7 @@ import { FolderPicker, ConfirmDialog } from '../parts/dialogs.js';
 import { capturePhotos } from '../capture.js';
 import { search, parseQuery } from '../../core/search.js';
 import { categoryParts } from '../../core/note.js';
-import { relTime, modKey } from '../format.js';
+import { relTime, modKey, emojiFor, KIND_EMOJI } from '../format.js';
 
 const URL_RE = /^(https?:\/\/\S+)\s*([\s\S]*)$/i;
 const PAGE = 60;
@@ -59,9 +59,9 @@ async function quickSave(text, { open = false } = {}) {
   if (!n) return null;
   if (open) go(noteHref(n.id));
   else {
-    toast('인박스에 넣었어요.', {
+    toast('💌 인박스에 넣었어요!', {
       action: '되돌리기', duration: 5000,
-      onAction: async () => { try { await app.lib.remove(app.lib.get(n.id) ?? n); toast('넣은 것을 뺐어요.'); } catch (e) { toast(e.message); } },
+      onAction: async () => { try { await app.lib.remove(app.lib.get(n.id) ?? n); toast('🙈 방금 넣은 걸 뺐어요.'); } catch (e) { toast(e.message); } },
     });
   }
   return n;
@@ -94,19 +94,18 @@ function Omni({ q, setQ }) {
       onDragOver=${(e) => { e.preventDefault(); e.stopPropagation(); setDrag(true); }}
       onDragLeave=${() => setDrag(false)}
       onDrop=${(e) => { e.preventDefault(); e.stopPropagation(); setDrag(false); photos([...e.dataTransfer.files]); }}>
-    <${Icon} name="search" class="omni-ic" />
+    <span class="omni-ic" aria-hidden="true">${q.trim() ? '🔍' : '✏️'}</span>
     <textarea ref=${ref} rows="1" value=${q} aria-label="적거나 찾기" enterkeyhint="send"
-      placeholder="적으면 넣고, 입력하면 찾아요"
+      placeholder="오늘은 어떤 생각을 넣어 볼까요?"
       onInput=${(e) => setQ(e.target.value)} onKeyDown=${onKeyDown}
       onPaste=${(e) => {
         const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
         if (files.length) { e.preventDefault(); e.stopPropagation(); photos(files); }
       }}></textarea>
     ${q.trim()
-      ? html`<button type="button" class="omni-btn" title="이 말로 물어보기" aria-label="물어보기" onClick=${ask}><${Icon} name="sparkle" /><span class="hide-m">물어보기</span></button>
-        <button type="button" class="omni-save" disabled=${busy} onClick=${() => save()} aria-label="넣기"><span class="hide-m">넣기</span><${Icon} name="enter" /></button>`
-      : html`<kbd class="hide-m">/</kbd>
-        <button type="button" class="omni-btn" title="사진 넣기" aria-label="사진 넣기" onClick=${() => app.pickPhotos()}><${Icon} name="capture" /></button>`}
+      ? html`<button type="button" class="omni-btn" title="이 말로 물어보기" aria-label="물어보기" onClick=${ask}><span class="emo">✨</span><span class="hide-m">물어보기</span></button>
+        <button type="button" class="omni-save" disabled=${busy} onClick=${() => save()} aria-label="넣기"><span class="emo">💌</span><span class="hide-m">넣기</span></button>`
+      : html`<button type="button" class="omni-btn" title="사진 넣기" aria-label="사진 넣기" onClick=${() => app.pickPhotos()}><span class="emo">📸</span><span class="hide-m">사진</span></button>`}
   </div>`;
 }
 
@@ -120,25 +119,25 @@ function Chips({ scope, kind, setKind, view, setView }) {
   const on = (k, v) => (scope.kind === k && (v === undefined || scope.value === v) ? 'page' : undefined);
   return html`<div class="chips-bar">
     <nav class="chip-row" aria-label="보는 범위">
-      <a class="chip" href="#/" aria-current=${on('all')}>전체</a>
-      <a class="chip" href="#/inbox" aria-current=${on('inbox')}>인박스${inboxN > 0 && html`<span class="n hot">${inboxN}</span>`}</a>
-      ${pinnedN > 0 && html`<a class="chip" href="#/star" aria-current=${on('star')}><${Icon} name="star" />즐겨찾기</a>`}
-      ${scope.kind === 'tag' && html`<a class="chip" href="#/" aria-current="page" title="태그 거르기 끄기">#${scope.value}<${Icon} name="x" /></a>`}
+      <a class="chip" href="#/" aria-current=${on('all')}><span class="emo">🗂️</span>전체</a>
+      <a class="chip" href="#/inbox" aria-current=${on('inbox')}><span class="emo">📥</span>인박스${inboxN > 0 && html`<span class="n hot">${inboxN}</span>`}</a>
+      ${pinnedN > 0 && html`<a class="chip" href="#/star" aria-current=${on('star')}><span class="emo">⭐</span>즐겨찾기</a>`}
+      ${scope.kind === 'tag' && html`<a class="chip" href="#/" aria-current="page" title="태그 거르기 끄기"><span class="emo">🏷️</span>#${scope.value}<${Icon} name="x" /></a>`}
       ${folders.length > 0 && html`<span class="chip-sep" aria-hidden="true"></span>`}
-      ${folders.map((f) => html`<a key=${f.path} class="chip" href=${folderHref(f.path)} aria-current=${top === f.path ? 'page' : undefined}>${f.name}<span class="n">${f.count}</span></a>`)}
+      ${folders.map((f) => html`<a key=${f.path} class="chip" href=${folderHref(f.path)} aria-current=${top === f.path ? 'page' : undefined}><span class="emo">${emojiFor(f.name)}</span>${f.name}<span class="n">${f.count}</span></a>`)}
     </nav>
     <div class="tools">
       <div class="seg kinds" role="group" aria-label="종류">
-        ${KINDS.map(([k, icon, label]) => html`<button type="button" key=${k} title=${label} aria-label=${`${label}만 보기`} aria-pressed=${kind === k} onClick=${() => setKind(kind === k ? '' : k)}><${Icon} name=${icon} /></button>`)}
+        ${KINDS.map(([k, , label]) => html`<button type="button" key=${k} title=${`${label}만 보기`} aria-label=${`${label}만 보기`} aria-pressed=${kind === k} onClick=${() => setKind(kind === k ? '' : k)}><span class="emo">${KIND_EMOJI[k]}</span></button>`)}
       </div>
       <div class="seg" role="group" aria-label="보기">
-        <button type="button" title="벽" aria-label="벽으로 보기" aria-pressed=${view === 'wall'} onClick=${() => setView('wall')}><${Icon} name="grid" /></button>
-        <button type="button" title="목록" aria-label="목록으로 보기" aria-pressed=${view === 'list'} onClick=${() => setView('list')}><${Icon} name="list" /></button>
+        <button type="button" title="카드로 보기" aria-label="벽으로 보기" aria-pressed=${view === 'wall'} onClick=${() => setView('wall')}>카드</button>
+        <button type="button" title="목록으로 보기" aria-label="목록으로 보기" aria-pressed=${view === 'list'} onClick=${() => setView('list')}>목록</button>
       </div>
     </div>
     ${subs.length > 0 && html`<nav class="chip-row sub" aria-label="안쪽 폴더">
       <a class="chip" href=${folderHref(top)} aria-current=${on('folder', top)}>${top} 전체</a>
-      ${subs.map((f) => html`<a key=${f.path} class="chip" href=${folderHref(f.path)} aria-current=${scope.value === f.path || String(scope.value).startsWith(`${f.path}/`) ? 'page' : undefined}>${f.name}<span class="n">${f.count}</span></a>`)}
+      ${subs.map((f) => html`<a key=${f.path} class="chip" href=${folderHref(f.path)} aria-current=${scope.value === f.path || String(scope.value).startsWith(`${f.path}/`) ? 'page' : undefined}><span class="emo">${emojiFor(f.name)}</span>${f.name}<span class="n">${f.count}</span></a>`)}
     </nav>`}
   </div>`;
 }
@@ -233,15 +232,15 @@ export function Drawer({ path, activeId }) {
   if (!lib.all.length && !lib.state.synced && !lib.state.error) {
     body = html`<div class="wall">${[180, 120, 220, 140, 160, 200].map((h, i) => html`<div class="mcard sk" key=${i} style=${`height:${h}px`}></div>`)}</div>`;
   } else if (!lib.all.length) {
-    body = html`<${Empty} icon="inbox" title="서랍이 비어 있어요" text="칸에 적고 Enter를 누르면 들어가요. 사진은 붙여 넣거나 끌어다 놓아요." />`;
+    body = html`<${Empty} title="서랍이 텅 비었어요" text="칸에 생각을 적고 Enter! 사진은 붙여 넣거나 끌어다 놓아도 돼요." />`;
   } else if (dq.trim() && !notes.length) {
-    body = html`<${Empty} icon="search" title=${`“${dq.trim()}” 찾은 노트가 없어요`} text="Enter를 누르면 이 글을 메모로 넣어요.">
-      <button type="button" class="btn btn-primary" onClick=${async () => { await quickSave(q); setQ(''); }}><${Icon} name="plus" />메모로 넣기</button>
+    body = html`<${Empty} mood="wow" title=${`앗, “${dq.trim()}” 노트는 없어요`} text="Enter를 누르면 이 글을 메모로 쏙 넣어요.">
+      <button type="button" class="btn btn-primary" onClick=${async () => { await quickSave(q); setQ(''); }}>💌 메모로 넣기</button>
     </${Empty}>`;
   } else if (!notes.length) {
     body = scope.kind === 'inbox' && !kind
-      ? html`<${Empty} icon="check" title="인박스가 비었어요" text="모두 정리됐어요." />`
-      : html`<${Empty} icon="search" title=${kindLabel ? `여기엔 ${kindLabel}가 없어요` : '여기엔 노트가 없어요'} text="">
+      ? html`<${Empty} title="인박스를 다 비웠어요 🎉" text="Claude가 전부 폴더에 정리했어요." />`
+      : html`<${Empty} mood="wow" title=${kindLabel ? `여기엔 ${kindLabel}가 없어요` : '여기는 아직 비어 있어요'} text="">
           ${kind && html`<button type="button" class="btn" onClick=${() => setKind('')}>종류 거르기 끄기</button>`}
         </${Empty}>`;
   } else {
@@ -253,7 +252,7 @@ export function Drawer({ path, activeId }) {
   return html`<div class="drawer">
     <div class="drawer-head">
       <header class="top">
-        <a class="brand" href="#/" onClick=${() => app.clearDrawer()} aria-label="Thought Drawer 처음으로"><${Logo} size=${28} /><span>Thought Drawer</span></a>
+        <a class="brand" href="#/" onClick=${() => app.clearDrawer()} aria-label="Thought Drawer 처음으로"><${Logo} size=${44} /><span>Thought Drawer</span></a>
         <${Omni} q=${q} setQ=${setQ} />
         <${MenuButton} />
       </header>
@@ -262,8 +261,8 @@ export function Drawer({ path, activeId }) {
     </div>
     <main class="results" id="main">
       ${dq.trim()
-        ? html`<div class="found"><span><b>“${dq.trim()}”</b> 찾은 노트 ${notes.length}개</span><span class="hide-m">↵ 메모로 넣기 <span class="sp"></span> ${modKey} ↵ 넣고 열기</span></div>`
-        : scope.kind === 'inbox' && html`<div class="found"><span>${last ? `마지막 정리 ${relTime(last)}` : '아직 정리 전이에요. Claude가 정리하면 폴더로 옮겨요.'}</span></div>`}
+        ? html`<div class="found"><span>🔍 <b>“${dq.trim()}”</b> 찾은 노트 ${notes.length}개</span><span class="hide-m">Enter 메모로 넣기 <span class="sp"></span> ${modKey} Enter 넣고 열기</span></div>`
+        : scope.kind === 'inbox' && html`<div class="found"><span>${last ? `🧹 마지막 정리 ${relTime(last)}` : '🧺 아직 정리 전이에요. Claude가 정리하면 폴더로 옮겨요.'}</span></div>`}
       ${body}
     </main>
   </div>`;

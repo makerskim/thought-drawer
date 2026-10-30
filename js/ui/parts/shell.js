@@ -22,13 +22,13 @@ export function Conn() {
 export function openMenu(anchor) {
   const to = (close, hash) => () => { close(); go(hash); };
   popover(anchor, (close) => html`
-    <${MenuItem} icon="memo" label="새 노트" sub="N" onClick=${to(close, '#/new')} />
-    <${MenuItem} icon="capture" label="사진 넣기" onClick=${() => { close(); app.pickPhotos(); }} />
+    <${MenuItem} emoji="📝" label="새 노트" sub="N" onClick=${to(close, '#/new')} />
+    <${MenuItem} emoji="📸" label="사진 넣기" onClick=${() => { close(); app.pickPhotos(); }} />
     <div class="mi-sep"></div>
-    <${MenuItem} icon="graph" label="그래프" onClick=${to(close, '#/graph')} />
-    <${MenuItem} icon="phone" label="폰과 크롬에서 쓰기" onClick=${to(close, '#/connect')} />
-    <${MenuItem} icon="instagram" label="인스타 가져오기" onClick=${to(close, '#/import')} />
-    <${MenuItem} icon="gear" label="설정" onClick=${to(close, '#/settings')} />`, { width: 240 });
+    <${MenuItem} emoji="🕸️" label="생각 지도 (그래프)" onClick=${to(close, '#/graph')} />
+    <${MenuItem} emoji="📱" label="폰과 크롬에서 쓰기" onClick=${to(close, '#/connect')} />
+    <${MenuItem} emoji="💗" label="인스타 가져오기" onClick=${to(close, '#/import')} />
+    <${MenuItem} emoji="⚙️" label="설정" onClick=${to(close, '#/settings')} />`, { width: 240 });
 }
 
 export function MenuButton() {
@@ -42,7 +42,7 @@ export function MenuButton() {
 // 보조 화면 위쪽: 서랍으로 돌아가기, 제목
 export function PageBar({ title, right = null }) {
   return html`<header class="pagebar">
-    <a class="pb-back" href="#/" aria-label="서랍으로 돌아가기"><${Icon} name="back" /><${Logo} size=${24} /></a>
+    <a class="pb-back" href="#/" aria-label="서랍으로 돌아가기"><${Icon} name="back" /><${Logo} size=${34} /></a>
     <b class="pb-title">${title}</b>
     <span class="grow"></span>
     ${right}

@@ -58,21 +58,31 @@ const P = {
 
 export function Icon({ name, size, label, class: cls }) {
   const a11y = label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': 'true' };
-  return html`<svg class=${`i ${cls ?? ''}`} style=${size ? `width:${size}px;height:${size}px` : ''} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" ...${a11y} dangerouslySetInnerHTML=${{ __html: P[name] ?? '' }}></svg>`;
+  return html`<svg class=${`i ${cls ?? ''}`} style=${size ? `width:${size}px;height:${size}px` : ''} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ...${a11y} dangerouslySetInnerHTML=${{ __html: P[name] ?? '' }}></svg>`;
 }
 
 export const TYPE_ICON = { memo: 'memo', capture: 'capture', bookmark: 'link', instagram: 'instagram' };
 
-// 서랍장 로고: 손잡이가 달린 서랍 두 칸
-export function Logo({ size = 24 }) {
-  return html`<svg class="logo" width=${size} height=${size} viewBox="0 0 32 32" aria-hidden="true">
-    <rect x="1" y="1" width="30" height="30" rx="8" fill="var(--text)"/>
-    <rect x="6.5" y="7.5" width="19" height="7" rx="2" fill="var(--bg)"/>
-    <rect x="6.5" y="17.5" width="19" height="7" rx="2" fill="var(--bg)" opacity=".55"/>
-    <rect x="12.5" y="10" width="7" height="2" rx="1" fill="var(--hl)"/>
-    <rect x="13" y="20.2" width="6" height="1.6" rx=".8" fill="var(--text)"/>
+// 마스코트: 얼굴이 있는 작은 서랍장. 위 서랍에 눈, 아래 서랍 손잡이가 웃는 입, 위로 쪽지가 빼꼼
+export function Mascot({ size = 32, mood = 'smile' }) {
+  const mouth = mood === 'wow'
+    ? html`<ellipse cx="24" cy="32.4" rx="2.2" ry="2.6" fill="#3a3150"/>`
+    : html`<path d="M20 31.4q4 3.4 8 0" stroke="#3a3150" stroke-width="2.2" stroke-linecap="round" fill="none"/>`;
+  return html`<svg class="logo mascot" width=${size} height=${size} viewBox="0 0 48 48" aria-hidden="true">
+    <rect x="25" y="3.5" width="11" height="10" rx="2.2" fill="#ffe27a" transform="rotate(14 30.5 8.5)"/>
+    <path d="M27.6 6.8h5.2M27.3 9.3h4" stroke="#e8b93a" stroke-width="1.2" stroke-linecap="round" transform="rotate(14 30.5 8.5)"/>
+    <rect x="12" y="40" width="6" height="4.5" rx="2.2" fill="var(--m-deep)"/>
+    <rect x="30" y="40" width="6" height="4.5" rx="2.2" fill="var(--m-deep)"/>
+    <rect x="6" y="9" width="36" height="33" rx="11" fill="var(--m-body)"/>
+    <rect x="10.5" y="13.5" width="27" height="11" rx="5.5" fill="#fff" opacity=".92"/>
+    <rect x="10.5" y="27" width="27" height="10.5" rx="5.2" fill="#fff" opacity=".8"/>
+    <circle cx="19" cy="19" r="1.9" fill="#3a3150"/><circle cx="29" cy="19" r="1.9" fill="#3a3150"/>
+    <circle cx="19.6" cy="18.4" r=".6" fill="#fff"/><circle cx="29.6" cy="18.4" r=".6" fill="#fff"/>
+    <ellipse cx="15" cy="22" rx="2.3" ry="1.3" fill="#ff9ebb" opacity=".75"/><ellipse cx="33" cy="22" rx="2.3" ry="1.3" fill="#ff9ebb" opacity=".75"/>
+    ${mouth}
   </svg>`;
 }
+export const Logo = Mascot;
 
 export function GoogleG() {
   return html`<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>`;
