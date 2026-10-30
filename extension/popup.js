@@ -29,8 +29,8 @@ const view = $('#view');
 const welcome = new URLSearchParams(location.search).has('welcome');
 const isMac = /Mac/.test(navigator.platform) || /Mac OS/.test(navigator.userAgent);
 const SAVE_KEY = isMac ? '⌘ Enter' : 'Ctrl Enter';
-const MODES = [['page', '🔗', '페이지'], ['capture', '📸', '화면 캡처'], ['memo', '📝', '메모']];
-const SAVE_LABEL = { page: '💌 페이지 넣기', capture: '💌 캡처 넣기', memo: '💌 메모 넣기' };
+const MODES = [['page', 'link', '페이지'], ['capture', 'capture', '화면 캡처'], ['memo', 'memo', '메모']];
+const SAVE_LABEL = { page: '페이지 넣기', capture: '캡처 넣기', memo: '메모 넣기' };
 const KIND_NAME = { page: '페이지', capture: '화면 캡처', image: '이미지', memo: '메모' };
 const KIND_ICON = { page: 'link', capture: 'capture', image: 'capture', memo: 'memo' };
 
@@ -228,7 +228,7 @@ function pane() {
 function showMain() {
   view.innerHTML = `
     <div class="tabs" role="tablist" aria-label="넣을 것">
-      ${MODES.map(([m, ic, label]) => `<button type="button" role="tab" data-mode="${m}" aria-selected="${s.mode === m}" tabindex="${s.mode === m ? 0 : -1}"><span class="emo">${ic}</span>${label}</button>`).join('')}
+      ${MODES.map(([m, ic, label]) => `<button type="button" role="tab" data-mode="${m}" aria-selected="${s.mode === m}" tabindex="${s.mode === m ? 0 : -1}">${icon(ic, 15)}${label}</button>`).join('')}
     </div>
     <form id="form" class="pane" role="tabpanel">
       ${pane()}
@@ -318,7 +318,7 @@ function showDone(r, title) {
   s.busy = false;
   view.innerHTML = `<div class="done">
     <div class="tick">${icon('check', 22)}</div>
-    <h2>인박스에 쏙 넣었어요!</h2>
+    <h2>인박스에 넣었어요</h2>
     ${title ? `<p class="t">${esc(title)}</p>` : ''}
     <div class="row">
       <button type="button" class="btn primary" id="see">${icon('external')}앱에서 보기</button>

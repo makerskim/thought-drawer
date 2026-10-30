@@ -53,6 +53,8 @@ const P = {
   qr: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 14h2M14 18h2M18 18h2v2"/>',
   phone: '<rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M11 17.5h2"/>',
   puzzle: '<path d="M9 4.5h3.5v2a1.75 1.75 0 1 0 3.5 0v-2h3.5V8h-2a1.75 1.75 0 1 0 0 3.5h2v8H12.5v-2a1.75 1.75 0 1 0-3.5 0v2H4.5V12h2a1.75 1.75 0 1 0 0-3.5h-2V4.5z"/>',
+  help: '<circle cx="12" cy="12" r="8"/><path d="M9.8 9.6a2.3 2.3 0 1 1 3.1 2.2c-.6.3-.9.7-.9 1.3v.4"/><path d="M12 16.4h.01"/>',
+  pen: '<path d="M14.5 5.5l4 4L9 19H5v-4z"/><path d="M12.5 7.5l4 4"/>',
   sun: '<circle cx="12" cy="12" r="3.8"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>',
 };
 
@@ -63,23 +65,42 @@ export function Icon({ name, size, label, class: cls }) {
 
 export const TYPE_ICON = { memo: 'memo', capture: 'capture', bookmark: 'link', instagram: 'instagram' };
 
-// 마스코트: 얼굴이 있는 작은 서랍장. 위 서랍에 눈, 아래 서랍 손잡이가 웃는 입, 위로 쪽지가 빼꼼
-export function Mascot({ size = 32, mood = 'smile' }) {
-  const mouth = mood === 'wow'
-    ? html`<ellipse cx="24" cy="32.4" rx="2.2" ry="2.6" fill="#3a3150"/>`
-    : html`<path d="M20 31.4q4 3.4 8 0" stroke="#3a3150" stroke-width="2.2" stroke-linecap="round" fill="none"/>`;
-  return html`<svg class="logo mascot" width=${size} height=${size} viewBox="0 0 48 48" aria-hidden="true">
-    <rect x="25" y="3.5" width="11" height="10" rx="2.2" fill="#ffe27a" transform="rotate(14 30.5 8.5)"/>
-    <path d="M27.6 6.8h5.2M27.3 9.3h4" stroke="#e8b93a" stroke-width="1.2" stroke-linecap="round" transform="rotate(14 30.5 8.5)"/>
-    <rect x="12" y="40" width="6" height="4.5" rx="2.2" fill="var(--m-deep)"/>
-    <rect x="30" y="40" width="6" height="4.5" rx="2.2" fill="var(--m-deep)"/>
-    <rect x="6" y="9" width="36" height="33" rx="11" fill="var(--m-body)"/>
-    <rect x="10.5" y="13.5" width="27" height="11" rx="5.5" fill="#fff" opacity=".92"/>
-    <rect x="10.5" y="27" width="27" height="10.5" rx="5.2" fill="#fff" opacity=".8"/>
-    <circle cx="19" cy="19" r="1.9" fill="#3a3150"/><circle cx="29" cy="19" r="1.9" fill="#3a3150"/>
-    <circle cx="19.6" cy="18.4" r=".6" fill="#fff"/><circle cx="29.6" cy="18.4" r=".6" fill="#fff"/>
-    <ellipse cx="15" cy="22" rx="2.3" ry="1.3" fill="#ff9ebb" opacity=".75"/><ellipse cx="33" cy="22" rx="2.3" ry="1.3" fill="#ff9ebb" opacity=".75"/>
-    ${mouth}
+// 마스코트 서랍이: 두 칸짜리 작은 서랍장. 위 서랍에 눈, 아래 서랍 손잡이가 입, 머리에 쪽지 한 장.
+// mood: smile(기본) · happy(눈웃음) · wow(놀람) · think(위를 봄) · wave(손 흔들기)
+const INK = 'var(--m-ink, #16203a)';
+function eyes(mood) {
+  if (mood === 'happy' || mood === 'wave') {
+    return html`<path d="M15.6 22.2q2.9-3.6 5.8 0M26.6 22.2q2.9-3.6 5.8 0" stroke=${INK} stroke-width="2.3" stroke-linecap="round" fill="none"/>`;
+  }
+  const dx = mood === 'think' ? -0.8 : 0.5;
+  const dy = mood === 'think' ? -1.3 : 0.6;
+  const r = mood === 'wow' ? 1.5 : 2.05;
+  return html`<ellipse cx="18.5" cy="21" rx="3.5" ry="4" fill="#fff"/><ellipse cx="29.5" cy="21" rx="3.5" ry="4" fill="#fff"/>
+    <circle cx=${18.5 + dx} cy=${21 + dy} r=${r} fill=${INK}/><circle cx=${29.5 + dx} cy=${21 + dy} r=${r} fill=${INK}/>
+    <circle cx=${19.3 + dx} cy=${20.1 + dy} r=".7" fill="#fff"/><circle cx=${30.3 + dx} cy=${20.1 + dy} r=".7" fill="#fff"/>`;
+}
+function mouth(mood) {
+  if (mood === 'wow') return html`<ellipse cx="24" cy="34.6" rx="2" ry="2.3" fill=${INK}/>`;
+  if (mood === 'happy' || mood === 'wave') return html`<path d="M19.8 33.2q4.2 4.4 8.4 0z" fill=${INK} stroke=${INK} stroke-width="1.6" stroke-linejoin="round"/>`;
+  if (mood === 'think') return html`<path d="M21.5 34.6h5" stroke=${INK} stroke-width="2.3" stroke-linecap="round"/>`;
+  return html`<path d="M20.5 33.4q3.5 3 7 0" stroke=${INK} stroke-width="2.3" stroke-linecap="round" fill="none"/>`;
+}
+export function Mascot({ size = 32, mood = 'smile', class: cls = '' }) {
+  const right = mood === 'wave' ? 'M41.2 26.5q4.2-1.8 4.6-7.6' : 'M41.2 27.2q3 1.1 3.4 4.6';
+  return html`<svg class=${`logo mascot m-${mood} ${cls}`} width=${size} height=${size} viewBox="0 0 48 48" aria-hidden="true">
+    <g class="m-note" transform="rotate(-12 30 8)">
+      <rect x="24" y="2.6" width="12" height="11" rx="1.6" fill="var(--m-note, #ffd84a)"/>
+      <path d="M26.6 6.4h6.6M26.6 9.4h4.2" stroke="var(--m-note-ink, #d9a400)" stroke-width="1.3" stroke-linecap="round"/>
+    </g>
+    <path d="M6.8 27.2q-3 1.1-3.4 4.6" stroke="var(--m-deep, #2448c4)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+    <path class="m-arm" d=${right} stroke="var(--m-deep, #2448c4)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+    <rect x="12.5" y="39.5" width="7.5" height="5.5" rx="2.6" fill="var(--m-deep, #2448c4)"/>
+    <rect x="28" y="39.5" width="7.5" height="5.5" rx="2.6" fill="var(--m-deep, #2448c4)"/>
+    <rect x="6" y="10" width="36" height="32" rx="9" fill="var(--m-body, #3f6df6)"/>
+    <rect x="10" y="14" width="28" height="14.5" rx="5" fill="#fff" opacity=".2"/>
+    <rect x="10" y="30.5" width="28" height="8" rx="4" fill="#fff" opacity=".2"/>
+    ${eyes(mood)}
+    ${mouth(mood)}
   </svg>`;
 }
 export const Logo = Mascot;

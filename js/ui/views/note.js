@@ -5,13 +5,13 @@ import { Icon } from '../icons.js';
 import { app, useLib, toast } from '../state.js';
 import { go, setUrl, noteHref } from '../router.js';
 import { SaveState } from '../parts/shell.js';
-import { Tag, MenuItem, Empty, SkeletonRows, titleOf } from '../parts/common.js';
+import { Tag, MenuItem, Empty, SkeletonRows, KindIcon, FolderDot, titleOf } from '../parts/common.js';
 import { popover, modal } from '../parts/layers.js';
 import { FolderPicker, Lightbox, ConfirmDialog } from '../parts/dialogs.js';
 import { NoteEditor } from '../editor.js';
 import { splitLinks, joinLinks } from '../../core/wiki.js';
 import { categoryParts, embeds } from '../../core/note.js';
-import { relTime, fullDate, KIND_LABEL, KIND_EMOJI, emojiFor } from '../format.js';
+import { relTime, fullDate, KIND_LABEL } from '../format.js';
 
 const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
 const shortDate = (iso) => { const d = new Date(iso); return Number.isNaN(+d) ? '' : `${d.getFullYear() === new Date().getFullYear() ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월 ${d.getDate()}일`; };
@@ -72,23 +72,23 @@ function Links({ note }) {
   const reasons = new Map();
   for (const m of String(note.body ?? '').matchAll(/^- \[\[(\d{14})[^\]]*\]\]\s*\(([^)]+)\)/gm)) reasons.set(m[1], m[2]);
   const connect = async (other) => {
-    try { await lib.connect(note, other); toast(`🔗 “${titleOf(other)}”와 이었어요!`); } catch (e) { toast(e.message); }
+    try { await lib.connect(note, other); toast(`“${titleOf(other)}”와 이었어요`); } catch (e) { toast(e.message); }
   };
   return html`
     <div class="rp-sec">
-      <h3><span>🔗 이어진 노트</span><span>${links.length || ''}</span></h3>
+      <h3><span><${Icon} name="connect" />이어진 노트</span><span>${links.length || ''}</span></h3>
       ${links.length
         ? links.map(({ note: n, dir }) => html`<a class="rp-item" key=${n.id} href=${noteHref(n.id)}>
-            <b><span class="emo">${dir === 'in' ? '↩️' : KIND_EMOJI[n.meta.type] ?? '📝'}</span><span>${titleOf(n)}</span></b>
+            <b>${dir === 'in' ? html`<span class="kind-ic k-in" aria-hidden="true"><${Icon} name="enter" /></span>` : html`<${KindIcon} type=${n.meta.type} />`}<span>${titleOf(n)}</span></b>
             <small>${reasons.get(n.id) ?? (dir === 'in' ? '이 노트를 언급함' : (categoryParts(n.meta.category).join(' / ') || '인박스'))}</small>
           </a>`)
         : html`<p class="rp-empty">아직 이어진 노트가 없어요. Claude가 정리할 때 이어 주고, 아래 비슷한 노트를 직접 이을 수도 있어요.</p>`}
     </div>
     ${related.length > 0 && html`<div class="rp-sec">
-      <h3><span>🫧 비슷한 노트</span></h3>
+      <h3><span><${Icon} name="sparkle" />비슷한 노트</span></h3>
       ${related.map(({ note: n }) => html`<div class="rp-rel" key=${n.id}>
-        <a class="rp-item" href=${noteHref(n.id)}><b><span class="emo">${KIND_EMOJI[n.meta.type] ?? '📝'}</span><span>${titleOf(n)}</span></b><small>${categoryParts(n.meta.category).join(' / ') || '인박스'}</small></a>
-        <button type="button" class="link-btn" title="이 노트와 잇기" aria-label=${`${titleOf(n)}와 잇기`} onClick=${() => connect(n)}>🔗 잇기</button>
+        <a class="rp-item" href=${noteHref(n.id)}><b><${KindIcon} type=${n.meta.type} /><span>${titleOf(n)}</span></b><small>${categoryParts(n.meta.category).join(' / ') || '인박스'}</small></a>
+        <button type="button" class="link-btn" title="이 노트와 잇기" aria-label=${`${titleOf(n)}와 잇기`} onClick=${() => connect(n)}>잇기</button>
       </div>`)}
     </div>`}`;
 }
@@ -206,7 +206,7 @@ export function NoteView({ id, params }) {
   const pickFolder = (anchor) => popover(anchor, (close) => html`<${FolderPicker} current=${folder} close=${close} onPick=${async (p) => {
     const n = await ensureSaved();
     if (!n) { toast('먼저 제목이나 내용을 적어 주세요.'); return; }
-    try { await lib.moveTo(n, p); toast(p ? `${emojiFor(categoryParts(p).at(-1))} ${categoryParts(p).join(' / ')}에 넣었어요!` : '📥 인박스로 옮겼어요.'); } catch (e) { toast(e.message); }
+    try { await lib.moveTo(n, p); toast(p ? `${categoryParts(p).join(' / ')}에 넣었어요` : '인박스로 옮겼어요'); } catch (e) { toast(e.message); }
   }} />`, { width: 300 });
   const remove = () => modal((close) => html`<${ConfirmDialog} close=${close} title="이 노트를 지울까요?" text="구글 드라이브 휴지통으로 옮겨요. 30일 안에는 되살릴 수 있어요." yes="지우기" danger
     onYes=${async () => {
@@ -215,18 +215,18 @@ export function NoteView({ id, params }) {
       try {
         const undo = await lib.remove(n);
         app.closeSheet();
-        toast('🗑️ 노트를 지웠어요.', { action: '되돌리기', duration: 6000, onAction: async () => { await undo(); go(noteHref(n.id)); } });
+        toast('노트를 지웠어요', { action: '되돌리기', duration: 6000, onAction: async () => { await undo(); go(noteHref(n.id)); } });
       } catch (e) { toast(e.message); }
     }} />`);
   const pinned = !!m.pinned;
-  const togglePin = () => update({ pinned: pinned ? undefined : true }).then(() => toast(pinned ? '즐겨찾기에서 뺐어요.' : '⭐ 즐겨찾기에 넣었어요!'));
+  const togglePin = () => update({ pinned: pinned ? undefined : true }).then(() => toast(pinned ? '즐겨찾기에서 뺐어요' : '즐겨찾기에 넣었어요'));
   const more = (anchor) => popover(anchor, (close) => html`
-    <${MenuItem} emoji="⭐" label=${pinned ? '즐겨찾기에서 빼기' : '즐겨찾기에 넣기'} onClick=${() => { close(); togglePin(); }} />
-    <${MenuItem} emoji="📂" label="폴더 옮기기" onClick=${() => { close(); pickFolder(anchor); }} />
-    ${m.source && html`<${MenuItem} emoji="🌐" label="원문 열기" onClick=${() => { close(); window.open(m.source, '_blank', 'noopener'); }} />`}
-    <${MenuItem} emoji="📎" label="노트 링크 복사" onClick=${async () => { close(); try { await navigator.clipboard.writeText(location.href); toast('📎 링크를 복사했어요.'); } catch { toast('복사하지 못했어요.'); } }} />
+    <${MenuItem} icon="star" label=${pinned ? '즐겨찾기에서 빼기' : '즐겨찾기에 넣기'} onClick=${() => { close(); togglePin(); }} />
+    <${MenuItem} icon="folder" label="폴더 옮기기" onClick=${() => { close(); pickFolder(anchor); }} />
+    ${m.source && html`<${MenuItem} icon="external" label="원문 열기" onClick=${() => { close(); window.open(m.source, '_blank', 'noopener'); }} />`}
+    <${MenuItem} icon="copy" label="노트 링크 복사" onClick=${async () => { close(); try { await navigator.clipboard.writeText(location.href); toast('링크를 복사했어요'); } catch { toast('복사하지 못했어요.'); } }} />
     <div class="mi-sep"></div>
-    <${MenuItem} emoji="🗑️" label="지우기" danger onClick=${() => { close(); remove(); }} />`);
+    <${MenuItem} icon="trash" label="지우기" danger onClick=${() => { close(); remove(); }} />`);
 
   return html`
     <${SheetBar} noteId=${noteId} right=${html`
@@ -237,20 +237,20 @@ export function NoteView({ id, params }) {
     <div class=${`sheet-body k-${m.type ?? 'memo'}`}>
       <article class="note-page">
           <div class="stickers">
-            <span class="sticker-kind">${KIND_EMOJI[m.type] ?? '📝'} ${KIND_LABEL[m.type] ?? '메모'}${m.author ? ` @${m.author}` : ''}</span>
+            <span class="sticker-kind"><${KindIcon} type=${m.type} />${KIND_LABEL[m.type] ?? '메모'}${m.author ? ` @${m.author}` : ''}</span>
             <span class="sticker-date" title=${note ? fullDate(m.created) : ''}>${note ? shortDate(m.created) : '지금'}</span>
           </div>
           <${Grow} class="note-title" value=${title} onInput=${change(setTitle)} placeholder=${note ? titleOf(note) : '제목을 지어 주세요'} label="제목" autofocus=${!noteId}
             onKeyDown=${(e) => { if ((e.key === 'Enter' || e.key === 'ArrowDown') && !e.isComposing) { e.preventDefault(); focusBody(); } }} />
           <div class="meta-row">
             <button type="button" class=${`mpill${folder ? '' : ' quiet'}`} title="폴더 옮기기" onClick=${(e) => pickFolder(e.currentTarget)}>
-              <span class="emo">${folder ? emojiFor(categoryParts(folder).at(-1)) : '📥'}</span>${folder ? categoryParts(folder).join(' / ') : '인박스'}<${Icon} name="down" />
+              <${FolderDot} path=${folder} />${folder ? categoryParts(folder).join(' / ') : '인박스'}<${Icon} name="down" />
             </button>
             <${TagEditor} tags=${m.tags ?? []} onChange=${(tags) => update({ tags })} />
-            ${m.source && html`<a class="mpill" href=${m.source} target="_blank" rel="noopener" title=${m.source}><span class="emo">🌐</span>${hostOf(m.source)}</a>`}
+            ${m.source && html`<a class="mpill" href=${m.source} target="_blank" rel="noopener" title=${m.source}><${Icon} name="external" />${hostOf(m.source)}</a>`}
           </div>
-          ${m.summary && html`<div class="bubble-ai"><span class="ai-face" aria-hidden="true">✨</span><div><small>Claude가 한 줄로 정리했어요</small><p>${m.summary}</p></div></div>`}
-          <div class="thought-note"><span class="emo" aria-hidden="true">💭</span>
+          ${m.summary && html`<div class="bubble-ai"><span class="ai-face" aria-hidden="true"><${Icon} name="sparkle" /></span><div><small>Claude가 한 줄로 정리했어요</small><p>${m.summary}</p></div></div>`}
+          <div class="thought-note"><${Icon} name="thought" />
             <${Grow} value=${thought} onInput=${change(setThought)} label="내 생각" placeholder="왜 저장했는지 한 줄 남겨 볼까요?" />
           </div>
           ${loaded
@@ -260,7 +260,7 @@ export function NoteView({ id, params }) {
                 onImage=${(src) => modal((close) => html`<${Lightbox} src=${src} close=${close} />`)} />`
             : html`<div class="sk" style="height:16px;width:80%;margin-bottom:10px"></div><div class="sk" style="height:16px;width:60%"></div>`}
           ${note && html`<section class="note-links"><${Links} note=${note} /></section>
-            <p class="facts"><span>🗓️ ${fullDate(m.created)}에 넣음</span><span>✏️ ${relTime(m.updated || m.created)} 고침</span>${m.organized && html`<span>✨ ${relTime(m.organized)} 정리됨</span>`}<span class="num">No.${note.id}</span></p>`}
+            <p class="facts"><span>${fullDate(m.created)}에 넣음</span><span>${relTime(m.updated || m.created)} 고침</span>${m.organized && html`<span>${relTime(m.organized)} Claude가 정리</span>`}<span class="num">No.${note.id}</span></p>`}
         </article>
     </div>`;
 }

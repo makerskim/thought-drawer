@@ -4,6 +4,7 @@ import { Icon } from './icons.js';
 import { app, toast, setConn } from './state.js';
 import { useRoute, go, parse, syncFromLocation } from './router.js';
 import { Layers, Toasts, closeAll } from './parts/layers.js';
+import { openComposer } from './parts/composer.js';
 import { capturePhotos, pickPhotos } from './capture.js';
 import { Drawer } from './views/drawer.js';
 import { NoteView } from './views/note.js';
@@ -135,13 +136,17 @@ export function App({ auth }) {
     if (phase !== 'ready') return undefined;
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); app.find(); return; }
-      if (document.querySelector('.overlay, .pop')) return;
+      // 입력창이 이미 처리한 키(넣고 닫은 Enter 등)는 다시 받지 않는다
+      if (e.defaultPrevented || document.querySelector('.overlay, .pop, .tour')) return;
       if (e.key === 'Escape') {
         if (isTyping(document.activeElement)) { if (!document.activeElement.closest('.omni')) document.activeElement.blur(); return; }
         if (isSheet) { e.preventDefault(); app.closeSheet(); }
         return;
       }
       if (isTyping(document.activeElement) || e.metaKey || e.ctrlKey || e.altKey) return;
+      // Enter: 무엇에도 커서가 없으면 가운데 입력창 (단추나 카드에 있으면 그것을 누른 것)
+      const idle = !document.activeElement || document.activeElement === document.body || document.activeElement.matches('.stage-main, .results, .sheet');
+      if (e.key === 'Enter' && !e.shiftKey && !isPage && idle) { e.preventDefault(); openComposer(); return; }
       if (e.key === '/') { e.preventDefault(); app.find(); }
       else if (e.key === 'n') { e.preventDefault(); go('#/new'); }
       else if (isSheet && (e.key === 'j' || e.key === 'ArrowDown')) { e.preventDefault(); app.sheetNav?.(1); }
@@ -181,7 +186,7 @@ export function App({ auth }) {
       window.removeEventListener('drop', onDrop);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [phase, route.path, isSheet]);
+  }, [phase, route.path, isSheet, isPage]);
 
   if (phase === 'boot') {
     return html`<div class="login" aria-busy="true"><div class="login-card"><div class="sk" style="width:52px;height:52px;margin:0 auto;border-radius:12px"></div></div></div>`;

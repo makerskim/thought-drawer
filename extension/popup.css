@@ -1,45 +1,47 @@
-/* Thought Drawer 확장 프로그램 팝업. 색과 모양은 웹앱(css/app.css)과 같은 값을 쓴다 (딸기우유). */
+/* Thought Drawer 확장 프로그램 팝업. 색과 모양은 웹앱(css/app.css)과 같은 값을 쓴다 (파랑 + 포스트잇 노랑). */
 
-@font-face { font-family: 'NanumSquareRound'; font-weight: 400; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/@kfonts/nanum-square-round@0.2.0/NanumSquareRoundR.woff2) format('woff2'); }
 @font-face { font-family: 'NanumSquareRound'; font-weight: 800; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/@kfonts/nanum-square-round@0.2.0/NanumSquareRoundEB.woff2) format('woff2'); }
 
 :root {
-  --bg: #fffafc;
-  --bg-soft: #f8f1f6;
-  --bg-soft-2: #f1e7ef;
-  --hover: rgba(110, 70, 120, .06);
-  --text: #3a3150;
-  --text-2: #6e6585;
-  --text-3: #a39bb8;
-  --border: #f1e6f0;
-  --border-2: #e5d7e6;
-  --accent: #e23d72;
-  --accent-soft: #ffe6ee;
-  --hl: #ffb0c8;
-  --hl-soft: #fff0a0;
-  --btn: #e23d72;
+  --bg: #f5f7fb;
+  --paper: #ffffff;
+  --bg-soft: #eff2f8;
+  --bg-soft-2: #e5eaf3;
+  --hover: rgba(30, 50, 100, .05);
+  --text: #18213a;
+  --text-2: #4f5a74;
+  --text-3: #858fa6;
+  --border: #e5e9f2;
+  --border-2: #d3dae7;
+  --accent: #2f5bea;
+  --accent-soft: #eaf0ff;
+  --hl: #a9bcfb;
+  --hl-soft: #ffe680;
+  --btn: #2f5bea;
   --btn-text: #ffffff;
-  --btn-hover: #d22f64;
-  --memo: #fff3bd;
-  --m-body: #ff9dbb;
-  --m-deep: #f27aa0;
-  --danger: #e5486a;
-  --ok: #22b07d;
-  --shadow-pop: 0 0 0 1px rgba(110, 70, 120, .06), 0 14px 34px -10px rgba(110, 70, 120, .34);
-  --shadow-card: 0 1px 0 rgba(110, 70, 120, .04), 0 6px 18px -8px rgba(110, 70, 120, .22);
-  --font: 'NanumSquareRound', '나눔스퀘어라운드', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
-  --font-cute: 'Bagel Fat One', var(--font);
+  --btn-hover: #2850d6;
+  --memo: #fff8dc;
+  --lemon: #ffd84a;
+  --m-body: #3f6df6;
+  --m-deep: #2448c4;
+  --m-ink: #16203a;
+  --danger: #e0445a;
+  --ok: #1fae7a;
+  --shadow-pop: 0 0 0 1px rgba(20, 35, 80, .06), 0 22px 48px -14px rgba(20, 35, 80, .36);
+  --shadow-card: 0 1px 2px rgba(20, 35, 80, .05), 0 6px 16px -10px rgba(20, 35, 80, .16);
+  --font: 'Wanted Sans Variable', 'Wanted Sans', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --font-display: 'NanumSquareRound', var(--font);
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --ease: cubic-bezier(.3, 1.45, .5, 1);
+  --ease: cubic-bezier(.2, .7, .2, 1);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1c1727; --bg-soft: #332b45; --bg-soft-2: #3d3451; --hover: rgba(255, 240, 255, .06);
-    --text: #f6effe; --text-2: #c7bdda; --text-3: #8f86a8; --border: #3a3250; --border-2: #4b4264;
-    --accent-soft: rgba(255, 120, 170, .16); --memo: #4a4128;
-    --shadow-pop: 0 0 0 1px rgba(255, 255, 255, .06), 0 14px 34px -10px rgba(0, 0, 0, .7);
-    --shadow-card: 0 6px 18px -8px rgba(0, 0, 0, .55);
+    --bg: #0f1422; --paper: #182033; --bg-soft: #1f2840; --bg-soft-2: #28324d; --hover: rgba(200, 215, 255, .06);
+    --text: #edf1fa; --text-2: #aeb8cf; --text-3: #76819b; --border: #242d45; --border-2: #323c58;
+    --accent-soft: rgba(47, 91, 234, .22); --memo: #2c2a1d;
+    --shadow-pop: 0 0 0 1px rgba(255, 255, 255, .06), 0 22px 48px -14px rgba(0, 0, 0, .75);
+    --shadow-card: 0 6px 16px -10px rgba(0, 0, 0, .6);
     color-scheme: dark;
   }
 }
@@ -61,8 +63,8 @@ button, input, textarea { font: inherit; color: inherit; }
 .small { font-size: 12.5px; }
 
 /* 머리줄 */
-.top { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 10px 0 12px; border-bottom: 2px dashed var(--border); }
-.top b { font: 400 17px/1 var(--font-cute); }
+.top { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 10px 0 12px; border-bottom: 1px solid var(--border); }
+.top b { font: 800 16px/1 var(--font-display); letter-spacing: -.01em; }
 .logo { flex: none; }
 .icon-btn, .avatar {
   width: 30px; height: 30px; border: 0; border-radius: 7px; background: none; color: var(--text-2);
@@ -90,16 +92,16 @@ button, input, textarea { font: inherit; color: inherit; }
 /* 탭 */
 .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin-bottom: 12px; border-radius: 999px; background: var(--bg-soft); }
 .tabs button {
-  display: flex; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 0; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 0; border-radius: 999px;
   background: none; color: var(--text-2); font-size: 13px; font-weight: 500; cursor: pointer;
 }
 .tabs button:hover { color: var(--text); }
-.tabs button[aria-selected="true"] { background: var(--accent); color: #fff; box-shadow: 0 8px 16px -8px var(--accent); font-weight: 800; }
+.tabs button[aria-selected="true"] { background: var(--text); color: var(--bg); font-weight: 700; }
 
 .pane { display: grid; gap: 10px; }
 
 /* 페이지 카드 */
-.card { display: flex; gap: 10px; align-items: flex-start; padding: 13px 15px; border-radius: 20px; background: #ddefff; color: #3a3150; transform: rotate(-.6deg); box-shadow: var(--shadow-card); }
+.card { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--border), var(--shadow-card); }
 .fav { width: 18px; height: 18px; border-radius: 4px; margin-top: 3px; flex: none; object-fit: contain; }
 .fav.ph { display: grid; place-items: center; color: var(--text-3); }
 .card-t { display: grid; min-width: 0; flex: 1; }
@@ -107,7 +109,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .title:focus { box-shadow: 0 1px 0 var(--accent); }
 .host { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.quote { position: relative; margin: 0; padding: 10px 34px 10px 14px; border-radius: 18px; background: var(--memo); }
+.quote { position: relative; margin: 0; padding: 10px 34px 10px 14px; border-radius: 12px; background: var(--memo); box-shadow: inset 3px 0 0 var(--lemon); }
 .quote p { margin: 0; max-height: 7.5em; overflow: auto; white-space: pre-wrap; font-size: 13px; color: var(--text); }
 .quote .x { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border: 0; border-radius: 5px; background: none; color: var(--text-3); cursor: pointer; display: grid; place-items: center; }
 .quote .x:hover { background: var(--hover); color: var(--text); }
@@ -115,7 +117,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .chip { display: flex; align-items: center; gap: 6px; margin: 0; padding: 6px 10px; border-radius: 8px; background: var(--bg-soft); font-size: 12.5px; color: var(--text-2); }
 
 textarea {
-  width: 100%; resize: none; padding: 11px 14px; border: 2px solid var(--border-2); border-radius: 18px; background: var(--bg);
+  width: 100%; resize: none; padding: 11px 14px; border: 1px solid var(--border-2); border-radius: 12px; background: var(--paper);
   line-height: 1.55; outline: none; transition: border-color .12s, box-shadow .12s;
 }
 textarea::placeholder, .title::placeholder { color: var(--text-3); }

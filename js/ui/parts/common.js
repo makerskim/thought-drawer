@@ -1,9 +1,9 @@
-// 여러 화면에서 쓰는 조각: 태그, 노트 줄, 벽 카드(쪽지·폴라로이드), 빈 화면, 메뉴 줄
+// 여러 화면에서 쓰는 조각: 태그, 노트 줄, 벽 카드, 빈 화면, 메뉴 줄
 import { html, useState, useEffect, useRef } from '../h.js';
-import { Icon, Mascot } from '../icons.js';
+import { Icon, Mascot, TYPE_ICON } from '../icons.js';
 import { app } from '../state.js';
 import { noteHref, tagHref } from '../router.js';
-import { relTime, emojiFor, KIND_EMOJI, tiltOf, tagTone } from '../format.js';
+import { relTime, folderTone, tagTone } from '../format.js';
 import { displayTitle, categoryParts } from '../../core/note.js';
 
 export function Tag({ name, href = true, onRemove }) {
@@ -14,12 +14,23 @@ export function Tag({ name, href = true, onRemove }) {
 
 export const titleOf = (n) => displayTitle(n.meta, n.body ?? n.snippet);
 export const folderLabel = (n) => (n.meta.status === 'inbox' ? '인박스' : categoryParts(n.meta.category).join(' / '));
-const folderEmoji = (n) => (n.meta.status === 'inbox' ? '📥' : emojiFor(categoryParts(n.meta.category).at(-1)));
 
-// 빈 화면에는 마스코트가 나와서 말을 건다
+// 폴더 앞의 작은 색 점 (인박스는 속이 빈 점)
+export function FolderDot({ path }) {
+  return path ? html`<i class=${`fdot f${folderTone(categoryParts(path)[0])}`} aria-hidden="true"></i>` : html`<i class="fdot inbox" aria-hidden="true"></i>`;
+}
+const folderOf = (n) => (n.meta.status === 'inbox' ? null : n.meta.category);
+
+// 종류 표시: 색이 있는 동그라미 안의 선 아이콘
+export function KindIcon({ type, class: cls = '' }) {
+  const t = TYPE_ICON[type] ? type : 'memo';
+  return html`<span class=${`kind-ic k-${t} ${cls}`} aria-hidden="true"><${Icon} name=${TYPE_ICON[t]} /></span>`;
+}
+
+// 빈 화면에는 서랍이가 나와서 할 일을 알려 준다
 export function Empty({ icon, title, text, mood, children }) {
   const face = mood ?? (icon === 'alert' || icon === 'search' ? 'wow' : 'smile');
-  return html`<div class="empty"><${Mascot} size=${88} mood=${face} /><h3>${title}</h3>${text && html`<p>${text}</p>`}${children}</div>`;
+  return html`<div class="empty"><${Mascot} size=${96} mood=${face} /><h3>${title}</h3>${text && html`<p>${text}</p>`}${children && html`<div class="empty-actions">${children}</div>`}</div>`;
 }
 
 export function SkeletonRows({ n = 5 }) {
@@ -43,11 +54,11 @@ export function useThumb(name) {
   return [ref, url];
 }
 
-// 줄 앞: 사진이 있으면 작은 사진, 없으면 종류 이모지가 든 동그라미
+// 줄 앞: 사진이 있으면 작은 사진, 없으면 종류 아이콘
 function Lead({ note, url }) {
   return url
     ? html`<span class="rlead thumb"><img src=${url} alt="" loading="lazy" /></span>`
-    : html`<span class=${`rlead k-${note.meta.type ?? 'memo'}`} aria-hidden="true">${KIND_EMOJI[note.meta.type] ?? '📝'}</span>`;
+    : html`<${KindIcon} type=${note.meta.type} class="rlead" />`;
 }
 
 export function NoteRow({ note, showFolder = true, right, hl, active = false, selectable = false, selected = false, onSelect }) {
@@ -60,19 +71,19 @@ export function NoteRow({ note, showFolder = true, right, hl, active = false, se
       ? html`<label class="pick" title="고르기"><input type="checkbox" checked=${selected} onChange=${(e) => onSelect?.(e.target.checked)} aria-label=${`${t} 고르기`} /><${Lead} note=${note} url=${url} /></label>`
       : html`<${Lead} note=${note} url=${url} />`}
     <a class="t" href=${noteHref(note.id)}>
-      <b>${m.pinned ? '⭐ ' : ''}${hl ? hl(t) : t}</b>
+      <b>${m.pinned && html`<${Icon} name="star" class="pin" label="즐겨찾기" />`}${hl ? hl(t) : t}</b>
       ${sub && sub !== t && html`<span>${hl ? hl(sub) : sub}</span>`}
     </a>
     <div class="r">
       ${right ?? html`
         <span class="hide-m tags-mini">${(m.tags ?? []).slice(0, 2).map((x) => html`<${Tag} key=${x} name=${x} />`)}</span>
-        ${showFolder && html`<span class="hide-m folder-mini">${folderEmoji(note)} ${folderLabel(note)}</span>`}
+        ${showFolder && html`<span class="hide-m folder-mini"><${FolderDot} path=${folderOf(note)} />${folderLabel(note)}</span>`}
         <span class="num">${relTime(m.updated || m.created)}</span>`}
     </div>
   </div>`;
 }
 
-// 벽에 붙는 카드. 사진은 마스킹 테이프로 붙인 폴라로이드, 글은 종류마다 다른 색 쪽지
+// 벽에 붙는 카드. 사진이 있으면 사진이 위에, 메모는 쪽지 색
 export function MCard({ note, hl, active = false }) {
   const m = note.meta;
   const att = (m.attachments ?? [])[0];
@@ -80,24 +91,21 @@ export function MCard({ note, hl, active = false }) {
   const t = titleOf(note);
   const sub = m.summary || note.snippet || '';
   const kind = m.type ?? 'memo';
-  return html`<a class=${`mcard k-${kind}${att ? ' polaroid' : ''}${active ? ' active' : ''}`} href=${noteHref(note.id)} ref=${ref}
-      style=${`--tilt:${tiltOf(note.id)}`} aria-current=${active ? 'true' : undefined}>
-    ${att && html`<span class="tape" aria-hidden="true"></span>`}
-    ${m.pinned && html`<span class="sticker" aria-label="즐겨찾기">⭐</span>`}
+  return html`<a class=${`mcard k-${kind}${att ? ' photo' : ''}${active ? ' active' : ''}`} href=${noteHref(note.id)} ref=${ref} aria-current=${active ? 'true' : undefined}>
     ${att && html`<div class="img">${url ? html`<img src=${url} alt="" loading="lazy" />` : html`<div class="sk"></div>`}</div>`}
     <div class="tx">
-      ${!att && html`<span class="kind" aria-hidden="true">${KIND_EMOJI[kind] ?? '📝'}</span>`}
-      <b>${hl ? hl(t) : t}</b>
+      ${!att && html`<${KindIcon} type=${kind} />`}
+      <b>${m.pinned && html`<${Icon} name="star" class="pin" label="즐겨찾기" />`}${hl ? hl(t) : t}</b>
       ${sub && sub !== t && (!att || hl) && html`<p>${hl ? hl(sub) : sub}</p>`}
     </div>
-    <div class="ft"><span class="where">${folderEmoji(note)} ${folderLabel(note)}</span><span class="num">${relTime(m.updated || m.created)}</span></div>
+    <div class="ft"><span class="where"><${FolderDot} path=${folderOf(note)} />${folderLabel(note)}</span><span class="num">${relTime(m.updated || m.created)}</span></div>
   </a>`;
 }
 
-// 메뉴 줄: icon이 이모지면 그대로, 이름이면 선 아이콘
-export function MenuItem({ icon, emoji, label, sub, onClick, danger, on }) {
+// 메뉴 줄: 선 아이콘 + 이름 (+ 단축키)
+export function MenuItem({ icon, label, sub, onClick, danger, on }) {
   return html`<button type="button" role="menuitem" class=${`mi${danger ? ' danger' : ''}${on ? ' on' : ''}`} onClick=${onClick}>
-    ${emoji ? html`<span class="emo" aria-hidden="true">${emoji}</span>` : icon && html`<${Icon} name=${icon} />`}<span>${label}</span>${sub && html`<span class="sub">${sub}</span>`}
+    ${icon && html`<${Icon} name=${icon} />`}<span>${label}</span>${sub && html`<span class="sub">${sub}</span>`}
   </button>`;
 }
 

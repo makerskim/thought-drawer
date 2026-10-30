@@ -6,6 +6,8 @@ import { go } from '../router.js';
 import { popover } from './layers.js';
 import { MenuItem } from './common.js';
 import { ConnBanner } from './conn.js';
+import { openComposer } from './composer.js';
+import { openTutorial } from './tutorial.js';
 
 export function SaveState({ state }) {
   if (!state) return null;
@@ -18,17 +20,22 @@ export function Conn() {
   return conn && html`<${ConnBanner} conn=${conn} onRetry=${() => app.resync()} onReconnect=${(o) => app.reconnect(o)} clientId=${app.auth?.clientId} />`;
 }
 
-// 서랍 밖의 것들: 새 노트, 사진, 그래프, 폰과 크롬, 인스타 가져오기, 설정
+// 서랍 밖의 것들: 넣기, 새 노트, 사진, 그래프, 폰과 크롬, 인스타 가져오기, 설정, 사용법
 export function openMenu(anchor) {
   const to = (close, hash) => () => { close(); go(hash); };
+  // 사용법은 서랍 화면에서 보여 준다
+  const tour = (close) => () => { close(); if (!document.querySelector('.drawer')) go('#/'); setTimeout(openTutorial, 120); };
   popover(anchor, (close) => html`
-    <${MenuItem} emoji="📝" label="새 노트" sub="N" onClick=${to(close, '#/new')} />
-    <${MenuItem} emoji="📸" label="사진 넣기" onClick=${() => { close(); app.pickPhotos(); }} />
+    <${MenuItem} icon="plus" label="생각 넣기" sub="Enter" onClick=${() => { close(); openComposer(); }} />
+    <${MenuItem} icon="pen" label="새 노트 크게 쓰기" sub="N" onClick=${to(close, '#/new')} />
+    <${MenuItem} icon="capture" label="사진 넣기" onClick=${() => { close(); app.pickPhotos(); }} />
     <div class="mi-sep"></div>
-    <${MenuItem} emoji="🕸️" label="생각 지도 (그래프)" onClick=${to(close, '#/graph')} />
-    <${MenuItem} emoji="📱" label="폰과 크롬에서 쓰기" onClick=${to(close, '#/connect')} />
-    <${MenuItem} emoji="💗" label="인스타 가져오기" onClick=${to(close, '#/import')} />
-    <${MenuItem} emoji="⚙️" label="설정" onClick=${to(close, '#/settings')} />`, { width: 240 });
+    <${MenuItem} icon="graph" label="생각 지도" onClick=${to(close, '#/graph')} />
+    <${MenuItem} icon="phone" label="폰과 크롬에서 쓰기" onClick=${to(close, '#/connect')} />
+    <${MenuItem} icon="instagram" label="인스타 가져오기" onClick=${to(close, '#/import')} />
+    <${MenuItem} icon="gear" label="설정" onClick=${to(close, '#/settings')} />
+    <div class="mi-sep"></div>
+    <${MenuItem} icon="help" label="사용법 다시 보기" onClick=${tour(close)} />`, { width: 250 });
 }
 
 export function MenuButton() {

@@ -8,7 +8,7 @@ import { Empty } from '../parts/common.js';
 import { modal } from '../parts/layers.js';
 import { ConfirmDialog } from '../parts/dialogs.js';
 import { capturePhotos } from '../capture.js';
-import { saveQuick } from './drawer.js';
+import { saveQuick } from '../quick.js';
 import { parseInstagramFile, mergeSaved, isInstagramUrl } from '../../core/instagram.js';
 import { convertForExport } from '../../core/export.js';
 import { ATTACH_DIR } from '../../config.js';
@@ -28,14 +28,14 @@ export function Login({ onSignIn, busy, error }) {
   const configured = app.auth.configured;
   return html`<main class="login">
     <div class="login-card">
-      <${Logo} size=${96} />
+      <${Logo} size=${104} mood="wave" />
       <h1>Thought Drawer</h1>
-      <p class="lead">떠오른 생각, 캡처, 링크, 인스타 저장을<br />작은 서랍에 쏙쏙 모아 두면 Claude가 예쁘게 정리해 줘요.</p>
-      <div class="login-feats">
-        <div><span class="emo">💌</span><span>무엇이든 던져 넣으면 인박스에 모여요</span></div>
-        <div><span class="emo">✨</span><span>Claude가 제목, 요약, 태그를 붙여 폴더에 넣어요</span></div>
-        <div><span class="emo">🔍</span><span>찾거나 물어보면 금방 다시 꺼내 줘요</span></div>
-      </div>
+      <p class="lead">떠오른 생각, 캡처, 링크, 인스타 저장을 한 서랍에 넣어 두면<br />Claude가 정리해서 다시 찾기 쉽게 해 줘요.</p>
+      <ol class="login-feats">
+        <li><span class="gs-ic g1"><${Icon} name="plus" /></span><span>무엇이든 넣으면 인박스에 모여요</span></li>
+        <li><span class="gs-ic g2"><${Icon} name="sparkle" /></span><span>Claude가 제목, 요약, 태그를 달아 폴더로 옮겨요</span></li>
+        <li><span class="gs-ic g3"><${Icon} name="search" /></span><span>찾거나 물어보면 바로 다시 꺼내 줘요</span></li>
+      </ol>
       ${configured
         ? html`<button type="button" class="gbtn" onClick=${onSignIn} disabled=${busy}><${GoogleG} />${busy ? '연결하는 중' : 'Google로 계속하기'}</button>`
         : html`<div class="banner warn"><${Icon} name="alert" /><p>구글 로그인 설정이 아직 없어요. docs/설정가이드.md의 2단계를 마쳐 주세요.</p></div>`}
@@ -46,7 +46,7 @@ export function Login({ onSignIn, busy, error }) {
   </main>`;
 }
 
-const PALETTES = [['', '🍓', '딸기우유'], ['lavender', '💜', '라벤더'], ['mint', '🌿', '민트초코'], ['sky', '☁️', '하늘']];
+const PALETTES = [['', '파랑'], ['mint', '민트'], ['tangerine', '귤'], ['grape', '포도']];
 
 function Section({ title, desc, children }) {
   return html`<section class="set-sec"><div><h2>${title}</h2>${desc && html`<p class="desc">${desc}</p>`}</div><div class="ctl">${children}</div></section>`;
@@ -100,9 +100,9 @@ export function Settings({ offline }) {
       </${Section}>
       <${Section} title="화면" desc="이 기기에만 적용돼요.">
         <div class="row-ctl"><span class="muted" style="width:64px">색</span>
-          <div class="palettes" role="radiogroup" aria-label="색">${PALETTES.map(([v, emo, label]) => html`<button type="button" key=${v} role="radio" aria-checked=${palette === v} class=${`swatch p-${v || 'berry'}`} onClick=${() => { setPalette(v); applyAppearance(); }}><span class="dot"></span><span>${emo} ${label}</span></button>`)}</div></div>
-        <div class="row-ctl"><span class="muted" style="width:64px">밝기</span>${seg(theme, setTheme, [['', '기기 따라'], ['light', '☀️ 낮'], ['dark', '🌙 밤']])}</div>
-        <div class="row-ctl"><span class="muted" style="width:64px">노트 글꼴</span>${seg(font, setFont, [['', '동글'], ['serif', '명조'], ['mono', '고정폭']])}</div>
+          <div class="palettes" role="radiogroup" aria-label="색">${PALETTES.map(([v, label]) => html`<button type="button" key=${v} role="radio" aria-checked=${palette === v || (!v && !PALETTES.some(([x]) => x === palette))} class=${`swatch p-${v || 'blue'}`} onClick=${() => { setPalette(v); applyAppearance(); }}><span class="dot"></span><span>${label}</span></button>`)}</div></div>
+        <div class="row-ctl"><span class="muted" style="width:64px">밝기</span>${seg(theme, setTheme, [['', '기기 따라'], ['light', '낮'], ['dark', '밤']])}</div>
+        <div class="row-ctl"><span class="muted" style="width:64px">노트 글꼴</span>${seg(font, setFont, [['', '기본'], ['round', '동글'], ['serif', '명조'], ['mono', '고정폭']])}</div>
       </${Section}>
       <${Section} title="자동 정리" desc="Claude Code 예약 작업이 하루 몇 번 인박스의 새 노트만 읽고 정리해요. 지금 쓰는 Claude 구독으로 돌아서 추가 비용이 없어요.">
         <div class="kv"><div><b>${lib.inbox().length}</b><span>인박스</span></div><div><b>${lib.organized().length}</b><span>정리된 노트</span></div><div><b>${lib.index?.generatedAt ? relTime(lib.index.generatedAt) : '아직'}</b><span>마지막 정리</span></div></div>

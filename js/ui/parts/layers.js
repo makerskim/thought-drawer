@@ -1,6 +1,6 @@
 // 떠 있는 창(메뉴, 팔레트, 대화상자)은 화면 맨 위 한곳에 그린다.
 // 그래야 흐림 효과나 움직임이 있는 부모 안에서도 위치가 틀어지지 않는다.
-import { html, useState, useEffect, useLayoutEffect, useRef } from '../h.js';
+import { html, useState, useEffect, useLayoutEffect, useRef, cx } from '../h.js';
 import { useToasts } from '../state.js';
 
 let layers = [];
@@ -52,7 +52,12 @@ function Pop({ layer }) {
 }
 
 function Modal({ layer }) {
-  return html`<div class="overlay" onPointerDown=${(e) => { if (e.target === e.currentTarget) layer.close(); }}>${layer.render(layer.close)}</div>`;
+  return html`<div class=${cx('overlay', layer.cls)} onPointerDown=${(e) => { if (e.target === e.currentTarget) layer.close(); }}>${layer.render(layer.close)}</div>`;
+}
+
+// 스스로 화면 전체를 그리는 것 (사용법 안내)
+function Bare({ layer }) {
+  return layer.render(layer.close);
 }
 
 export function Layers() {
@@ -63,7 +68,9 @@ export function Layers() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
-  return html`${list.map((l) => (l.kind === 'pop' ? html`<${Pop} key=${l.id} layer=${l} />` : html`<${Modal} key=${l.id} layer=${l} />`))}`;
+  return html`${list.map((l) => (l.kind === 'pop' ? html`<${Pop} key=${l.id} layer=${l} />`
+    : l.kind === 'bare' ? html`<${Bare} key=${l.id} layer=${l} />`
+    : html`<${Modal} key=${l.id} layer=${l} />`))}`;
 }
 
 export function Toasts() {
