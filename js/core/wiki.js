@@ -25,8 +25,14 @@ export function joinLinks(main, links) {
 
 const defaultLabel = (target) => target.replace(/^\d{14}\s*/, '') || target;
 
+// 빈 체크 상자 줄(- [ ] )은 편집기가 체크 상자로 읽도록 폭 없는 글자(U+200B)를 하나 둔다. 꺼낼 때 다시 뺀다.
+const EMPTY_TASK = /^(\s*[-*+] \[[ xX]\])[ \t]*$/gm;
+const ZW_TASK = /^(\s*[-*+] \[[ xX]\]) ?\u200b+[ \t]*$/gm;
+const ZW_LEAD = /^(\s*[-*+] \[[ xX]\] )\u200b+/gm;
+
 export function toEditorMarkdown(md) {
   return String(md ?? '')
+    .replace(EMPTY_TASK, '$1 \u200b')
     .replace(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g, (_, name) => `![${name.trim()}](${ATT}${encodeURIComponent(name.trim())})`)
     .replace(/(?<!!)\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g, (_, target, alias) => {
       const t = target.trim();
@@ -36,6 +42,8 @@ export function toEditorMarkdown(md) {
 
 export function fromEditorMarkdown(md) {
   return String(md ?? '')
+    .replace(ZW_TASK, '$1 ')
+    .replace(ZW_LEAD, '$1')
     .replace(/!\[[^\]]*\]\(<?td-att:([^)\s>]+)>?\)/g, (_, enc) => `![[${decodeURIComponent(enc)}]]`)
     .replace(/\[((?:[^\]\\]|\\.)*)\]\(<?td-wiki:([^)\s>]+)>?\)/g, (_, label, enc) => {
       const t = decodeURIComponent(enc);

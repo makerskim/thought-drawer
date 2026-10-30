@@ -1,34 +1,34 @@
-/* Thought Drawer 확장 프로그램 팝업. 색과 모양은 웹앱(css/app.css)과 같은 값을 쓴다 (파랑 + 포스트잇 노랑). */
+/* Thought Drawer 확장 프로그램 팝업. 색과 모양은 웹앱(css/app.css)과 같은 값을 쓴다 (상록 초록 + 따뜻한 회색). */
 
 @font-face { font-family: 'NanumSquareRound'; font-weight: 800; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/@kfonts/nanum-square-round@0.2.0/NanumSquareRoundEB.woff2) format('woff2'); }
 
 :root {
-  --bg: #f5f7fb;
+  --bg: #f6f6f3;
   --paper: #ffffff;
-  --bg-soft: #eff2f8;
-  --bg-soft-2: #e5eaf3;
-  --hover: rgba(30, 50, 100, .05);
-  --text: #18213a;
-  --text-2: #4f5a74;
-  --text-3: #858fa6;
-  --border: #e5e9f2;
-  --border-2: #d3dae7;
-  --accent: #2f5bea;
-  --accent-soft: #eaf0ff;
-  --hl: #a9bcfb;
+  --bg-soft: #f1f1ee;
+  --bg-soft-2: #e8e8e4;
+  --hover: rgba(40, 40, 30, .05);
+  --text: #1e1f1c;
+  --text-2: #5b5c57;
+  --text-3: #8f8f89;
+  --border: #e8e8e3;
+  --border-2: #d9d9d3;
+  --accent: #0e7a59;
+  --accent-soft: #e4f4ec;
+  --hl: #93d4bb;
   --hl-soft: #ffe680;
-  --btn: #2f5bea;
+  --btn: #0e7a59;
   --btn-text: #ffffff;
-  --btn-hover: #2850d6;
-  --memo: #fff8dc;
+  --btn-hover: #0b6a4d;
+  --memo: #fffae3;
   --lemon: #ffd84a;
-  --m-body: #3f6df6;
-  --m-deep: #2448c4;
-  --m-ink: #16203a;
+  --m-body: #2bad7d;
+  --m-deep: #17845c;
+  --m-ink: #1d2420;
   --danger: #e0445a;
   --ok: #1fae7a;
-  --shadow-pop: 0 0 0 1px rgba(20, 35, 80, .06), 0 22px 48px -14px rgba(20, 35, 80, .36);
-  --shadow-card: 0 1px 2px rgba(20, 35, 80, .05), 0 6px 16px -10px rgba(20, 35, 80, .16);
+  --shadow-pop: 0 0 0 1px rgba(30, 30, 20, .06), 0 22px 48px -14px rgba(30, 30, 20, .32);
+  --shadow-card: 0 1px 2px rgba(30, 30, 20, .04), 0 6px 16px -10px rgba(30, 30, 20, .14);
   --font: 'Wanted Sans Variable', 'Wanted Sans', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
   --font-display: 'NanumSquareRound', var(--font);
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -37,9 +37,9 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1422; --paper: #182033; --bg-soft: #1f2840; --bg-soft-2: #28324d; --hover: rgba(200, 215, 255, .06);
-    --text: #edf1fa; --text-2: #aeb8cf; --text-3: #76819b; --border: #242d45; --border-2: #323c58;
-    --accent-soft: rgba(47, 91, 234, .22); --memo: #2c2a1d;
+    --bg: #191919; --paper: #222221; --bg-soft: #2a2a29; --bg-soft-2: #333331; --hover: rgba(255, 255, 240, .06);
+    --text: #ecece8; --text-2: #b1b1aa; --text-3: #7d7d77; --border: #2d2d2b; --border-2: #3b3b38;
+    --accent-soft: rgba(14, 122, 89, .26); --memo: #2b2919;
     --shadow-pop: 0 0 0 1px rgba(255, 255, 255, .06), 0 22px 48px -14px rgba(0, 0, 0, .75);
     --shadow-card: 0 6px 16px -10px rgba(0, 0, 0, .6);
     color-scheme: dark;

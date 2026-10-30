@@ -5,6 +5,7 @@ import { app, toast, setConn } from './state.js';
 import { useRoute, go, parse, syncFromLocation } from './router.js';
 import { Layers, Toasts, closeAll } from './parts/layers.js';
 import { openComposer } from './parts/composer.js';
+import { openToday } from './notebook.js';
 import { capturePhotos, pickPhotos } from './capture.js';
 import { Drawer } from './views/drawer.js';
 import { NoteView } from './views/note.js';
@@ -149,6 +150,7 @@ export function App({ auth }) {
       if (e.key === 'Enter' && !e.shiftKey && !isPage && idle) { e.preventDefault(); openComposer(); return; }
       if (e.key === '/') { e.preventDefault(); app.find(); }
       else if (e.key === 'n') { e.preventDefault(); go('#/new'); }
+      else if (e.key === 't') { e.preventDefault(); openToday(); }
       else if (isSheet && (e.key === 'j' || e.key === 'ArrowDown')) { e.preventDefault(); app.sheetNav?.(1); }
       else if (isSheet && (e.key === 'k' || e.key === 'ArrowUp')) { e.preventDefault(); app.sheetNav?.(-1); }
     };

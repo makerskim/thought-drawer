@@ -8,6 +8,7 @@ import { MenuItem } from './common.js';
 import { ConnBanner } from './conn.js';
 import { openComposer } from './composer.js';
 import { openTutorial } from './tutorial.js';
+import { openToday } from '../notebook.js';
 
 export function SaveState({ state }) {
   if (!state) return null;
@@ -20,14 +21,16 @@ export function Conn() {
   return conn && html`<${ConnBanner} conn=${conn} onRetry=${() => app.resync()} onReconnect=${(o) => app.reconnect(o)} clientId=${app.auth?.clientId} />`;
 }
 
-// 서랍 밖의 것들: 넣기, 새 노트, 사진, 그래프, 폰과 크롬, 인스타 가져오기, 설정, 사용법
+// 서랍 밖의 것들: 넣기, 오늘 노트, 새 노트, 할 일, 사진, 그래프, 폰과 크롬, 인스타 가져오기, 설정, 사용법
 export function openMenu(anchor) {
   const to = (close, hash) => () => { close(); go(hash); };
   // 사용법은 서랍 화면에서 보여 준다
   const tour = (close) => () => { close(); if (!document.querySelector('.drawer')) go('#/'); setTimeout(openTutorial, 120); };
   popover(anchor, (close) => html`
     <${MenuItem} icon="plus" label="생각 넣기" sub="Enter" onClick=${() => { close(); openComposer(); }} />
+    <${MenuItem} icon="calendar" label="오늘 노트" sub="T" onClick=${() => { close(); openToday(); }} />
     <${MenuItem} icon="pen" label="새 노트 크게 쓰기" sub="N" onClick=${to(close, '#/new')} />
+    <${MenuItem} icon="check" label="할 일 모아 보기" onClick=${to(close, '#/tasks')} />
     <${MenuItem} icon="capture" label="사진 넣기" onClick=${() => { close(); app.pickPhotos(); }} />
     <div class="mi-sep"></div>
     <${MenuItem} icon="graph" label="생각 지도" onClick=${to(close, '#/graph')} />

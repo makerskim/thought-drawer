@@ -12,6 +12,7 @@ import { NoteEditor } from '../editor.js';
 import { splitLinks, joinLinks } from '../../core/wiki.js';
 import { categoryParts, embeds } from '../../core/note.js';
 import { relTime, fullDate, KIND_LABEL } from '../format.js';
+import { TEMPLATES, rememberSeen } from '../notebook.js';
 
 const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
 const shortDate = (iso) => { const d = new Date(iso); return Number.isNaN(+d) ? '' : `${d.getFullYear() === new Date().getFullYear() ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월 ${d.getDate()}일`; };
@@ -68,7 +69,13 @@ export function SheetBar({ noteId = null, right = null }) {
 function Links({ note }) {
   const lib = useLib();
   const links = lib.connections(note);
-  const related = lib.related(note, 5);
+  // 제목을 본문에 적었지만 아직 잇지 않은 노트 (옵시디언의 「링크 안 된 언급」)
+  const linked = new Set(links.map((l) => l.note.id));
+  const name = String(note.meta.title ?? '').trim();
+  const mentions = name.length >= 2
+    ? lib.all.filter((n) => n.id !== note.id && !linked.has(n.id) && `${n.meta.title ?? ''}\n${n.body ?? n.snippet ?? ''}`.includes(name)).slice(0, 5)
+    : [];
+  const related = lib.related(note, 5).filter(({ note: n }) => !mentions.includes(n));
   const reasons = new Map();
   for (const m of String(note.body ?? '').matchAll(/^- \[\[(\d{14})[^\]]*\]\]\s*\(([^)]+)\)/gm)) reasons.set(m[1], m[2]);
   const connect = async (other) => {
@@ -84,6 +91,13 @@ function Links({ note }) {
           </a>`)
         : html`<p class="rp-empty">아직 이어진 노트가 없어요. Claude가 정리할 때 이어 주고, 아래 비슷한 노트를 직접 이을 수도 있어요.</p>`}
     </div>
+    ${mentions.length > 0 && html`<div class="rp-sec mentions">
+      <h3><span><${Icon} name="at" />이 노트를 언급한 노트</span><span>${mentions.length}</span></h3>
+      ${mentions.map((n) => html`<div class="rp-rel" key=${n.id}>
+        <a class="rp-item" href=${noteHref(n.id)}><b><${KindIcon} type=${n.meta.type} /><span>${titleOf(n)}</span></b><small>“${name}”라고 적었지만 아직 잇지 않았어요</small></a>
+        <button type="button" class="link-btn" title="이 노트와 잇기" aria-label=${`${titleOf(n)}와 잇기`} onClick=${() => connect(n)}>잇기</button>
+      </div>`)}
+    </div>`}
     ${related.length > 0 && html`<div class="rp-sec">
       <h3><span><${Icon} name="sparkle" />비슷한 노트</span></h3>
       ${related.map(({ note: n }) => html`<div class="rp-rel" key=${n.id}>
@@ -91,6 +105,17 @@ function Links({ note }) {
         <button type="button" class="link-btn" title="이 노트와 잇기" aria-label=${`${titleOf(n)}와 잇기`} onClick=${() => connect(n)}>잇기</button>
       </div>`)}
     </div>`}`;
+}
+
+// 목차: 제목(#)이 셋 이상인 긴 노트에서 누르면 그 자리로
+function Outline({ md }) {
+  const heads = [...String(md ?? '').matchAll(/^(#{1,3})\s+(.+)$/gm)].map((m) => ({ level: m[1].length, text: m[2].trim() }));
+  if (heads.length < 3) return null;
+  const jump = (i) => document.querySelectorAll('.sheet .ProseMirror :is(h1, h2, h3)')[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return html`<details class="outline" open>
+    <summary><${Icon} name="list" />목차</summary>
+    <ol>${heads.map((h, i) => html`<li key=${i} class=${`l${h.level}`}><button type="button" onClick=${() => jump(i)}>${h.text}</button></li>`)}</ol>
+  </details>`;
 }
 
 export function NoteView({ id, params }) {
@@ -101,7 +126,7 @@ export function NoteView({ id, params }) {
   const [loaded, setLoaded] = useState(!noteId || (!!note && note.body !== undefined));
   const seeded = useRef(!noteId || !!note);
   const [title, setTitle] = useState(note?.meta.title ?? params?.get('title') ?? '');
-  const [main, setMain] = useState(splitLinks(note?.body).main);
+  const [main, setMain] = useState(() => (note || id !== 'new' ? splitLinks(note?.body).main : TEMPLATES.find((t) => t.id === params?.get('template'))?.body ?? ''));
   const [thought, setThought] = useState(note?.meta.thought ?? '');
   const [saveState, setSaveState] = useState(null);
   const dirty = useRef(false);
@@ -111,6 +136,8 @@ export function NoteView({ id, params }) {
   const wantBody = useRef(false); // 편집기가 아직 준비 중일 때 제목에서 Enter를 누르면 준비되는 대로 옮긴다
   const focusBody = () => { if (editorRef.current) editorRef.current.commands.focus('start'); else wantBody.current = true; };
   latest.current = { title, main, thought, noteId };
+
+  useEffect(() => { if (noteId && note) rememberSeen(noteId); }, [noteId, !!note]);
 
   // 본문이 아직 없으면(색인에서만 읽은 노트) 드라이브에서 가져온다
   useEffect(() => {
@@ -253,6 +280,15 @@ export function NoteView({ id, params }) {
           <div class="thought-note"><${Icon} name="thought" />
             <${Grow} value=${thought} onInput=${change(setThought)} label="내 생각" placeholder="왜 저장했는지 한 줄 남겨 볼까요?" />
           </div>
+          ${!noteId && !main.trim() && html`<div class="templates" role="group" aria-label="템플릿으로 시작">
+            <span>템플릿으로 시작</span>
+            ${TEMPLATES.filter((t) => !t.hidden).map((t) => html`<button type="button" key=${t.id} class="tpl" onClick=${() => {
+              if (!title.trim() && t.title) change(setTitle)(t.title);
+              change(setMain)(t.body);
+              setTimeout(() => editorRef.current?.commands.focus('end'), 60);
+            }}><${Icon} name=${t.icon} />${t.label}</button>`)}
+          </div>`}
+          <${Outline} md=${main} />
           ${loaded
             ? html`<${NoteEditor} noteId=${noteId} value=${main} onChange=${change(setMain)} editorRef=${editorRef}
                 onReady=${(ed) => { if (wantBody.current) { wantBody.current = false; ed.commands.focus('start'); } }}

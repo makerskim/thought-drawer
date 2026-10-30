@@ -4,15 +4,17 @@
 import { html, useState, useEffect, useRef, cx } from '../h.js';
 import { Icon, Logo, Mascot, TYPE_ICON } from '../icons.js';
 import { app, useLib, usePref, prefs, toast } from '../state.js';
-import { go, folderHref } from '../router.js';
+import { go, folderHref, noteHref, tagHref } from '../router.js';
 import { MenuButton, Conn } from '../parts/shell.js';
-import { NoteRow, MCard, Empty, KindIcon, FolderDot, highlighter, folderLabel } from '../parts/common.js';
-import { popover, modal } from '../parts/layers.js';
+import { NoteRow, MCard, Empty, KindIcon, FolderDot, MenuItem, highlighter, folderLabel, titleOf } from '../parts/common.js';
+import { popover, modal, useListNav } from '../parts/layers.js';
 import { FolderPicker, ConfirmDialog } from '../parts/dialogs.js';
 import { openComposer } from '../parts/composer.js';
 import { openTutorial } from '../parts/tutorial.js';
+import { openToday, recentNotes } from '../notebook.js';
 import { search, parseQuery } from '../../core/search.js';
 import { categoryParts } from '../../core/note.js';
+import { openTasks, setTask } from '../../core/tasks.js';
 import { relTime, modKey } from '../format.js';
 
 const PAGE = 60;
@@ -23,6 +25,7 @@ export function scopeOf(path) {
   let m;
   if (path === '/inbox') return { kind: 'inbox' };
   if (path === '/star') return { kind: 'star' };
+  if (path === '/tasks') return { kind: 'tasks' };
   if ((m = /^\/f\/(.+)$/.exec(path))) return { kind: 'folder', value: decodeURIComponent(m[1]) };
   if ((m = /^\/t\/(.+)$/.exec(path))) return { kind: 'tag', value: decodeURIComponent(m[1]) };
   return { kind: 'all' };
@@ -30,14 +33,21 @@ export function scopeOf(path) {
 
 const KINDS = [['capture', '사진'], ['bookmark', '링크'], ['instagram', '인스타'], ['memo', '메모']];
 
-function pickNotes(lib, scope, kind, q) {
+// 정렬: 넣은 순(기본), 고친 순, 이름 순. 찾는 중에는 맞는 순
+const SORTS = [['new', '넣은 순'], ['updated', '고친 순'], ['title', '이름 순']];
+const SORTER = {
+  updated: (a, b) => String(b.meta.updated || b.meta.created).localeCompare(String(a.meta.updated || a.meta.created)),
+  title: (a, b) => titleOf(a).localeCompare(titleOf(b), 'ko'),
+};
+
+function pickNotes(lib, scope, kind, q, sort) {
   let list = scope.kind === 'inbox' ? lib.inbox()
     : scope.kind === 'star' ? lib.pinned()
     : scope.kind === 'folder' ? lib.inFolder(scope.value)
     : scope.kind === 'tag' ? lib.all.filter((n) => (n.meta.tags ?? []).includes(scope.value))
     : lib.all;
   if (kind) list = list.filter((n) => n.meta.type === kind);
-  if (!q.trim()) return { notes: list, terms: [] };
+  if (!q.trim()) return { notes: SORTER[sort] ? [...list].sort(SORTER[sort]) : list, terms: [] };
   const pq = parseQuery(q);
   return { notes: search(list, pq, { limit: 400 }).map((h) => h.note), terms: pq.terms };
 }
@@ -45,7 +55,7 @@ function pickNotes(lib, scope, kind, q) {
 const askHref = (q) => `#/ask?q=${encodeURIComponent(q.trim())}`;
 
 // 찾기 칸: 적는 대로 아래가 걸러진다. ↓나 Enter로 결과로, Ctrl+Enter는 Claude에게 묻기
-function Search({ q, setQ }) {
+function Search({ q, setQ, saved, onSave }) {
   const ref = useRef();
   app.focusOmni = () => { ref.current?.focus(); ref.current?.select(); };
   const ask = () => q.trim() && go(askHref(q));
@@ -64,7 +74,8 @@ function Search({ q, setQ }) {
     <input ref=${ref} type="search" value=${q} aria-label="노트 찾기" placeholder="노트 찾기" enterkeyhint="search" autocomplete="off" spellcheck="false"
       onInput=${(e) => setQ(e.target.value)} onKeyDown=${onKeyDown} />
     ${q
-      ? html`<button type="button" class="search-ask" onClick=${ask} title=${`Claude에게 물어보기 (${modKey} Enter)`} aria-label="물어보기"><${Icon} name="sparkle" /><span class="hide-m">물어보기</span></button>
+      ? html`<button type="button" class=${cx('icon-btn', saved && 'on')} aria-pressed=${saved} aria-label="이 찾기 저장" title=${saved ? '저장한 찾기에서 빼기' : '이 찾기를 칩으로 저장'} onClick=${onSave}><${Icon} name="bookmark" /></button>
+        <button type="button" class="search-ask" onClick=${ask} title=${`Claude에게 물어보기 (${modKey} Enter)`} aria-label="물어보기"><${Icon} name="sparkle" /><span class="hide-m">물어보기</span></button>
         <button type="button" class="icon-btn" aria-label="찾기 지우기" onClick=${() => { setQ(''); ref.current?.focus(); }}><${Icon} name="x" /></button>`
       : html`<kbd class="hide-m" title="/ 를 누르면 여기로">/</kbd>`}
   </div>`;
@@ -110,7 +121,22 @@ function HowTo() {
   </button>`);
 }
 
-function Chips({ scope, kind, setKind, view, setView }) {
+// 모든 태그와 개수 (노션의 속성, 옵시디언의 태그 창)
+function TagList({ close }) {
+  const lib = useLib();
+  const [q, setQ] = useState('');
+  const counts = new Map();
+  for (const n of lib.all) for (const t of n.meta.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
+  const list = [...counts].filter(([t]) => t.toLowerCase().includes(q.trim().toLowerCase())).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko'));
+  const pick = (i) => { close(); go(tagHref(list[i][0])); };
+  const [idx, setIdx, onKeyDown] = useListNav(list.length, pick, [q]);
+  return html`<div class="pop-search"><input autofocus value=${q} onInput=${(e) => setQ(e.target.value)} onKeyDown=${onKeyDown} placeholder="태그 찾기" aria-label="태그 찾기" /></div>
+    <div class="pop-list">${list.length
+      ? list.map(([t, c], i) => html`<${MenuItem} key=${t} icon="tag" label=${t} sub=${String(c)} on=${i === idx} onClick=${() => pick(i)} />`)
+      : html`<p class="mi-label">${counts.size ? '맞는 태그가 없어요' : '아직 태그가 없어요. Claude가 정리하면서 붙여요.'}</p>`}</div>`;
+}
+
+function Chips({ scope, kind, setKind, view, setView, sort, setSort, searching, saved, q, setQ, taskN }) {
   const lib = useLib();
   const folders = lib.folders();
   const inboxN = lib.inbox().length;
@@ -118,29 +144,94 @@ function Chips({ scope, kind, setKind, view, setView }) {
   const top = scope.kind === 'folder' ? categoryParts(scope.value)[0] : null;
   const subs = top ? folders.find((f) => f.path === top)?.children ?? [] : [];
   const on = (k, v) => (scope.kind === k && (v === undefined || scope.value === v) ? 'page' : undefined);
+  const sortMenu = (anchor) => popover(anchor, (close) => SORTS.map(([k, label]) => html`<${MenuItem} key=${k} icon=${sort === k ? 'check' : 'blank'} label=${label} onClick=${() => { close(); setSort(k); }} />`), { width: 180 });
   return html`<div class="chips-bar">
     <nav class="chip-row" aria-label="보는 범위">
       <a class="chip" href="#/" aria-current=${on('all')}><${Icon} name="grid" />전체</a>
       <a class="chip" href="#/inbox" aria-current=${on('inbox')}><${Icon} name="inbox" />인박스${inboxN > 0 && html`<span class="n hot">${inboxN}</span>`}</a>
+      <a class="chip" href="#/tasks" aria-current=${on('tasks')}><${Icon} name="check" />할 일${taskN > 0 && html`<span class="n">${taskN}</span>`}</a>
       ${pinnedN > 0 && html`<a class="chip" href="#/star" aria-current=${on('star')}><${Icon} name="star" />즐겨찾기</a>`}
-      ${scope.kind === 'tag' && html`<a class="chip" href="#/" aria-current="page" title="태그 거르기 끄기"><${Icon} name="tag" />${scope.value}<${Icon} name="x" /></a>`}
+      ${saved.map((x) => html`<button type="button" key=${`s:${x}`} class="chip saved" aria-current=${q.trim() === x ? 'page' : undefined} title="저장한 찾기" onClick=${() => setQ(q.trim() === x ? '' : x)}><${Icon} name="bookmark" />${x}</button>`)}
+      ${scope.kind === 'tag'
+        ? html`<a class="chip" href="#/" aria-current="page" title="태그 거르기 끄기"><${Icon} name="tag" />${scope.value}<${Icon} name="x" /></a>`
+        : html`<button type="button" class="chip" aria-haspopup="menu" aria-expanded="false" onClick=${(e) => popover(e.currentTarget, (close) => html`<${TagList} close=${close} />`, { width: 260 })}><${Icon} name="tag" />태그</button>`}
       ${folders.length > 0 && html`<span class="chip-sep" aria-hidden="true"></span>`}
       ${folders.map((f) => html`<a key=${f.path} class="chip" href=${folderHref(f.path)} aria-current=${top === f.path ? 'page' : undefined}><${FolderDot} path=${f.path} />${f.name}<span class="n">${f.count}</span></a>`)}
     </nav>
-    <div class="tools">
+    ${scope.kind !== 'tasks' && html`<div class="tools">
       <div class="seg kinds" role="group" aria-label="종류">
         ${KINDS.map(([k, label]) => html`<button type="button" key=${k} title=${`${label}만 보기`} aria-label=${`${label}만 보기`} aria-pressed=${kind === k} onClick=${() => setKind(kind === k ? '' : k)}><${Icon} name=${TYPE_ICON[k]} /></button>`)}
       </div>
+      <div class="seg"><button type="button" class="sort-btn" disabled=${searching} aria-haspopup="menu" aria-expanded="false" aria-label="정렬" title="정렬" onClick=${(e) => sortMenu(e.currentTarget)}><${Icon} name="arrowUpDown" /><span class="hide-m">${searching ? '맞는 순' : SORTS.find(([k]) => k === sort)?.[1] ?? '넣은 순'}</span></button></div>
       <div class="seg" role="group" aria-label="보기">
         <button type="button" title="카드로 보기" aria-label="벽으로 보기" aria-pressed=${view === 'wall'} onClick=${() => setView('wall')}><${Icon} name="grid" /><span class="hide-m">카드</span></button>
         <button type="button" title="목록으로 보기" aria-label="목록으로 보기" aria-pressed=${view === 'list'} onClick=${() => setView('list')}><${Icon} name="list" /><span class="hide-m">목록</span></button>
       </div>
-    </div>
+    </div>`}
     ${subs.length > 0 && html`<nav class="chip-row sub" aria-label="안쪽 폴더">
       <a class="chip" href=${folderHref(top)} aria-current=${on('folder', top)}>${top} 전체</a>
       ${subs.map((f) => html`<a key=${f.path} class="chip" href=${folderHref(f.path)} aria-current=${scope.value === f.path || String(scope.value).startsWith(`${f.path}/`) ? 'page' : undefined}>${f.name}<span class="n">${f.count}</span></a>`)}
     </nav>`}
   </div>`;
+}
+
+// 최근에 본 노트 (에버노트 홈의 「최근 노트」)
+function Recent() {
+  const lib = useLib();
+  const list = recentNotes(lib, 8);
+  if (!list.length) return null;
+  return html`<section class="recent" aria-labelledby="recent-title">
+    <h2 id="recent-title">최근에 본 노트</h2>
+    <div class="recent-row">${list.map((n) => html`<a key=${n.id} class="rc" href=${noteHref(n.id)}><${KindIcon} type=${n.meta.type} /><span>${titleOf(n)}</span><small>${relTime(n.meta.updated || n.meta.created)}</small></a>`)}</div>
+  </section>`;
+}
+
+// 할 일 모아 보기: 모든 노트의 체크 상자 중 아직 안 한 것 (에버노트 할 일, 노션 체크 상자)
+function Tasks() {
+  const lib = useLib();
+  const [prog, setProg] = useState(null);
+  // 본문을 아직 안 받은 노트는 받아 온다 (한 번 받으면 기기에 남는다)
+  useEffect(() => {
+    const missing = lib.all.filter((n) => n.body === undefined);
+    if (!missing.length) return undefined;
+    let alive = true;
+    let done = 0;
+    setProg([0, missing.length]);
+    const work = async () => {
+      while (alive && missing.length) {
+        const n = missing.shift();
+        try { await lib.ensureBody(n); } catch { /* 못 받은 노트는 건너뛴다 */ }
+        if (alive) setProg([++done, done + missing.length]);
+      }
+    };
+    Promise.all([work(), work(), work(), work()]).then(() => alive && setProg(null));
+    return () => { alive = false; };
+  }, [lib.all.length]);
+
+  const groups = lib.all.map((n) => ({ n, tasks: n.body ? openTasks(n.body) : [] })).filter((g) => g.tasks.length)
+    .sort((a, b) => String(b.n.meta.updated || b.n.meta.created).localeCompare(String(a.n.meta.updated || a.n.meta.created)));
+  const flip = async (n, t, done) => {
+    try {
+      const cur = await lib.ensureBody(lib.get(n.id) ?? n);
+      const body = setTask(cur.body, t.line, done, t.text);
+      if (body == null) { toast('노트가 그새 바뀌었어요. 노트를 열어 확인해 주세요.'); return; }
+      await lib.update(cur, { body });
+      if (done) toast(`“${t.text}” 했어요`, { action: '되돌리기', duration: 5000, onAction: () => flip(n, t, false) });
+    } catch (e) { toast(e.message); }
+  };
+  return html`
+    ${prog
+      ? html`<div class="found"><span>노트에서 할 일을 모으는 중 ${prog[0]}/${prog[1]}</span></div>`
+      : groups.length > 0 && html`<div class="found"><span>노트 ${groups.length}개에 남은 할 일 <b>${groups.reduce((s, g) => s + g.tasks.length, 0)}개</b></span><span class="hide-m">체크하면 노트에도 바로 표시돼요</span></div>`}
+    ${!groups.length && !prog
+      ? html`<${Empty} mood="happy" title="남은 할 일이 없어요" text="노트에 「- [ ] 할 일」처럼 적거나 / 메뉴의 체크 상자를 쓰면 여기에 모여요. 오늘 노트에도 할 일 칸이 있어요.">
+          <button type="button" class="btn btn-primary" onClick=${() => openToday()}><${Icon} name="calendar" />오늘 노트 열기</button>
+          <button type="button" class="btn" onClick=${() => go('#/new?template=todo')}><${Icon} name="check" />할 일 노트 만들기</button>
+        </${Empty}>`
+      : html`<div class="tasks">${groups.map(({ n, tasks }) => html`<section class="task-group" key=${n.id}>
+          <a class="tg-head" href=${noteHref(n.id)}><${KindIcon} type=${n.meta.type} /><b>${titleOf(n)}</b><span><${FolderDot} path=${n.meta.status === 'inbox' ? null : n.meta.category} />${folderLabel(n)}</span></a>
+          <ul>${tasks.map((t) => html`<li key=${`${t.line}:${t.text}`}><label><input type="checkbox" onChange=${(e) => { e.target.disabled = true; flip(n, t, true); }} /><span>${t.text}</span></label></li>`)}</ul>
+        </section>`)}</div>`}`;
 }
 
 // 화면 끝에 닿으면 더 그린다 (수백 개도 가볍게)
@@ -211,6 +302,14 @@ export function Drawer({ path, activeId }) {
   const [kind, setKind] = usePref('kind', '');
   const [view, setView] = usePref('view', 'wall');
   const [guideHidden, setGuideHidden] = usePref('guideHidden', false);
+  const [sort, setSort] = usePref('sort', 'new');
+  const [saved, setSaved] = usePref('searches', []);
+  const toggleSaved = () => {
+    const t = q.trim();
+    const had = saved.includes(t);
+    setSaved(had ? saved.filter((x) => x !== t) : [...saved, t].slice(-8));
+    toast(had ? '저장한 찾기에서 뺐어요' : `“${t}” 찾기를 칩으로 저장했어요`);
+  };
   const [dq, setDq] = useState('');
   const debounce = useRef();
   useEffect(() => { clearTimeout(debounce.current); debounce.current = setTimeout(() => setDq(q), q ? 90 : 0); return () => clearTimeout(debounce.current); }, [q]);
@@ -230,7 +329,8 @@ export function Drawer({ path, activeId }) {
     return () => clearTimeout(t);
   }, [ready]);
 
-  const { notes, terms } = pickNotes(lib, scope, kind, dq);
+  const { notes, terms } = pickNotes(lib, scope, kind, dq, sort);
+  const taskN = lib.all.reduce((sum, n) => sum + (n.body ? openTasks(n.body).length : 0), 0);
   app.visible = notes.map((n) => n.id);
   const hl = highlighter(terms);
   const more = useMore(`${path}|${kind}|${dq}`, notes.length);
@@ -241,7 +341,9 @@ export function Drawer({ path, activeId }) {
   const showHowTo = plain && !guideHidden && lib.all.length < FEW;
 
   let body;
-  if (!lib.all.length && !lib.state.synced && !lib.state.error) {
+  if (scope.kind === 'tasks') {
+    body = html`<${Tasks} />`;
+  } else if (!lib.all.length && !lib.state.synced && !lib.state.error) {
     body = html`<div class="wall">${[180, 120, 220, 140, 160, 200].map((h, i) => html`<div class="mcard sk" key=${i} style=${`height:${h}px`}></div>`)}</div>`;
   } else if (!lib.all.length) {
     body = html`<div class="first">
@@ -273,15 +375,18 @@ export function Drawer({ path, activeId }) {
       <header class="top">
         <a class="brand" href="#/" onClick=${() => app.clearDrawer()} aria-label="Thought Drawer 처음으로"><${Logo} size=${42} /><span>Thought Drawer</span></a>
         <div class="top-mid">
-          <${Search} q=${q} setQ=${setQ} />
+          <${Search} q=${q} setQ=${setQ} saved=${saved.includes(q.trim())} onSave=${toggleSaved} />
+          <button type="button" class="today-btn" onClick=${() => openToday()} title="오늘 노트 (T)" aria-keyshortcuts="T"><${Icon} name="calendar" /><span>오늘</span></button>
           <button type="button" class="add-btn" onClick=${() => openComposer()} title="생각 넣기 (Enter)" aria-keyshortcuts="Enter"><${Icon} name="plus" /><span>생각 넣기</span><kbd class="hide-m">Enter</kbd></button>
         </div>
         <${MenuButton} />
       </header>
       <${Conn} />
-      <${Chips} scope=${scope} kind=${kind} setKind=${setKind} view=${view} setView=${setView} />
+      <${Chips} scope=${scope} kind=${kind} setKind=${setKind} view=${view} setView=${setView} sort=${sort} setSort=${setSort}
+        searching=${!!dq.trim()} saved=${saved} q=${q} setQ=${setQ} taskN=${taskN} />
     </div>
     <main class="results" id="main">
+      ${plain && notes.length > 0 && html`<${Recent} />`}
       ${showGuide && html`<${Guide} onHide=${() => { setGuideHidden(true); toast('안내를 닫았어요. 메뉴의 「사용법 다시 보기」로 언제든 볼 수 있어요.'); }} />`}
       ${dq.trim()
         ? html`<div class="found"><span><b>“${dq.trim()}”</b> 찾은 노트 ${notes.length}개</span><span class="hide-m"><kbd>↓</kbd> 결과로 <span class="sp"></span><kbd>${modKey}</kbd><kbd>Enter</kbd> 물어보기</span></div>`

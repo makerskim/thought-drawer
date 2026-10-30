@@ -46,7 +46,7 @@ export function Login({ onSignIn, busy, error }) {
   </main>`;
 }
 
-const PALETTES = [['', '파랑'], ['mint', '민트'], ['tangerine', '귤'], ['grape', '포도']];
+const PALETTES = [['', '초록'], ['blue', '파랑'], ['grape', '보라'], ['ink', '먹']];
 
 function Section({ title, desc, children }) {
   return html`<section class="set-sec"><div><h2>${title}</h2>${desc && html`<p class="desc">${desc}</p>`}</div><div class="ctl">${children}</div></section>`;
@@ -100,7 +100,7 @@ export function Settings({ offline }) {
       </${Section}>
       <${Section} title="화면" desc="이 기기에만 적용돼요.">
         <div class="row-ctl"><span class="muted" style="width:64px">색</span>
-          <div class="palettes" role="radiogroup" aria-label="색">${PALETTES.map(([v, label]) => html`<button type="button" key=${v} role="radio" aria-checked=${palette === v || (!v && !PALETTES.some(([x]) => x === palette))} class=${`swatch p-${v || 'blue'}`} onClick=${() => { setPalette(v); applyAppearance(); }}><span class="dot"></span><span>${label}</span></button>`)}</div></div>
+          <div class="palettes" role="radiogroup" aria-label="색">${PALETTES.map(([v, label]) => html`<button type="button" key=${v} role="radio" aria-checked=${palette === v || (!v && !PALETTES.some(([x]) => x === palette))} class=${`swatch p-${v || 'green'}`} onClick=${() => { setPalette(v); applyAppearance(); }}><span class="dot"></span><span>${label}</span></button>`)}</div></div>
         <div class="row-ctl"><span class="muted" style="width:64px">밝기</span>${seg(theme, setTheme, [['', '기기 따라'], ['light', '낮'], ['dark', '밤']])}</div>
         <div class="row-ctl"><span class="muted" style="width:64px">노트 글꼴</span>${seg(font, setFont, [['', '기본'], ['round', '동글'], ['serif', '명조'], ['mono', '고정폭']])}</div>
       </${Section}>
