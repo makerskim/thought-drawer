@@ -1,5 +1,5 @@
 // 사진 넣기: 어디서든(버튼, 붙여넣기, 끌어다 놓기) 같은 흐름으로 저장한다. 사진 속 글자는 드라이브가 읽어 둔다
-import { app, toast } from './state.js';
+import { app, toast, say } from './state.js';
 import { go, noteHref } from './router.js';
 
 export async function capturePhotos(files, memo = '') {
@@ -15,6 +15,7 @@ export async function capturePhotos(files, memo = '') {
       made.push(n);
     }
     const one = made.length === 1;
+    say(one ? '사진 잘 받았어요. 사진 속 글자도 읽어 둘게요.' : `사진 ${made.length}장 잘 받았어요.`, { mood: 'happy', hop: true });
     t.update(one ? '사진을 넣었어요' : `사진 ${made.length}장을 넣었어요`, {
       action: '열기', onAction: () => go(one ? noteHref(made[0].id) : '#/'), duration: 5000,
     });

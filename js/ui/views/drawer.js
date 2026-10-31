@@ -2,8 +2,8 @@
 // 홈: 애플 홈페이지처럼 큰 제목과 넣는 칸 → 넷플릭스처럼 서랍마다 옆으로 넘기는 포스터 줄 → 넣는 곳 소개 타일 → 바닥.
 // 서랍 모음, 서랍 하나(포스터 판 또는 목록), 찾은 노트, 할 일도 여기 있다.
 import { html, useState, useEffect, useRef, useLayoutEffect, autosize, cx } from '../h.js';
-import { Icon, TYPE_ICON } from '../icons.js';
-import { app, useLib, usePref, prefs, toast } from '../state.js';
+import { Icon, Mascot, TYPE_ICON } from '../icons.js';
+import { app, useLib, usePref, prefs, toast, say, useSpeech } from '../state.js';
 import { go, folderHref, noteHref, tagHref, setUrl } from '../router.js';
 import { PageBar, Footer, Conn } from '../parts/shell.js';
 import { NoteRow, Poster, Empty, KindIcon, MenuItem, highlighter, titleOf } from '../parts/common.js';
@@ -51,6 +51,63 @@ function draftMeta(text) {
   return k.kind === 'titled' ? { meta: { title: lines[0] }, body: lines.slice(1).join('\n') } : { meta: {}, body: t };
 }
 
+// 첫 화면의 서랍이: 넣는 칸 위에 앉아 적는 글을 보고, 어느 서랍으로 갈지 말해 주고, 넣으면 기뻐한다.
+// 가만히 있으면 가끔 눈을 깜빡이고 쓰는 법을 하나씩 알려 준다. 누르면 말을 건다.
+const GREET = () => {
+  const h = new Date().getHours();
+  return h < 5 ? '늦은 밤이네요. 떠오른 생각, 여기 두고 가세요.' : h < 11 ? '좋은 아침이에요. 오늘은 무엇을 넣어 둘까요?' : h < 17 ? '안녕하세요! 무엇이든 넣어 주세요. 제가 나눠 둘게요.' : '오늘 하루 어땠어요? 남기고 싶은 걸 넣어 주세요.';
+};
+const TIPS = [
+  '링크를 붙여 넣으면 사이트를 보고 서랍을 골라 드려요.',
+  '스크린샷은 그냥 붙여 넣으세요. 사진 속 글자도 읽어 둘게요.',
+  '여러 줄로 적으면 첫 줄이 제목이 돼요.',
+  '/ 를 누르면 무엇이든 바로 찾을 수 있어요.',
+  '노트에서 서랍을 바꿔 주면, 다음부터 더 잘 나눌게요.',
+  '휴대폰 앱에서는 링크 복사 후 「붙여넣기」만 누르면 돼요.',
+];
+function HeroMascot({ text, guess, link, drag, busy }) {
+  const said = useSpeech();
+  const [bubble, setBubble] = useState(null);
+  const [hop, setHop] = useState(0);
+  const tip = useRef(0);
+  const idle = useRef(Date.now());
+  // 처음 한 번 인사
+  const typing = useRef(false);
+  typing.current = !!text.trim();
+  useEffect(() => { const t = setTimeout(() => { if (!typing.current) setBubble((b) => b ?? { text: GREET(), until: Date.now() + 6000 }); }, 700); return () => clearTimeout(t); }, []);
+  // 다른 곳에서 건넨 말 (넣었어요 등)
+  useEffect(() => { if (said) { setBubble({ text: said.text, mood: said.mood, until: said.until }); if (said.hop) setHop((h) => h + 1); idle.current = Date.now(); } }, [said?.id]);
+  // 적는 동안: 무엇으로, 어느 서랍으로 갈지
+  useEffect(() => {
+    idle.current = Date.now();
+    if (!text.trim() || !guess) { setBubble((b) => (b?.guess ? null : b)); return undefined; }
+    const t = setTimeout(() => setBubble({ guess: true, text: link ? `링크네요! ${guess} 서랍에 넣을게요.` : guess === '기타' ? '어디에 둘지 고민돼요. 일단 넣어 두면 나중에 옮길게요.' : `${guess} 서랍이 어울려요.`, until: Date.now() + 5000 }), 450);
+    return () => clearTimeout(t);
+  }, [text.trim().slice(0, 80), guess]);
+  // 오래 가만히 있으면 쓰는 법 하나 (세 번까지)
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (text.trim() || tip.current >= 3 || Date.now() - idle.current < 30000) return;
+      idle.current = Date.now();
+      setBubble({ text: TIPS[tip.current++ % TIPS.length], until: Date.now() + 6000 });
+    }, 5000);
+    return () => clearInterval(iv);
+  }, [text]);
+  // 말풍선은 정한 시간이 지나면 닫힌다
+  useEffect(() => {
+    if (!bubble) return undefined;
+    const t = setTimeout(() => setBubble(null), Math.max(0, bubble.until - Date.now()));
+    return () => clearTimeout(t);
+  }, [bubble]);
+  const mood = drag ? 'wow' : busy ? 'happy' : bubble?.mood ?? (link ? 'wow' : text.trim() ? 'smile' : 'smile');
+  const look = text.trim() ? [0.9, 0.7] : null;
+  const poke = () => { setHop((h) => h + 1); setBubble({ text: drag ? '여기 놓으세요!' : TIPS[tip.current++ % TIPS.length], until: Date.now() + 5000 }); };
+  return html`<div class="cap-mascot">
+    <button type="button" class=${cx('cm-body', hop && `hop${hop % 2}`)} onClick=${poke} aria-label="서랍이에게 말 걸기" title="서랍이"><${Mascot} size=${64} mood=${mood} look=${look} /></button>
+    ${(bubble || drag) && html`<p class="cm-bubble" role="status" key=${drag ? 'drag' : bubble.text}>${drag ? '여기 놓으세요!' : bubble.text}</p>`}
+  </div>`;
+}
+
 function CaptureBar() {
   const lib = useLib();
   const ref = useRef();
@@ -68,7 +125,7 @@ function CaptureBar() {
   const save = async (open = false) => {
     if (!text.trim() || busy) return;
     setBusy(true);
-    try { await quickSave(text, { open }); setText(''); } catch (e) { toast(e.message); }
+    try { await quickSave(text, { open }); setText(''); } catch (e) { say(`앗, 넣지 못했어요. ${e.message}`, { mood: 'wow' }); toast(e.message); }
     setBusy(false);
   };
   const photos = (files) => { capturePhotos(files, text); setText(''); };
@@ -76,15 +133,15 @@ function CaptureBar() {
     const got = await readClipboard();
     if (!got) { toast('붙여넣기를 허용해 주세요. 또는 칸을 길게 눌러 붙여넣기를 골라요.'); return; }
     if (got.files.length) { photos(got.files); return; }
-    if (!got.text.trim()) { toast('복사해 둔 글이나 사진이 없어요.'); return; }
+    if (!got.text.trim()) { say('복사해 둔 글이나 사진이 없어요. 먼저 복사해 주세요.', { mood: 'think' }); return; }
     setText((t) => (t.trim() ? `${t.trim()}\n${got.text.trim()}` : got.text.trim()));
     ref.current?.focus();
   };
-  const hint = k.kind === 'link' ? `링크${k.host ? ` · ${k.host}` : ''}` : k.kind === 'instagram' ? '인스타 게시물' : k.kind === 'titled' ? `제목 “${k.title}”` : '메모';
   return html`<div class=${cx('capbar', drag && 'drag')}
       onDragOver=${(e) => { if ([...(e.dataTransfer?.types ?? [])].includes('Files')) { e.preventDefault(); e.stopPropagation(); setDrag(true); } }}
       onDragLeave=${() => setDrag(false)}
       onDrop=${(e) => { if (!e.dataTransfer?.files?.length) return; e.preventDefault(); e.stopPropagation(); setDrag(false); photos([...e.dataTransfer.files]); }}>
+    <${HeroMascot} text=${text} guess=${guess?.category} link=${k.kind === 'link' || k.kind === 'instagram'} drag=${drag} busy=${busy} />
     <div class="capbar-box">
       <textarea ref=${ref} rows="1" value=${text} aria-label="넣을 내용" enterkeyhint="send" placeholder="메모, 할 일, 링크를 적거나 붙여 넣으세요"
         onInput=${(e) => setText(e.target.value)}
@@ -92,7 +149,7 @@ function CaptureBar() {
         onPaste=${(e) => { const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/')); if (files.length) { e.preventDefault(); e.stopPropagation(); photos(files); } }}></textarea>
       <button type="button" class="cap-save" disabled=${busy || !text.trim()} onClick=${() => save()}>넣기</button>
     </div>
-    ${guess && html`<p class="cap-hint"><span>${hint}</span><span class="cap-guess"><${Icon} name=${categoryLook(guess.category).icon} /><b>${guess.category}</b> 서랍으로</span></p>`}
+    ${guess && html`<p class="cap-hint"><span class="cap-guess"><${Icon} name=${categoryLook(guess.category).icon} /><b>${guess.category}</b> 서랍으로</span></p>`}
     <div class="hero-links">
       <button type="button" onClick=${() => app.pickPhotos(text)}>사진·스크린샷 넣기</button>
       <button type="button" onClick=${paste}>복사한 것 붙여넣기</button>
@@ -107,7 +164,7 @@ function TodayLine() {
   const daily = findDaily(lib, todayKey(d));
   const left = taskGroups(lib).reduce((s, g) => s + g.tasks.length, 0);
   return html`<div class="today-line today">
-    <span><b>${d.getMonth() + 1}월 ${d.getDate()}일 ${DAYS[d.getDay()]}요일</b></span>
+    <span>${d.getMonth() + 1}월 ${d.getDate()}일 ${DAYS[d.getDay()]}요일</span>
     <a href="#/tasks">남은 할 일 <b>${left}개</b></a>
     <button type="button" class="today-btn" onClick=${() => openToday()} title="오늘 노트 (T)">${daily ? '오늘 노트 이어 쓰기' : '오늘 노트 쓰기'}</button>
   </div>`;
@@ -144,6 +201,17 @@ function Tiles() {
   </section>`;
 }
 
+// 아래로 내리면 하나씩 떠오른다
+function useReveal(dep) {
+  useEffect(() => {
+    const els = [...document.querySelectorAll('.reveal:not(.in)')];
+    if (!('IntersectionObserver' in window)) { els.forEach((e) => e.classList.add('in')); return undefined; }
+    const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' });
+    els.forEach((e) => io.observe(e));
+    return () => io.disconnect();
+  }, [dep]);
+}
+
 export function Home() {
   const lib = useLib();
   useFirstTour(lib);
@@ -152,25 +220,32 @@ export function Home() {
   const drawers = drawerList(lib);
   const byDrawer = (name) => lib.all.filter((n) => categoryOf(n, lib).name === name).slice(0, 20);
   app.visible = lib.all.map((n) => n.id);
+  useReveal(`${lib.all.length}:${drawers.length}`);
+  useEffect(() => { if (loading) say('드라이브에서 노트를 가져오고 있어요. 잠깐만요.', { mood: 'think', ms: 6000 }); }, [loading]);
   return html`<div class="home">
     <${Conn} />
     <section class="hero" aria-labelledby="hero-title">
-      <h1 id="hero-title">넣기만 하세요.<br />정리는 서랍이.</h1>
-      <p class="hero-sub">메모, 링크, 스크린샷, 북마크. 무엇이든 넣으면 알아서 나눠 둡니다.</p>
-      <${CaptureBar} />
-      ${lib.all.length > 0 && html`<${TodayLine} />`}
+      <div class="hero-in">
+        <h1 id="hero-title">넣기만 하세요.<br />정리는 서랍이.</h1>
+        <p class="hero-sub">메모, 링크, 스크린샷, 북마크. 무엇이든 넣으면 알아서 나눠 둡니다.</p>
+        <${CaptureBar} />
+      </div>
+      ${lib.all.length > 0 && html`<button type="button" class="scroll-cue" onClick=${() => document.querySelector('.below')?.scrollIntoView({ behavior: 'smooth' })}>내 서랍 보기<${Icon} name="down" /></button>`}
     </section>
-    ${loading
-      ? html`<div class="rows"><section class="row"><div class="row-track">${[1, 2, 3, 4, 5].map((i) => html`<div class="poster sk" key=${i}></div>`)}</div></section></div>`
-      : lib.all.length
-        ? html`<div class="rows drawers">
-            <${Row} title="이어서 보기" notes=${recent} />
-            <${Row} title="새로 넣은 것" href="#/all" notes=${lib.all.slice(0, 20)} count=${lib.all.length} />
-            ${drawers.map((d) => html`<${Row} key=${d.name} title=${d.name} href=${folderHref(d.name)} notes=${byDrawer(d.name)} count=${d.count} />`)}
-          </div>`
-        : html`<${Empty} mood="wave" title="서랍이 비어 있어요" text="위 칸에 첫 생각을 적거나, 아래 방법으로 넣어 보세요." />`}
-    <${Tiles} />
-    <${Footer} />
+    <div class="below">
+      ${loading
+        ? html`<div class="rows"><section class="row"><div class="row-track">${[1, 2, 3, 4, 5].map((i) => html`<div class="poster sk" key=${i}></div>`)}</div></section></div>`
+        : lib.all.length
+          ? html`<div class="below-head reveal"><h2>내 서랍</h2><${TodayLine} /></div>
+            <div class="rows drawers">
+              ${recent.length > 0 && html`<div class="reveal"><${Row} title="이어서 보기" notes=${recent} /></div>`}
+              <div class="reveal"><${Row} title="새로 넣은 것" href="#/all" notes=${lib.all.slice(0, 20)} count=${lib.all.length} /></div>
+              ${drawers.map((d) => html`<div class="reveal" key=${d.name}><${Row} title=${d.name} href=${folderHref(d.name)} notes=${byDrawer(d.name)} count=${d.count} /></div>`)}
+            </div>`
+          : html`<${Empty} mood="wave" title="서랍이 비어 있어요" text="위 칸에 첫 생각을 적거나, 아래 방법으로 넣어 보세요." />`}
+      <div class="reveal"><${Tiles} /></div>
+      <${Footer} />
+    </div>
   </div>`;
 }
 

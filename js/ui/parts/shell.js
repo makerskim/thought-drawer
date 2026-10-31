@@ -50,15 +50,13 @@ export function MenuButton() {
   </button>`;
 }
 
-// 위 막대 (애플 홈페이지처럼 얇고, 가운데에 주요 메뉴)
-const LINKS = [['#/', '홈', (p) => p === '/'], ['#/drawers', '서랍', (p) => /^\/(drawers|f\/|t\/|star|inbox)/.test(p)], ['#/tasks', '할 일', (p) => p === '/tasks'], ['#/graph', '생각 지도', (p) => p === '/graph'], ['#/connect', '넣는 법', (p) => /^\/(connect|bookmarks|import)/.test(p)]];
-export function GlobalNav({ path }) {
+// 위 막대: 왼쪽 ☰(옆 메뉴)와 이름, 오른쪽 찾기와 내 메뉴. 옆 메뉴를 고정하면 ☰는 숨는다
+export function GlobalNav({ navOpen, docked }) {
   return html`<header class="gnav"><div class="gnav-in">
-    <a class="gn-brand" href="#/" aria-label="Thought Drawer 홈"><${Logo} size=${26} /><span>Thought Drawer</span></a>
-    <nav class="gn-links" aria-label="주요 메뉴">${LINKS.map(([href, label, on]) => html`<a key=${href} href=${href} aria-current=${on(path) ? 'page' : undefined}>${label}</a>`)}</nav>
+    ${!docked && html`<button type="button" class="gn-btn nav-toggle" aria-label="메뉴" aria-expanded=${navOpen} title="메뉴" onClick=${() => app.toggleNav?.()}><${Icon} name="menu" /></button>`}
+    ${!docked && html`<a class="gn-brand" href="#/" aria-label="Thought Drawer 홈"><${Logo} size=${24} /><span>Thought Drawer</span></a>`}
     <div class="gn-end">
-      <button type="button" class="gn-btn" aria-label="찾기와 빠른 실행" title=${`찾기 (/ 또는 ${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+K)`} onClick=${() => app.find()}><${Icon} name="search" /></button>
-      <button type="button" class="add-btn" title="넣기 (Enter)" onClick=${() => { if (!app.focusCapture?.()) openComposer(); }}><${Icon} name="plus" /><span>넣기</span></button>
+      <button type="button" class="gn-btn gn-search" aria-label="찾기와 빠른 실행" title=${`찾기 (/ 또는 ${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+K)`} onClick=${() => app.find()}><${Icon} name="search" /></button>
       <${MenuButton} />
     </div>
   </div></header>`;

@@ -1,7 +1,7 @@
 // 노트 화면: 제목, 속성(폴더·태그·출처·날짜), Claude 요약, 내 생각, 본문(바로 쓰는 편집기, 자동 저장),
 // 오른쪽 패널(연결, 비슷한 노트). /new 는 아무것도 적기 전까지 파일을 만들지 않는다.
 import { html, useState, useEffect, useLayoutEffect, useRef, useCallback, autosize } from '../h.js';
-import { Icon, TYPE_ICON } from '../icons.js';
+import { Icon, Mascot, TYPE_ICON } from '../icons.js';
 import { app, useLib, toast } from '../state.js';
 import { go, setUrl, noteHref, folderHref } from '../router.js';
 import { SaveState } from '../parts/shell.js';
@@ -314,7 +314,7 @@ export function NoteView({ id, params }) {
           <dt><${Icon} name="drawer" />서랍</dt>
           <dd><button type="button" class=${`mpill${cat?.auto ? ' auto' : ''}`} title=${cat?.auto ? `자동 분류${cat.why ? `: ${cat.why}` : ''}. 눌러서 서랍을 바꿔요` : '서랍 바꾸기'} onClick=${(e) => pickFolder(e.currentTarget)}>
               <${FolderDot} path=${cat?.path ?? ''} />${cat ? categoryParts(cat.path).join(' / ') : '자동 분류'}${cat?.auto && html`<span class="auto-badge">자동</span>`}<${Icon} name="down" /></button>
-            ${cat?.auto && html`<p class="auto-why">${cat.why ? `${cat.why}라서 ` : ''}${cat.name} 서랍에 자동으로 넣었어요. 맞지 않으면 눌러서 바꿔 주세요.</p>`}</dd>
+            ${cat?.auto && html`<p class="auto-why"><${Mascot} size=${18} /><span>서랍이가 ${cat.why ? `${cat.why}라서 ` : ''}${cat.name} 서랍에 넣었어요. 맞지 않으면 눌러서 바꿔 주세요.</span></p>`}</dd>
           <dt><${Icon} name="tag" />태그</dt>
           <dd><${TagEditor} tags=${m.tags ?? []} onChange=${(tags) => update({ tags })} /></dd>
           <dt><${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} />종류</dt>

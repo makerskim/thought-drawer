@@ -1,5 +1,5 @@
 // 글 한 덩어리를 노트로 넣기: 가운데 입력창, 공유 받기, 붙여넣기 화면이 함께 쓴다
-import { app, toast } from './state.js';
+import { app, toast, say } from './state.js';
 import { go, noteHref } from './router.js';
 import { categoryOf } from './categories.js';
 
@@ -38,7 +38,9 @@ export async function quickSave(text, { open = false } = {}) {
   if (!n) return null;
   if (open) go(noteHref(n.id));
   else {
-    toast(`${categoryOf(n, app.lib).name} 서랍에 넣었어요`, {
+    const where = categoryOf(n, app.lib).name;
+    say(where === '기타' ? '넣었어요! 어울리는 서랍을 찾으면 옮겨 둘게요.' : `좋아요, ${where} 서랍에 넣어 둘게요.`, { mood: 'happy', hop: true });
+    toast(`${where} 서랍에 넣었어요`, { mascot: true,
       action: '되돌리기', duration: 5000,
       onAction: async () => { try { await app.lib.remove(app.lib.get(n.id) ?? n); toast('방금 넣은 노트를 뺐어요'); } catch (e) { toast(e.message); } },
     });

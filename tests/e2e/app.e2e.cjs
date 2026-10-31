@@ -14,12 +14,38 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   const box = '.capbar textarea';
 
   // ---- 애플식 첫 화면, 넷플릭스식 줄 ----
-  ok(await p.locator('.gnav .gn-links a').count() === 5 && (await p.locator('.hero h1').innerText()).includes('넣기만 하세요'), 'home: Apple-style nav and headline');
+  ok(await p.locator('.gnav .nav-toggle').count() === 1 && await p.locator('.gnav .add-btn, .gn-links').count() === 0 && (await p.locator('.hero h1').innerText()).includes('넣기만 하세요'), 'home: ☰ menu, no add button, headline');
+  const cap = await p.locator('.capbar-box').boundingBox();
+  ok(cap && Math.abs(cap.y + cap.height / 2 - (52 + (900 - 52) / 2)) < 130, `landing: input sits around the middle (y=${Math.round(cap?.y)})`);
+  ok(await p.evaluate(() => document.querySelector('.below').getBoundingClientRect().top >= innerHeight - 2), 'landing: notes start below the first screen');
+  // 서랍이: 적으면 서랍을 말해 주고, 누르면 말을 건다
+  await p.fill('.capbar textarea', 'https://www.coupang.com/vp/products/9 가습기');
+  await p.waitForSelector('.cm-bubble:has-text("쇼핑")', { timeout: 3000 });
+  ok(true, 'mascot says which drawer while typing');
+  await p.fill('.capbar textarea', '');
+  await p.waitForTimeout(200);
+  ok(await p.locator('.cm-bubble:has-text("쇼핑")').count() === 0, 'bubble closes when the box is cleared');
+  await p.click('.cm-body');
+  ok(await p.locator('.cm-bubble').count() === 1 && (await p.locator('.cm-body').getAttribute('class')).includes('hop'), 'poking the mascot makes it talk and hop');
+  // 옆 메뉴: 열기, 고정(왼쪽 → 오른쪽), 풀기
+  await p.click('.nav-toggle');
+  await p.waitForSelector('.sb.floating');
+  ok((await p.locator('.sb .sb-item').allInnerTexts()).some((t) => t.includes('모든 서랍')), 'sidebar opens from ☰');
+  await p.click('.sb [aria-label="고정하기"]');
+  await p.waitForSelector('.sb.docked');
+  ok(await p.locator('.shell.docked-left').count() === 1 && await p.locator('.nav-toggle').count() === 0, 'pinning docks it on the left');
+  await p.click('.sb [aria-label="오른쪽으로 옮기기"]');
+  const sbBox = await p.locator('.sb').boundingBox();
+  ok(await p.locator('.shell.docked-right').count() === 1 && sbBox.x > 1000, 'it can move to the right');
+  await p.click('.sb [aria-label="왼쪽으로 옮기기"]');
+  await p.click('.sb [aria-label="고정 풀기"]');
+  await p.waitForTimeout(200);
+  ok(await p.locator('.sb').count() === 0 && await p.locator('.nav-toggle').count() === 1, 'unpinning hides it again');
   const rows = await rowTitles();
   ok(rows.includes('새로 넣은 것') && rows.includes('쇼핑') && rows.includes('일·업무') && rows.includes('요리'), `home: a poster row per drawer ${JSON.stringify(rows)}`);
   ok(await p.locator('.tiles .tile').count() === 4 && await p.locator('.foot').count() === 1, 'home: Apple-style tiles and footer');
-  const heights = await p.$$eval('.rows.drawers .row:nth-child(2) .poster', (els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().height)))]);
-  ok(heights.length === 1, `cards in a row share one height ${JSON.stringify(heights)}`);
+  const heights = await p.$$eval('.rows.drawers .row .poster', (els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().height)))]);
+  ok(heights.length === 1, `cards share one height ${JSON.stringify(heights)}`);
   ok(await p.evaluate(() => getComputedStyle(document.body).fontFamily.includes('Pretendard')), 'type: Pretendard');
   ok(await p.evaluate(() => !document.querySelector('.poster[style*="gradient"]') && getComputedStyle(document.querySelector('.poster')).backgroundImage === 'none'), 'cards are plain paper, no gradients');
 
@@ -75,7 +101,8 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   ok((await p.locator('.bm-btn').getAttribute('href')).includes('#/share?via=browser'), 'how-to page offers the browser button');
 
   // ---- 4. 자동 분류: 서랍 모음, 서랍 하나, 바꾸면 폴더로 ----
-  await p.click('.gn-links a:has-text("서랍")');
+  await p.click('.nav-toggle');
+  await p.click('.sb .sb-item:has-text("모든 서랍")');
   await p.waitForSelector('.dbig');
   ok((await p.locator('.dbig').allInnerTexts()).some((t) => t.includes('쇼핑')), 'all drawers page lists 쇼핑');
   await p.click('.dbig:has-text("쇼핑")');
@@ -165,7 +192,8 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.click('.today-line .today-btn');
   await p.waitForSelector('.ws .ProseMirror ul[data-type="taskList"] li');
   ok((await notes()).filter((x) => x.daily).length === 1, 'today note made once');
-  await p.click('.gn-links a:has-text("할 일")');
+  await p.click('.nav-toggle');
+  await p.click('.sb .sb-item:has-text("할 일")');
   await p.waitForSelector('.task-group');
   await p.locator('.task-group', { hasText: '분기 회의 준비' }).locator('input').first().click();
   await p.waitForTimeout(400);
@@ -176,9 +204,9 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   // ---- 사용법 안내 ----
   p = await open(b, { tutorial: true });
   await p.waitForSelector('.tour-card', { timeout: 8000 });
-  ok(await p.locator('.tour-count i').count() === 7, 'tutorial: 7 steps');
+  ok(await p.locator('.tour-count i').count() === 6, 'tutorial: 6 steps');
   const lit = [];
-  for (const sel of ['.capbar', '.rows.drawers', '.today', '.gn-btn', '.gnav .me']) {
+  for (const sel of ['.capbar-box', '.nav-toggle', '.gn-search', '.rows.drawers']) {
     await p.click('.tour-card .btn-primary');
     await p.waitForTimeout(550);
     const [h, t] = [await p.locator('.tour-hole').boundingBox(), await p.locator(sel).first().boundingBox()];
@@ -193,8 +221,10 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   p = await open(b, { viewport: { width: 390, height: 844 } });
   await p.waitForSelector('.row .poster');
   ok(await p.evaluate(() => document.documentElement.scrollWidth <= 390), 'phone: no sideways scroll');
-  ok(await p.locator('.gn-links').isHidden() && await p.locator('.gnav .add-btn').isVisible(), 'phone: compact nav with add button');
-  await p.click('.gnav .add-btn');
+  ok(await p.locator('.gnav .add-btn').count() === 0 && await p.locator('.nav-toggle').isVisible(), 'phone: ☰ menu, no add button');
+  await p.click('.nav-toggle');
+  await p.click('.sb .sb-item:has-text("넣기")');
+  await p.waitForTimeout(300);
   ok(await p.evaluate(() => document.activeElement?.matches('.capbar textarea')), 'phone: add on home focuses the big box');
   await p.keyboard.type('폰에서 적은 메모');
   await p.keyboard.press('Enter');

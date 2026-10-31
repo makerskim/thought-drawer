@@ -2,7 +2,7 @@
 // 화면은 위 막대(애플) 아래 한 장씩: 홈, 서랍, 할 일, 노트 작업 공간(옵시디언), 보조 화면. 단축키, 붙여넣기·끌어다 놓기.
 import { html, useState, useEffect, useRef, cx } from './h.js';
 import { Icon } from './icons.js';
-import { app, toast, setConn } from './state.js';
+import { app, toast, setConn, usePref } from './state.js';
 import { useRoute, go, syncFromLocation } from './router.js';
 import { Layers, Toasts, closeAll } from './parts/layers.js';
 import { openComposer } from './parts/composer.js';
@@ -10,6 +10,7 @@ import { openToday } from './notebook.js';
 import { capturePhotos, pickPhotos } from './capture.js';
 import { Home, Drawers, Shelf, Tasks } from './views/drawer.js';
 import { GlobalNav } from './parts/shell.js';
+import { Sidebar } from './parts/sidebar.js';
 import { openSpotlight } from './parts/spotlight.js';
 import { NoteView } from './views/note.js';
 import { preloadEditor } from './editor.js';
@@ -60,6 +61,19 @@ export function App({ auth }) {
   const [error, setError] = useState(null);
   const [veil, setVeil] = useState(false);
   const offline = useRef(null);
+  // 옆 메뉴: 고정(왼쪽·오른쪽)은 넓은 화면에서만, 좁으면 ☰로 열고 닫는다
+  const [navPinned, setNavPinned] = usePref('navPinned', false);
+  const [navSide, setNavSide] = usePref('navSide', 'left');
+  const [navOpen, setNavOpen] = useState(false);
+  const [wide, setWide] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const on = () => setWide(mq.matches);
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
+  const docked = navPinned && wide;
+  app.toggleNav = () => setNavOpen((o) => !o);
 
   app.auth = auth;
   app.pickPhotos = pickPhotos;
@@ -143,7 +157,7 @@ export function App({ auth }) {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); app.find(); return; }
       // 입력창이 이미 처리한 키(넣고 닫은 Enter 등)는 다시 받지 않는다
-      if (e.defaultPrevented || document.querySelector('.overlay, .pop, .tour')) return;
+      if (e.defaultPrevented || document.querySelector('.overlay, .pop, .tour, .sb.floating')) return;
       if (e.key === 'Escape') {
         if (isTyping(document.activeElement)) { if (!document.activeElement.closest('.capbar')) document.activeElement.blur(); return; }
         if (isSheet) { e.preventDefault(); app.closeSheet(); }
@@ -201,8 +215,13 @@ export function App({ auth }) {
   if (phase === 'login') return html`<${Login} onSignIn=${signIn} busy=${busy} error=${error} /><${Toasts} />`;
 
   return html`
-    <${GlobalNav} path=${route.path} />
-    <main class=${cx('view', isSheet && 'is-note')} id="main"><${Screen} route=${route} offline=${offline.current} /></main>
+    <div class=${cx('shell', docked && `docked-${navSide}`)}>
+      <${Sidebar} path=${route.path} pinned=${navPinned} side=${navSide} docked=${docked} open=${navOpen} setOpen=${setNavOpen} setPinned=${setNavPinned} setSide=${setNavSide} />
+      <div class="shell-main">
+        <${GlobalNav} navOpen=${navOpen} docked=${docked} />
+        <main class=${cx('view', isSheet && 'is-note')} id="main"><${Screen} route=${route} offline=${offline.current} /></main>
+      </div>
+    </div>
     <${Layers} />
     <${Toasts} />
     ${veil && html`<div class="drop-veil"><div><${Icon} name="capture" />놓으면 바로 넣어요</div></div>`}`;

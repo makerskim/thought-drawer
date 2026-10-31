@@ -2,6 +2,7 @@
 // 그래야 흐림 효과나 움직임이 있는 부모 안에서도 위치가 틀어지지 않는다.
 import { html, useState, useEffect, useLayoutEffect, useRef, cx } from '../h.js';
 import { useToasts } from '../state.js';
+import { Mascot } from '../icons.js';
 
 let layers = [];
 let seq = 0;
@@ -78,6 +79,7 @@ export function Toasts() {
   return html`<div class="toasts" role="status" aria-live="polite">
     ${list.map((t) => html`<div class="toast" key=${t.id}>
       ${t.busy && html`<span class="spin" aria-hidden="true"></span>`}
+      ${!t.busy && t.mascot && html`<${Mascot} size=${22} mood="happy" />`}
       <span>${t.message}</span>
       ${t.action && html`<button onClick=${t.onAction}>${t.action}</button>`}
     </div>`)}

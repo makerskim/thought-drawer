@@ -46,18 +46,33 @@ export function applyAppearance() {
   delete root.dataset.palette;
 }
 
+// ---- 서랍이의 말 (첫 화면의 서랍이가 말풍선으로 보여 주고, 다른 화면에서는 알림으로) ----
+let speech = null;
+let speechSeq = 0;
+const speechSubs = new Set();
+export function say(text, { mood = 'smile', ms = 4200, hop = false } = {}) {
+  speech = { id: ++speechSeq, text, mood, hop, until: Date.now() + ms };
+  speechSubs.forEach((fn) => fn(speech));
+  return speechSubs.size > 0; // 듣는 서랍이가 있으면 true
+}
+export function useSpeech() {
+  const [v, setV] = useState(null);
+  useEffect(() => { speechSubs.add(setV); return () => speechSubs.delete(setV); }, []);
+  return v;
+}
+
 // ---- 알림 ----
 let toasts = [];
 let seq = 0;
 const toastSubs = new Set();
 const emitToasts = () => toastSubs.forEach((fn) => fn([...toasts]));
 
-export function toast(message, { action, onAction, duration = 3200, busy = false } = {}) {
+export function toast(message, { action, onAction, duration = 3200, busy = false, mascot = false } = {}) {
   const id = ++seq;
   let timer;
   const close = () => { clearTimeout(timer); toasts = toasts.filter((t) => t.id !== id); emitToasts(); };
   const arm = (ms) => { clearTimeout(timer); if (ms) timer = setTimeout(close, ms); };
-  toasts = [...toasts.slice(-2), { id, message, action, onAction: () => { close(); onAction?.(); }, busy }];
+  toasts = [...toasts.slice(-2), { id, message, action, onAction: () => { close(); onAction?.(); }, busy, mascot }];
   emitToasts();
   arm(busy ? 0 : duration);
   return {
