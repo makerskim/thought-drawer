@@ -82,7 +82,7 @@ export function Connect() {
         <div class="cc-head"><${Icon} name="paste" /><div><h2>링크 복사 → 붙여넣기</h2><p>어느 앱이든, 설정 없이.</p></div></div>
         <ol class="steps">
           <li><span>앱에서 <b>공유</b> → <b>링크 복사</b>(또는 글을 길게 눌러 복사)를 눌러요.</span></li>
-          <li><span>Thought Drawer를 열고 맨 위 칸 아래 <b>붙여넣기</b>를 눌러요. 아이폰이 물으면 「붙여넣기 허용」.</span></li>
+          <li><span>Thought Drawer를 열고 넣는 칸의 <b>+</b> → <b>붙여넣기</b>를 눌러요. 아이폰이 물으면 「붙여넣기 허용」.</span></li>
           <li><span><b>넣기</b>를 누르면 링크 노트가 되고, 사이트를 보고 서랍에 들어가요.</span></li>
         </ol>
       </section>

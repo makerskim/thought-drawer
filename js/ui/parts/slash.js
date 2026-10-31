@@ -99,7 +99,7 @@ export function useSlash({ text, setText, ref, onAction }) {
       <${Icon} name=${it.icon} /><span class="mi-text"><span>${menu.trig.char === '/' && !it.drawer ? html`<b class="sl-key">/${it.key}</b> ${it.label !== it.key ? it.label : ''}` : it.label}</span>${it.desc && html`<small>${it.desc}</small>`}</span>
       ${it.mine && html`<span class="sub">내 키워드</span>`}
     </button>`)}
-    <p class="sl-foot">↑↓ 고르기 · Enter 넣기 · <a href="#/settings?s=keywords" onMouseDown=${(e) => e.preventDefault()}>키워드 만들기</a></p>
+    <p class="sl-foot">↑↓ 고르기 · Enter 넣기 · <a href="#/settings?s=keywords" onMouseDown=${(e) => e.preventDefault()}>내 명령어 만들기</a></p>
   </div>`;
   return { menu, allow, refresh, onKeyDown, view, close: () => setMenu(null) };
 }

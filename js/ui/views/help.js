@@ -1,5 +1,5 @@
-// 매뉴얼: 처음 시작부터 넣기, 가져오기, 자동 분류, 명령어, 찾기, 노트, 계정, 설정, 단축키, 자주 묻는 질문까지.
-// 옆 메뉴의 「매뉴얼」(설정 아래)로 연다. 왼쪽 목차(폰은 위쪽 칩)를 누르면 그 장으로 간다.
+// 사용법: 처음 시작부터 넣기, 가져오기, 자동 분류, 명령어, 찾기, 노트, 계정, 설정, 단축키, 자주 묻는 질문, 도움말까지.
+// 옆 메뉴의 「사용법」(설정 아래)으로 연다. 왼쪽 목차(폰은 위쪽 칩)를 누르면 그 장으로 간다.
 import { html, useEffect } from '../h.js';
 import { Icon } from '../icons.js';
 import { useLib } from '../state.js';
@@ -52,6 +52,7 @@ const CHAPTERS = [
   ['account', 'gear', '계정과 설정'],
   ['keys', 'enter', '단축키'],
   ['faq', 'help', '자주 묻는 질문'],
+  ['more', 'external', '도움말'],
 ];
 
 function Chapter({ id, n, children }) {
@@ -67,8 +68,8 @@ export function Help({ params }) {
   const go = (id) => document.getElementById(`m-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   useEffect(() => { const s = params?.get('s'); if (s) setTimeout(() => go(s), 80); }, [params?.get('s')]);
   return html`<div class="help-page">
-    <${PageBar} title="매뉴얼" />
-    <div class="page-hero"><h1>매뉴얼.</h1><p>처음부터 하나씩.</p>
+    <${PageBar} title="사용법" />
+    <div class="page-hero"><h1>사용법.</h1><p>처음부터 하나씩.</p>
       <div class="row-ctl" style="margin-top:16px"><button type="button" class="btn" onClick=${() => { location.hash = '#/'; setTimeout(openTutorial, 200); }}><${Icon} name="help" />화면 안내 다시 보기</button></div>
     </div>
     <div class="manual">
@@ -117,7 +118,7 @@ export function Help({ params }) {
           <p class="help-p">넣는 칸, 가운데 입력창, 노트에서 <code>/</code> 다음에 낱말. ↑↓로 고르고 <${Keys} keys="Enter" />.</p>
           <${CommandTable} lib=${lib} />
           <p class="help-p muted">내 키워드에 쓸 수 있는 값: ${VARS.map(([v, l]) => html`<code key=${v}>${v}</code> ${l} `)}</p>
-          <div class="row-ctl man-links"><a class="btn btn-ghost" href="#/settings?s=keywords"><${Icon} name="gear" />키워드 만들기</a></div>
+          <div class="row-ctl man-links"><a class="btn btn-ghost" href="#/settings?s=keywords"><${Icon} name="gear" />내 명령어 만들기</a></div>
         </${Chapter}>
         <${Chapter} id="tokens" n="6">
           <ul class="help-list">
@@ -153,7 +154,7 @@ export function Help({ params }) {
         <${Chapter} id="account" n="10">
           <ul class="help-list">
             <li>오른쪽 위 사진: 연결 상태, 저장 공간, 메모 폴더 열기, 동기화, 로그아웃.</li>
-            <li>옆 메뉴 「설정」: 화면, 넣기, 자동 분류, 분류 규칙, / 명령어, Claude, 공유·내보내기.</li>
+            <li>옆 메뉴 「설정」: 화면, 입력, 자동 분류, 분류 규칙, 내 명령어, 데이터, Claude 자동 정리.</li>
             <li>옆 메뉴는 핀으로 왼쪽·오른쪽에 고정할 수 있습니다.</li>
           </ul>
         </${Chapter}>
@@ -167,6 +168,13 @@ export function Help({ params }) {
             <div><dt>노트는 어디에 있나요?</dt><dd>구글 드라이브 「메모」 폴더에 마크다운 파일로. 옵시디언에서 그 폴더를 열어도 됩니다.</dd></div>
             <div><dt>폰과 PC에서 같이 쓰나요?</dt><dd>네. 같은 구글 계정으로 로그인하면 같은 노트, 같은 규칙·키워드가 보입니다.</dd></div>
           </dl>
+        </${Chapter}>
+        <${Chapter} id="more" n="13">
+          <ul class="help-list">
+            <li><a href="privacy.html">개인정보처리방침</a>: 어떤 정보를 쓰고, 어디에 저장하는지.</li>
+            <li><a href="terms.html">서비스 약관</a></li>
+            <li>궁금한 점이나 고칠 점: <a href="https://github.com/makerskim/thought-drawer/issues" target="_blank" rel="noopener">문의 게시판</a></li>
+          </ul>
         </${Chapter}>
       </div>
     </div>

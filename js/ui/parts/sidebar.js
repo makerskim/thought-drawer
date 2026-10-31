@@ -1,5 +1,5 @@
 // 옆 메뉴: 위 막대의 ☰ 로 열고, 핀을 누르면 왼쪽이나 오른쪽에 고정된다 (옵시디언의 옆 막대처럼).
-// 넣기 · 홈 · 모든 서랍 · 모든 노트(필터) · 할 일 · 오늘 노트 · 생각 지도 · 즐겨찾기, 서랍 목록, (아래) 가져오기, 설정 · 매뉴얼.
+// 넣기 · 홈 · 모든 서랍 · 모든 노트(필터) · 할 일 · 오늘 노트 · 생각 지도 · 즐겨찾기, 서랍 목록, (아래) 가져오기, 설정 · 사용법.
 // 찾기는 위 막대의 돋보기(/, ⌘K)로 한다.
 import { html, useEffect } from '../h.js';
 import { Icon, Mascot } from '../icons.js';
@@ -56,7 +56,7 @@ export function Sidebar({ path, pinned, side, docked, open, setOpen, setPinned, 
       </nav>
       <nav class="sb-nav sb-foot" aria-label="설정">
         ${item('#/settings', 'gear', '설정', path === '/settings')}
-        ${item('#/help', 'book', '매뉴얼', path === '/help' || path === '/manual')}
+        ${item('#/help', 'help', '사용법', path === '/help' || path === '/manual')}
       </nav>
     </aside>`;
 }

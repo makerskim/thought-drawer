@@ -24,7 +24,7 @@ const COMMANDS = [
   ['instagram', '인스타 저장 가져오기', '', '#/import'],
   ['phone', '다른 앱에서 넣기', '', '#/connect'],
   ['gear', '설정', '', '#/settings'],
-  ['book', '매뉴얼', '', () => go('#/help')],
+  ['book', '사용법', '', () => go('#/help')],
   ['help', '화면 안내 다시 보기', '', () => { go('#/'); setTimeout(openTutorial, 160); }],
 ];
 

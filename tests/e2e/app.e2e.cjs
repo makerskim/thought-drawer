@@ -161,13 +161,13 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.keyboard.type('설정');
   await p.waitForTimeout(150);
   await p.keyboard.press('Enter');
-  await p.waitForSelector('.set-sec');
+  await p.waitForSelector('.set-page .sg');
   ok(true, 'spotlight: run a command (설정)');
-  await p.click('text=낮');
+  await p.click('#s-screen .seg button:has-text("밝게")');
   ok((await p.evaluate(() => document.documentElement.dataset.theme)) === 'light', 'theme: switch to light');
-  await p.click('text=밤');
+  await p.click('#s-screen .seg button:has-text("어둡게")');
   ok((await p.evaluate(() => document.documentElement.dataset.theme)) === 'dark', 'theme: dark');
-  await p.click('text=기기 따라');
+  await p.click('#s-screen .seg button:has-text("자동")');
   ok(!(await p.evaluate(() => document.documentElement.dataset.theme)), 'theme: follows the device by default');
   await p.evaluate(() => { location.hash = '#/search?q=' + encodeURIComponent('셔츠'); });
   await p.waitForSelector('.grid .poster');
@@ -264,22 +264,39 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.click('.sb .sb-item:has-text("설정")');
   await p.waitForSelector('#s-classify');
   const setText = await p.locator('.set-page').innerText();
-  ok(!setText.includes('내가·Claude가') && setText.includes('서랍 폴더에 정리됨') && setText.includes('자동 분류만 됨'), 'settings: plain wording for the counts');
-  ok(await p.locator('.set-sec').count() >= 10 && await p.locator('.set-toc .chip').count() >= 8, 'settings: many sections with a table of contents');
-  await p.fill('#s-keywords .kw-form input', '주소');
-  await p.fill('#s-keywords .kw-form textarea', '서울 마포구 {오늘}');
-  await p.click('#s-keywords .kw-form .btn-primary');
-  await p.waitForSelector('#s-keywords .rule-list li:has-text("/주소")');
-  await p.fill('#s-rules .rule-form input[aria-label="낱말 또는 사이트"]', '다이슨');
-  await p.fill('#s-rules .rule-form input[aria-label="서랍"]', '쇼핑/가전');
-  await p.fill('#s-rules .rule-form input[aria-label="태그"]', '브랜드');
-  await p.click('#s-rules .rule-form .btn-primary');
-  await p.waitForSelector('#s-rules .rule-list li:has-text("다이슨")');
-  await p.fill('#s-rules input[aria-label="분류 시험 글"]', '다이슨 드라이기 후기');
-  ok((await p.locator('#s-rules .cap-hint').innerText()).replace(/\s+/g, ' ').includes('쇼핑 › 가전') && (await p.locator('#s-rules .cap-tag').first().innerText()) === '#브랜드', 'rule: tester shows 쇼핑 › 가전 #브랜드');
+  const groups = await p.$$eval('.sg-title', (els) => els.map((e) => e.textContent.trim()));
+  ok(JSON.stringify(groups) === JSON.stringify(['화면', '입력', '자동 분류', '분류 규칙', '내 명령어', '데이터', 'Claude 자동 정리 (선택)']), `settings: grouped like iPhone settings (${groups.join(', ')})`);
+  ok(await p.locator('.set-toc, #s-account, #s-keys, #s-help, .set-page .help-table, .set-page .help-keys').count() === 0 && !setText.includes('로그아웃') && !setText.includes('단축키') && !setText.includes('내가·Claude가') && setText.includes('기본 명령어는 사용법에'), 'settings: no top buttons, account, shortcuts, help or built-in command table (points to 사용법)');
+  // 내 명령어: 창에서 이름, 글, 끼워 넣기
+  await p.click('#s-keywords .sg-add');
+  await p.waitForSelector('.sdlg');
+  await p.click('.sdlg .btn-primary');
+  ok((await p.locator('.sdlg-err').innerText()).includes('명령어 이름'), 'keyword dialog: says what is missing');
+  await p.fill('.sdlg input[aria-label="명령어 이름"]', '주소');
+  await p.click('.sdlg textarea');
+  await p.keyboard.type('서울 마포구 ');
+  await p.click('.kw-chips .chip:has-text("오늘 날짜")');
+  ok((await p.inputValue('.sdlg textarea')) === '서울 마포구 {오늘}' && (await p.locator('.sdlg-prev pre').innerText()).startsWith('서울 마포구 20'), 'keyword dialog: chips insert values with a live preview');
+  await p.click('.sdlg .btn-primary');
+  await p.waitForSelector('#s-keywords .item-row:has-text("/주소")');
+  // 분류 규칙: 창에서 낱말 → 서랍(고르기) + 태그
+  await p.click('#s-rules .sg-add');
+  await p.waitForSelector('.sdlg');
+  await p.fill('.sdlg input[aria-label="낱말 또는 사이트"]', '다이슨');
+  await p.selectOption('.sdlg select[aria-label="서랍"]', '쇼핑/가전');
+  await p.fill('.sdlg input[aria-label="태그"]', '브랜드');
+  ok((await p.locator('.sdlg-prev').innerText()).replace(/\s+/g, ' ').includes('쇼핑 › 가전 #브랜드'), 'rule dialog: sentence preview');
+  await p.click('.sdlg .btn-primary');
+  await p.waitForSelector('#s-rules .item-row:has-text("다이슨")');
+  await p.fill('#s-classify input[aria-label="분류 해 보기"]', '다이슨 드라이기 후기');
+  ok((await p.locator('#s-classify .cap-hint').innerText()).replace(/\s+/g, ' ').includes('쇼핑 › 가전') && (await p.locator('#s-classify .cap-tag').first().innerText()) === '#브랜드', 'try it: shows 쇼핑 › 가전 #브랜드 from my rule');
+  await p.click('#s-rules .item-row:has-text("다이슨") [aria-label$="고치기"]');
+  await p.waitForSelector('.sdlg');
+  ok((await p.inputValue('.sdlg input[aria-label="낱말 또는 사이트"]')) === '다이슨' && (await p.inputValue('.sdlg select[aria-label="서랍"]')) === '쇼핑/가전', 'rule dialog: edit opens with the saved values');
+  await p.keyboard.press('Escape');
   const saved = await p.evaluate(() => window.__TD_APP__.lib.settings);
-  ok(saved.keywords.some((k) => k.key === '주소') && saved.rules.some((r) => r.match === '다이슨'), 'settings saved to the shared file');
-  await p.click('#s-classify .seg button:has-text("2개")');
+  ok(saved.keywords.some((k) => k.key === '주소') && saved.rules.some((r) => r.match === '다이슨' && r.drawer === '쇼핑/가전'), 'settings saved to the shared file');
+  await p.click('#s-classify .seg button:has-text("2")');
   await p.waitForTimeout(200);
   ok((await p.evaluate(() => window.__TD_APP__.lib.settings.classify.tags)) === 2, 'auto tag count setting saved');
   await p.evaluate(() => { location.hash = '#/'; });
@@ -327,7 +344,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.waitForTimeout(150);
   ok(await p.locator('.overlay').count() === 0 && (await notes()).length > 0, 'logout asks first (cancel keeps everything)');
 
-  // ---- 옆 메뉴: 가져오기는 아래쪽, 매뉴얼은 설정 옆 ----
+  // ---- 옆 메뉴: 가져오기는 아래쪽, 사용법은 설정 옆 ----
   await p.evaluate(() => { location.hash = '#/'; });
   await p.click('.nav-toggle');
   await p.waitForSelector('.sb');
@@ -336,10 +353,10 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   const y = async (sel) => (await p.locator(sel).first().boundingBox()).y;
   ok(!labels.includes('넣는 곳') && labels.includes('가져오기') && labels.indexOf('서랍') < labels.indexOf('가져오기'), `sidebar: 서랍 then 가져오기 (${labels.join(', ')})`);
   ok(['다른 앱·사이트', '북마크', '인스타 저장'].every((t) => sbText.includes(t)) && await y('.sb .sb-item:has-text("북마크")') > await y('.sb .sb-label:has-text("가져오기")') && await y('.sb .sb-item:has-text("설정")') > await y('.sb .sb-item:has-text("인스타 저장")'), 'sidebar: 가져오기 items sit low, above 설정');
-  await p.click('.sb .sb-item:has-text("매뉴얼")');
+  await p.click('.sb .sb-item:has-text("사용법")');
   await p.waitForSelector('.man-sec');
   const help = await p.locator('.help-page').innerText();
-  ok(await p.locator('.man-toc button').count() === 12 && ['시작하기', '가져오기', '/ 명령어', '# 태그 · @ 서랍', '자동 분류', '찾기와 필터', '단축키', '자주 묻는 질문'].every((t) => help.includes(t)) && help.includes('/할일') && help.includes('/주소'), 'manual: 12 chapters with commands (mine too), import, classify, filters, keys, FAQ');
+  ok(await p.locator('.man-toc button').count() === 13 && ['사용법.', '시작하기', '가져오기', '/ 명령어', '# 태그 · @ 서랍', '자동 분류', '찾기와 필터', '단축키', '자주 묻는 질문', '도움말', '개인정보처리방침'].every((t) => help.includes(t)) && help.includes('/할일') && help.includes('/주소'), 'how-to: 13 chapters incl. built-in commands, shortcuts and help');
   await p.click('.man-toc button:has-text("자동 분류")');
   await p.waitForTimeout(800);
   const at = (await p.locator('#m-classify').boundingBox()).y;
