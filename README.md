@@ -49,6 +49,8 @@
 |---|---|---|
 | ![사용법](docs/screens/help.png) | ![모바일](docs/screens/mobile.png) | ![모바일 + 목록](docs/screens/mobile-plus.png) |
 
+만든 사람: [makerskim](https://github.com/makerskim) (기획 · 디자인 · 개발)
+
 ## 시작하기
 
 1. 설정: [docs/설정가이드.md](docs/설정가이드.md)

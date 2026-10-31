@@ -46,6 +46,9 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   const rows = await rowTitles();
   ok(rows.includes('새로 넣은 것') && rows.includes('쇼핑') && rows.includes('일·업무') && rows.includes('요리'), `home: a poster row per drawer ${JSON.stringify(rows)}`);
   ok(await p.locator('.tiles .tile').count() === 4 && await p.locator('.foot').count() === 1, 'home: Apple-style tiles and footer');
+  const foot = await p.locator('.foot').innerText();
+  ok(foot.includes('만든 사람') && foot.includes('makerskim') && /© \d{4} makerskim/.test(foot) && foot.includes('개인정보처리방침') && !foot.includes('넣는 법') && !foot.includes('마크다운으로 저장'), 'footer: maker credits and copyright, no menu links');
+  ok(await p.locator('.foot a[href="https://github.com/makerskim"]').count() === 1 && await p.locator('.foot a[href="https://github.com/makerskim/thought-drawer"]').count() === 1, 'footer: links to makerskim and the source');
   const heights = await p.$$eval('.rows.drawers .row .poster', (els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().height)))]);
   ok(heights.length === 1, `cards share one height ${JSON.stringify(heights)}`);
   ok(await p.evaluate(() => getComputedStyle(document.body).fontFamily.includes('Pretendard')), 'type: Pretendard');

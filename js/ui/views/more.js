@@ -49,6 +49,7 @@ export function Login({ onSignIn, busy, error }) {
       ${error && html`<p class="fine" style="color:var(--danger)">${error}</p>`}
       <p class="fine">노트는 내 구글 드라이브의 「메모」 폴더에 저장돼요.<br />앱은 자기가 만든 파일에만 접근하고, 다른 파일은 볼 수 없어요.</p>
       <nav class="login-links" aria-label="약관"><a href="privacy.html">개인정보처리방침</a><a href="terms.html">서비스 약관</a></nav>
+      <p class="fine">만든 사람 <a href="https://github.com/makerskim" target="_blank" rel="noopener">makerskim</a></p>
     </div>
   </main>`;
 }
