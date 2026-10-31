@@ -23,7 +23,7 @@ import { enrichNew } from './categories.js';
 import { createLibrary } from '../store/library.js';
 import { createDriveAdapter } from '../store/drive.js';
 import { createMemoryAdapter } from '../store/memory.js';
-import { AuthRequired } from '../store/auth.js';
+import { AuthRequired, isStandalone } from '../store/auth.js';
 import { DriveError } from '../store/drive.js';
 
 const isTyping = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
@@ -134,6 +134,8 @@ export function App({ auth }) {
       offline.current = await auth.takeOfflineCode().catch(() => null);
       await auth.handleRedirect().catch(() => false);
       if (!auth.signedIn && !auth.everSignedIn) { setPhase('login'); return; }
+      // 한 시간이 지나 구글 연결이 끝났으면 구글에 잠깐 다녀온다 (로그인돼 있으면 화면 없이 돌아온다)
+      if (!auth.signedIn && auth.canAutoRenew && !offline.current) { auth.renewRedirect(); return; }
       await openLibrary();
     })();
   }, []);
@@ -143,6 +145,35 @@ export function App({ auth }) {
     try { await auth.signIn(); await openLibrary(); } catch (e) { setError(e.message); }
     setBusy(false);
   };
+
+  // 구글 연결 이어 가기: 끝나기 5분 전부터 다음 클릭 때 작은 창으로 새로 받는다(이미 허용했으면 저절로 닫힘).
+  // 아이폰 홈 화면 앱은 창 대신, 앱으로 돌아올 때 구글에 잠깐 다녀온다(적던 글이 없을 때만).
+  useEffect(() => {
+    if (phase !== 'ready' || app.lib?.adapter.kind !== 'drive') return undefined;
+    const standalone = isStandalone();
+    let want = false;
+    const check = () => {
+      want = auth.msLeft < 5 * 60_000;
+      if (want && !standalone && auth.canAutoRenew) auth.preload().catch(() => {});
+    };
+    const onClick = () => {
+      check();
+      if (!want || standalone || auth.renewing || !auth.canAutoRenew || !auth.canPopup) return;
+      want = false;
+      auth.renewPopup().then(() => { setConn(null); return sync(); }).catch(() => { /* 위쪽 띠의 「다시 연결」로 */ });
+    };
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      check();
+      const busy = isTyping(document.activeElement) && document.activeElement.value?.trim();
+      if (want && standalone && auth.canAutoRenew && !busy && !document.querySelector('.overlay')) auth.renewRedirect();
+    };
+    check();
+    const iv = setInterval(check, 30_000);
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(iv); document.removeEventListener('click', onClick, true); document.removeEventListener('visibilitychange', onVisible); };
+  }, [phase]);
 
   // 화면을 바꾸면 맨 위부터 (노트 사이를 오갈 때는 제외)
   useEffect(() => { if (!isSheet) window.scrollTo(0, 0); }, [route.path]);

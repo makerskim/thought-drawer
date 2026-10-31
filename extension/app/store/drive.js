@@ -50,6 +50,7 @@ export function createDriveAdapter(auth) {
 
   async function call(url, opts = {}, kind = 'json') {
     let res;
+    await auth.ready?.(); // 구글 연결을 다시 받는 중이면 기다렸다가
     try {
       res = await fetch(url, { ...opts, headers: { ...(opts.headers ?? {}), Authorization: `Bearer ${auth.token()}` } });
     } catch (err) {
