@@ -60,7 +60,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.keyboard.press('Enter');
   await p.waitForTimeout(300);
   ok((await notes()).some((x) => x.body.includes('김치찌개 레시피 메모')) && (await p.inputValue(box)) === '', 'Enter saves and clears');
-  ok(await p.locator('.toast', { hasText: '요리 서랍에 넣었어요' }).count() === 1, 'toast names the drawer');
+  ok(await p.locator('.toast', { hasText: /요리 › 레시피 서랍에 넣었어요/ }).count() === 1, 'toast names the drawer and sub-drawer');
   await p.locator('.toast', { hasText: '서랍에 넣었어요' }).last().locator('button').click();
   await p.waitForTimeout(400);
   ok(!(await notes()).some((x) => x.body.includes('김치찌개 레시피 메모')), 'undo removes it');
@@ -109,7 +109,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.click('.sb .sb-item:has-text("모든 서랍")');
   await p.waitForSelector('.dbig');
   ok((await p.locator('.dbig').allInnerTexts()).some((t) => t.includes('쇼핑')), 'all drawers page lists 쇼핑');
-  await p.click('.dbig:has-text("쇼핑")');
+  await p.click('.dbig:has(b:text-is("쇼핑"))');
   await p.waitForSelector('.page-hero h1');
   ok((await p.locator('.page-hero h1').innerText()) === '쇼핑.' && await p.locator('.sh-note').count() === 1, 'drawer page: title and auto note');
   await p.locator('.grid .poster', { hasText: 'coupang' }).click();
@@ -172,13 +172,39 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.waitForSelector('.grid .poster');
   ok(await p.locator('.grid .poster').count() >= 2 && await p.locator('.grid .poster mark').count() >= 1, 'search page shows highlighted posters');
 
-  // ---- 서랍 화면: 종류, 목록 ----
+  // ---- 서랍 화면: 필터 막대, 목록 ----
   await p.evaluate(() => { location.hash = '#/all'; });
-  await p.waitForSelector('.type-chips');
-  await p.click('.type-chips .chip:has-text("링크")');
+  await p.waitForSelector('.fbar');
+  const shown = () => p.$$eval('.grid .poster', (els) => els.map((a) => window.__TD_APP__.lib.get(decodeURIComponent(a.getAttribute('href').split('/n/')[1]))));
+  const total = (await shown()).length;
+  await p.click('.fpill[data-f="type"]');
+  await p.click('.pop .mi:has-text("링크")');
+  await p.keyboard.press('Escape');
   await p.waitForTimeout(200);
-  const kinds = await p.$$eval('.grid .poster', (els) => els.map((a) => window.__TD_APP__.lib.get(decodeURIComponent(a.getAttribute('href').split('/n/')[1])).meta.type));
-  ok(kinds.length > 0 && kinds.every((t) => t === 'bookmark'), `type chip: links only (${kinds.length})`);
+  const kinds = (await shown()).map((n) => n.meta.type);
+  ok(kinds.length > 0 && kinds.length < total && kinds.every((t) => t === 'bookmark') && /type=bookmark/.test(await p.evaluate(() => location.hash)), `filter: links only (${kinds.length}), kept in the address`);
+  await p.click('.fpill-w.on .fpill-x');
+  await p.waitForTimeout(200);
+  ok((await shown()).length === total, 'filter: × clears it');
+  await p.click('.fpill[data-f="d"]');
+  await p.click('.pop .fopt:has-text("오늘")');
+  await p.waitForTimeout(200);
+  const today = await p.evaluate(() => { const d = new Date(); return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`; });
+  const todays = await shown();
+  ok(todays.length > 0 && todays.length < total && todays.every((n) => n.id.startsWith(today)) && (await p.locator('.sh-count').innerText()).includes(`전체 ${total}개`), `filter: date 오늘 (${todays.length}/${total})`);
+  await p.click('.fpill[data-f="dr"]');
+  await p.click('.pop .mi:has-text("쇼핑")');
+  await p.waitForTimeout(200);
+  ok(await p.locator('.fpill-w.on').count() === 2, 'filter: date + drawer together');
+  await p.click('.fbar-clear');
+  await p.waitForTimeout(200);
+  ok((await shown()).length === total && !(await p.evaluate(() => location.hash)).includes('?'), 'filter: 모두 지우기');
+  await p.evaluate(() => { location.hash = '#/all?has=open'; });
+  await p.waitForTimeout(600);
+  const left = await shown();
+  ok(left.length > 0 && left.every((n) => /- \[ \]/.test(n.body ?? '')), `filter: 남은 할 일 from the address (${left.length})`);
+  await p.evaluate(() => { location.hash = '#/all'; });
+  await p.waitForTimeout(300);
   await p.click('.view-btn');
   await p.click('.pop .mi:has-text("목록")');
   await p.waitForSelector('.rows-list .row-item');
@@ -202,6 +228,89 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.locator('.task-group', { hasText: '분기 회의 준비' }).locator('input').first().click();
   await p.waitForTimeout(400);
   ok((await notes()).find((x) => x.title === '분기 회의 준비').body.includes('- [x] 지난 분기 숫자 정리'), 'tasks page checks the note');
+
+  // ---- / 명령어, # 태그, @ 서랍, 자동 태그 ----
+  await p.evaluate(() => { location.hash = '#/'; });
+  await p.waitForSelector(box);
+  await p.click(box);
+  await p.keyboard.type('/할');
+  await p.waitForSelector('.in-slash .mi');
+  ok((await p.locator('.in-slash .mi').first().innerText()).includes('/할일'), 'slash: /할 shows 할 일 first');
+  await p.keyboard.press('Enter');
+  ok((await p.inputValue(box)) === '- [ ] ', 'slash: Enter puts a checkbox');
+  await p.keyboard.type('우유 사기 #');
+  await p.waitForSelector('.in-slash[aria-label="태그"] .mi');
+  await p.keyboard.type('장보기 @쇼');
+  await p.waitForSelector('.in-slash[aria-label="서랍"] .mi');
+  await p.keyboard.press('Enter');
+  ok((await p.inputValue(box)) === '- [ ] 우유 사기 #장보기 @쇼핑 ', 'slash: # and @ lists fill tag and drawer');
+  ok((await p.locator('.cap-guess').innerText()).includes('쇼핑') && (await p.locator('.cap-tag').allInnerTexts()).includes('#장보기'), 'preview shows my drawer and tag');
+  await p.keyboard.press('Enter');
+  await p.waitForTimeout(400);
+  let made = (await notes()).find((x) => x.body === '- [ ] 우유 사기');
+  ok(made && made.category === '쇼핑' && made.status === 'organized' && made.tags.includes('장보기'), 'saved: @쇼핑 files it, #장보기 tags it, tokens leave the text');
+  await p.fill(box, '청소기 비교 https://www.coupang.com/vp/products/9');
+  await p.waitForTimeout(100);
+  ok((await p.locator('.cap-guess').innerText()).includes('가전'), 'preview: 쇼핑 › 가전 while typing');
+  await p.keyboard.press('Enter');
+  await p.waitForTimeout(400);
+  made = (await notes()).find((x) => x.body.includes('청소기 비교'));
+  ok(made && made.tags.includes('쿠팡') && made.tags.includes('청소기'), `new notes get auto tags (${made?.tags})`);
+
+  // ---- 설정: 말 고침, 키워드, 분류 규칙 ----
+  await p.click('.nav-toggle');
+  ok(await p.locator('.sb .sb-search').count() === 0 && await p.locator('.sb input').count() === 0, 'sidebar: no search box');
+  await p.click('.sb .sb-item:has-text("설정")');
+  await p.waitForSelector('#s-classify');
+  const setText = await p.locator('.set-page').innerText();
+  ok(!setText.includes('내가·Claude가') && setText.includes('서랍 폴더에 정리됨') && setText.includes('자동 분류만 됨'), 'settings: plain wording for the counts');
+  ok(await p.locator('.set-sec').count() >= 10 && await p.locator('.set-toc .chip').count() >= 8, 'settings: many sections with a table of contents');
+  await p.fill('#s-keywords .kw-form input', '주소');
+  await p.fill('#s-keywords .kw-form textarea', '서울 마포구 {오늘}');
+  await p.click('#s-keywords .kw-form .btn-primary');
+  await p.waitForSelector('#s-keywords .rule-list li:has-text("/주소")');
+  await p.fill('#s-rules .rule-form input[aria-label="낱말 또는 사이트"]', '다이슨');
+  await p.fill('#s-rules .rule-form input[aria-label="서랍"]', '쇼핑/가전');
+  await p.fill('#s-rules .rule-form input[aria-label="태그"]', '브랜드');
+  await p.click('#s-rules .rule-form .btn-primary');
+  await p.waitForSelector('#s-rules .rule-list li:has-text("다이슨")');
+  await p.fill('#s-rules input[aria-label="분류 시험 글"]', '다이슨 드라이기 후기');
+  ok((await p.locator('#s-rules .cap-hint').innerText()).replace(/\s+/g, ' ').includes('쇼핑 › 가전') && (await p.locator('#s-rules .cap-tag').first().innerText()) === '#브랜드', 'rule: tester shows 쇼핑 › 가전 #브랜드');
+  const saved = await p.evaluate(() => window.__TD_APP__.lib.settings);
+  ok(saved.keywords.some((k) => k.key === '주소') && saved.rules.some((r) => r.match === '다이슨'), 'settings saved to the shared file');
+  await p.click('#s-classify .seg button:has-text("2개")');
+  await p.waitForTimeout(200);
+  ok((await p.evaluate(() => window.__TD_APP__.lib.settings.classify.tags)) === 2, 'auto tag count setting saved');
+  await p.evaluate(() => { location.hash = '#/'; });
+  await p.waitForSelector(box);
+  await p.click(box);
+  await p.keyboard.type('/주소');
+  await p.waitForSelector('.in-slash .mi:has-text("내 키워드")');
+  await p.keyboard.press('Enter');
+  const day = await p.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
+  ok((await p.inputValue(box)) === `서울 마포구 ${day}`, 'my keyword /주소 expands with today');
+  await p.fill(box, '');
+
+  // ---- 노트 편집기의 / ----
+  await p.evaluate(() => { location.hash = '#/new'; });
+  await p.waitForSelector('.ws .ProseMirror');
+  await p.click('.ws .ProseMirror');
+  await p.keyboard.type('/오늘');
+  await p.waitForSelector('.pop.slash .mi');
+  await p.keyboard.press('Enter');
+  await p.waitForTimeout(150);
+  ok((await p.locator('.ws .ProseMirror').innerText()).includes(day), 'editor: /오늘 inserts the date');
+  await p.keyboard.type(' /주소');
+  await p.waitForSelector('.pop.slash .mi:has-text("주소")');
+  await p.keyboard.press('Enter');
+  await p.waitForTimeout(150);
+  ok((await p.locator('.ws .ProseMirror').innerText()).includes('서울 마포구'), 'editor: my keyword works mid-line');
+
+  // ---- 사용법 ----
+  await p.evaluate(() => { location.hash = '#/help'; });
+  await p.waitForSelector('.help-card');
+  const help = await p.locator('.help-page').innerText();
+  ok(['/ 명령어', '# 태그 · @ 서랍', '자동 분류', '필터', '단축키'].every((t) => help.includes(t)) && help.includes('/할일') && help.includes('/주소'), 'help page lists commands (with mine), tokens, classify, filters, keys');
   ok(p.errors.length === 0, 'no page errors ' + p.errors.join(' | '));
   await p.context().close();
 

@@ -64,6 +64,19 @@ def test_prepare_builds_compact_batch(vault, capsys):
     assert [c['id'] for c in batch] == ['20261027093012', '20261026213300', '20261025180000'], 'newest first'
 
 
+def test_prepare_passes_my_rules_from_the_web_app(vault):
+    (vault / '_시스템').mkdir(exist_ok=True)
+    (vault / '_시스템' / 'settings.json').write_text(json.dumps({'rules': [
+        {'match': '시즌오프, 옥스포드', 'drawer': '패션/상의', 'tags': ['세일']},
+        {'match': '', 'drawer': 'x'},
+    ]}, ensure_ascii=False), encoding='utf-8')
+    run(vault, 'prepare')
+    md = (organize.WORK / 'batch.md').read_text(encoding='utf-8')
+    assert '## 내 분류 규칙' in md
+    assert '「시즌오프, 옥스포드」 중 하나가 나오면 → category: 패션/상의, tags에 세일' in md
+    assert md.count('나오면 →') == 1, 'empty rules are dropped'
+
+
 def test_prepare_nothing_to_do(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(organize, 'WORK', tmp_path / 'work')
     run(tmp_path / '메모', 'prepare')

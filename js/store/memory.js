@@ -37,10 +37,10 @@ export function createMemoryAdapter(seed = {}) {
     },
     async readText(id) { const f = files.get(id); if (!f) throw new Error('없는 파일'); return typeof f.data === 'string' ? f.data : f.data.text(); },
     async readBlob(id) { return files.get(id).data; },
-    async writeNote({ id, dir, name, text }) {
+    async writeNote({ id, dir, name, text, mimeType = 'text/markdown' }) {
       seq++;
       if (id && files.has(id)) { Object.assign(files.get(id), { dir, name, data: text, modifiedTime: now() }); dirs.add(dir); return pub(files.get(id)); }
-      return pub(add(dir, name, text, 'text/markdown'));
+      return pub(add(dir, name, text, mimeType));
     },
     async trash(id) { trashed.set(id, files.get(id)); files.delete(id); },
     async untrash(id) { files.set(id, trashed.get(id)); trashed.delete(id); },

@@ -9,12 +9,17 @@ import { modal } from '../parts/layers.js';
 import { ConfirmDialog } from '../parts/dialogs.js';
 import { capturePhotos } from '../capture.js';
 import { saveQuick } from '../quick.js';
-import { categoryOf, guessCategory } from '../categories.js';
+import { categoryOf, guessCategory, settingsOf, drawerTargets } from '../categories.js';
+import { normalizeSettings } from '../../core/settings.js';
+import { BUILTINS, VARS, keyOk } from '../../core/slash.js';
+import { SORTS } from '../../core/filter.js';
+import { preview, GuessLine } from '../parts/guess.js';
+import { CommandTable, SHORTCUTS, Keys } from './help.js';
 import { parseBookmarks, isBookmarksFile } from '../../core/bookmarks.js';
 import { parseInstagramFile, mergeSaved } from '../../core/instagram.js';
 import { convertForExport } from '../../core/export.js';
 import { ATTACH_DIR } from '../../config.js';
-import { relTime } from '../format.js';
+import { relTime, modKey } from '../format.js';
 
 const JSZIP = 'js/vendor/jszip.min.js';
 function loadScript(src) {
@@ -32,7 +37,7 @@ export function Login({ onSignIn, busy, error }) {
     <div class="login-card">
       <${Logo} size=${88} mood="wave" />
       <h1>넣기만 하세요.<br />정리는 서랍이.</h1>
-      <p class="lead">메모, 링크, 스크린샷, 북마크. 무엇이든 넣으면 알아서 나눠 둡니다.</p>
+      <p class="lead">무엇이든 넣으면 알아서 분류해드립니다.</p>
       <ul class="login-feats">
         <li><span class="gs-ic"><${Icon} name="plus" /></span><span>어디서든 넣기</span></li>
         <li><span class="gs-ic"><${Icon} name="sparkle" /></span><span>알아서 나누기</span></li>
@@ -49,19 +54,128 @@ export function Login({ onSignIn, busy, error }) {
 }
 
 
-function Section({ title, desc, children }) {
-  return html`<section class="set-sec"><div><h2>${title}</h2>${desc && html`<p class="desc">${desc}</p>`}</div><div class="ctl">${children}</div></section>`;
+function Section({ id, title, desc, children }) {
+  return html`<section class="set-sec" id=${id ? `s-${id}` : undefined}><div><h2>${title}</h2>${desc && html`<p class="desc">${desc}</p>`}</div><div class="ctl">${children}</div></section>`;
 }
 
-export function Settings({ offline }) {
+function Switch({ label, desc, checked, onChange }) {
+  return html`<label class="sw-row"><span class="sw-text"><b>${label}</b>${desc && html`<small>${desc}</small>`}</span>
+    <input type="checkbox" role="switch" class="switch" checked=${checked} onChange=${(e) => onChange(e.target.checked)} /></label>`;
+}
+
+const seg = (value, set, opts, label) => html`<div class="seg" role="group" aria-label=${label}>${opts.map(([v, l]) => html`<button type="button" key=${String(v)} aria-pressed=${value === v} onClick=${() => { set(v); applyAppearance(); }}>${l}</button>`)}</div>`;
+const Line = ({ label, children }) => html`<div class="row-ctl"><span class="muted set-label">${label}</span>${children}</div>`;
+
+// 함께 쓰는 설정(드라이브) 저장
+function useShared(lib) {
+  const [state, setState] = useState('');
+  const s = settingsOf(lib);
+  const save = async (patch) => {
+    setState('saving');
+    try { await lib.saveSettings(normalizeSettings({ ...s, ...patch })); setState('saved'); } catch (e) { setState('error'); toast(e.message); }
+  };
+  return [s, save, state];
+}
+const SAVED = { saving: '저장 중', saved: '드라이브에 저장됨', error: '저장 실패' };
+
+function RuleTester() {
+  const lib = useLib();
+  const [t, setT] = useState('');
+  const pre = t.trim() ? preview(t, lib) : null;
+  return html`<div class="field" style="margin:0"><span>시험해 보기</span>
+    <input class="input" value=${t} onInput=${(e) => setT(e.target.value)} placeholder="예: 다이슨 청소기 최저가 https://www.coupang.com/…" aria-label="분류 시험 글" />
+    ${pre ? html`<${GuessLine} pre=${pre} />` : html`<small>적으면 어느 서랍·태그로 갈지 보여 줍니다.</small>`}</div>`;
+}
+
+function RulesEditor() {
+  const lib = useLib();
+  const [s, save, state] = useShared(lib);
+  const [form, setForm] = useState({ match: '', drawer: '', tags: '' });
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const add = (e) => {
+    e.preventDefault();
+    if (!form.match.trim()) { toast('낱말이나 사이트를 적으세요'); return; }
+    if (!form.drawer.trim() && !form.tags.trim()) { toast('서랍이나 태그 중 하나는 정하세요'); return; }
+    const rule = { match: form.match, drawer: form.drawer.replace(/\s*›\s*/g, '/'), tags: form.tags };
+    save({ rules: [...s.rules.filter((r) => r.match !== form.match.trim()), rule] });
+    setForm({ match: '', drawer: '', tags: '' });
+  };
+  const targets = drawerTargets(lib);
+  return html`
+    ${s.rules.length > 0
+      ? html`<ul class="rule-list">${s.rules.map((r, i) => html`<li key=${`${r.match}:${i}`}>
+          <span class="rl-match">${r.match}</span><${Icon} name="chevron" />
+          <span class="rl-to">${r.drawer && html`<b>${r.drawer.replace('/', ' › ')}</b>`}${r.tags.map((t) => html`<span class="cap-tag" key=${t}>#${t}</span>`)}</span>
+          <span class="grow"></span>
+          <button type="button" class="btn btn-ghost btn-sm" onClick=${() => setForm({ match: r.match, drawer: r.drawer, tags: r.tags.join(', ') })}>고치기</button>
+          <button type="button" class="icon-btn" aria-label=${`${r.match} 규칙 지우기`} onClick=${() => save({ rules: s.rules.filter((_, j) => j !== i) })}><${Icon} name="trash" /></button>
+        </li>`)}</ul>`
+      : html`<p class="muted small">아직 규칙이 없습니다.</p>`}
+    <form class="rule-form" onSubmit=${add}>
+      <label><span>낱말·사이트</span><input class="input" value=${form.match} onInput=${set('match')} placeholder="가습기, 제습기 또는 musinsa.com" aria-label="낱말 또는 사이트" /></label>
+      <label><span>서랍</span><input class="input" list="rule-drawers" value=${form.drawer} onInput=${set('drawer')} placeholder="쇼핑/가전" aria-label="서랍" /></label>
+      <label><span>태그</span><input class="input" value=${form.tags} onInput=${set('tags')} placeholder="가전, 계절" aria-label="태그" /></label>
+      <button class="btn btn-primary"><${Icon} name="plus" />규칙 추가</button>
+      <datalist id="rule-drawers">${targets.map((d) => html`<option key=${d} value=${d} />`)}</datalist>
+    </form>
+    ${state && html`<small class="muted">${SAVED[state]}</small>`}
+    <${RuleTester} />`;
+}
+
+function KeywordsEditor() {
+  const lib = useLib();
+  const [s, save, state] = useShared(lib);
+  const [form, setForm] = useState({ key: '', text: '' });
+  const add = (e) => {
+    e.preventDefault();
+    const key = form.key.trim().replace(/^\//, '');
+    if (!keyOk(key)) { toast('키워드는 띄어쓰기 없이 16자까지'); return; }
+    if (!form.text.trim()) { toast('넣을 글을 적으세요'); return; }
+    save({ keywords: [...s.keywords.filter((k) => k.key !== key), { key, text: form.text }] });
+    setForm({ key: '', text: '' });
+  };
+  return html`
+    ${s.keywords.length > 0
+      ? html`<ul class="rule-list">${s.keywords.map((k) => html`<li key=${k.key}>
+          <code class="rl-key">/${k.key}</code><span class="rl-text">${k.text.replace(/\n/g, ' ⏎ ')}</span>
+          <span class="grow"></span>
+          <button type="button" class="btn btn-ghost btn-sm" onClick=${() => setForm({ key: k.key, text: k.text })}>고치기</button>
+          <button type="button" class="icon-btn" aria-label=${`/${k.key} 지우기`} onClick=${() => save({ keywords: s.keywords.filter((x) => x.key !== k.key) })}><${Icon} name="trash" /></button>
+        </li>`)}</ul>`
+      : html`<p class="muted small">내 키워드가 없습니다.</p>`}
+    <form class="kw-form" onSubmit=${add}>
+      <label><span>키워드</span><div class="kw-key"><span>/</span><input class="input" value=${form.key} onInput=${(e) => setForm({ ...form, key: e.target.value })} placeholder="회의" aria-label="키워드" /></div></label>
+      <label><span>넣을 글</span><textarea class="input" rows="3" value=${form.text} onInput=${(e) => setForm({ ...form, text: e.target.value })} placeholder=${'회의 {오늘}\n- [ ] '} aria-label="넣을 글"></textarea></label>
+      <small class="muted">${VARS.map(([v]) => v).join(' ')} 은 그때 날짜·시각으로. #태그, @서랍 도 됩니다.</small>
+      <div><button class="btn btn-primary"><${Icon} name="plus" />키워드 저장</button></div>
+    </form>
+    ${state && html`<small class="muted">${SAVED[state]}</small>`}
+    <details class="help-tree"><summary>기본 명령어 ${BUILTINS.length}개</summary><${CommandTable} lib=${lib} /></details>`;
+}
+
+const TOC = [['account', '계정'], ['screen', '화면'], ['input', '넣기'], ['classify', '자동 분류'], ['rules', '분류 규칙'], ['keywords', '/ 명령어'], ['claude', 'Claude'], ['share', '공유·내보내기'], ['keys', '단축키']];
+
+export function Settings({ offline, params }) {
   const lib = useLib();
   const [theme, setTheme] = usePref('theme', '');
   const [font, setFont] = usePref('font', '');
+  const [view, setView] = usePref('view', 'wall');
+  const [sort, setSort] = usePref('sort', 'new');
+  const [navPinned, setNavPinned] = usePref('navPinned', false);
+  const [navSide, setNavSide] = usePref('navSide', 'left');
+  const [talk, setTalk] = usePref('mascotTalk', 'on');
+  const [openAfter, setOpenAfter] = usePref('openAfterSave', false);
+  const [firstTitle, setFirstTitle] = usePref('firstLineTitle', true);
+  const [shared, save, savedState] = useShared(lib);
   const [secret, setSecret] = useState('');
   const [zip, setZip] = useState(null);
   const [token, setToken] = useState(offline);
   const p = app.profile ?? {};
   const shareUrl = `${location.origin}${location.pathname}?text=`;
+  useEffect(() => {
+    const id = params?.get('s');
+    if (id) setTimeout(() => document.getElementById(`s-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }, [params?.get('s')]);
   const copy = async (text, what) => { try { await navigator.clipboard.writeText(text); toast(`${what}을 복사했어요.`); } catch { toast('복사 실패. 직접 선택해 복사하세요.'); } };
   const exportZip = async () => {
     setZip(0);
@@ -85,12 +199,13 @@ export function Settings({ offline }) {
     } catch (e) { toast(e.message); }
     setZip(null);
   };
-  const seg = (value, set, opts) => html`<div class="seg" role="group">${opts.map(([v, l]) => html`<button type="button" key=${v} aria-pressed=${value === v} onClick=${() => { set(v); applyAppearance(); }}>${l}</button>`)}</div>`;
+  const cls = shared.classify;
   return html`
     <${PageBar} title="설정" />
-    <div class="page narrow">
+    <div class="page narrow set-page">
       <div class="page-head"><h1>설정</h1></div>
-      <${Section} title="계정" desc="구글 드라이브 「메모」 폴더">
+      <nav class="set-toc" aria-label="설정 목차">${TOC.map(([id, l]) => html`<a key=${id} class="chip" href=${`#/settings?s=${id}`}>${l}</a>`)}</nav>
+      <${Section} id="account" title="계정" desc="구글 드라이브 「메모」 폴더">
         <div class="profile">${p.picture ? html`<img src=${p.picture} alt="" referrerpolicy="no-referrer" />` : html`<span class="avatar">${(p.name || p.email || '?')[0]}</span>`}
           <div><b>${p.name}</b><div class="muted">${p.email}</div></div></div>
         <div class="row-ctl">
@@ -98,14 +213,37 @@ export function Settings({ offline }) {
           <button type="button" class="btn btn-ghost" onClick=${async () => { await lib.clearCache(); toast('기기 사본을 지우고 다시 맞추는 중'); app.resync(); }}><${Icon} name="refresh" />드라이브와 다시 맞추기</button>
         </div>
       </${Section}>
-      <${Section} title="화면" desc="이 기기에만 적용">
-        <div class="row-ctl"><span class="muted" style="width:64px">밝기</span>${seg(theme, setTheme, [['', '기기 따라'], ['light', '낮'], ['dark', '밤']])}</div>
-        <div class="row-ctl"><span class="muted" style="width:64px">노트 글꼴</span>${seg(font, setFont, [['', '기본'], ['serif', '명조'], ['mono', '고정폭']])}</div>
+      <${Section} id="screen" title="화면" desc="이 기기에만 적용">
+        <${Line} label="밝기">${seg(theme, setTheme, [['', '기기 따라'], ['light', '낮'], ['dark', '밤']], '밝기')}</${Line}>
+        <${Line} label="노트 글꼴">${seg(font, setFont, [['', '기본'], ['serif', '명조'], ['mono', '고정폭']], '노트 글꼴')}</${Line}>
+        <${Line} label="카드 보기">${seg(view, setView, [['wall', '포스터'], ['list', '목록']], '카드 보기')}</${Line}>
+        <${Line} label="정렬">${seg(sort, setSort, SORTS.map(([k, l]) => [k, l.replace('최근 ', '')]), '정렬')}</${Line}>
+        <${Line} label="옆 메뉴">${seg(navPinned, setNavPinned, [[false, '열 때만'], [true, '고정']], '옆 메뉴')}${seg(navSide, setNavSide, [['left', '왼쪽'], ['right', '오른쪽']], '옆 메뉴 위치')}</${Line}>
+        <${Line} label="서랍이">${seg(talk, setTalk, [['on', '말 많이'], ['quiet', '필요할 때만'], ['off', '말 안 함']], '서랍이 말풍선')}</${Line}>
       </${Section}>
-      <${Section} title="자동 분류" desc="사이트와 낱말로 바로 분류. 바꾼 서랍은 학습합니다.">
-        <div class="kv"><div><b>${lib.all.length}</b><span>모든 노트</span></div><div><b>${lib.organized().length}</b><span>내가·Claude가 정한 서랍</span></div><div><b>${lib.inbox().length}</b><span>자동으로 나눈 노트</span></div></div>
+      <${Section} id="input" title="넣기" desc="이 기기에만 적용">
+        <${Switch} label="넣고 바로 열기" desc="끄면 넣고 첫 화면에 그대로. ${modKey} Enter는 언제나 열기." checked=${openAfter} onChange=${setOpenAfter} />
+        <${Switch} label="여러 줄이면 첫 줄을 제목으로" checked=${firstTitle} onChange=${setFirstTitle} />
       </${Section}>
-      <${Section} title="Claude로 더 다듬기 (선택)" desc="예약 작업이 제목, 요약, 태그, 연결을 붙입니다. 추가 비용 없음.">
+      <${Section} id="classify" title="자동 분류" desc="넣는 즉시 서랍 › 세부 서랍과 태그를 정합니다. 기기 안에서 계산해서 비용이 없습니다. 모든 기기에 함께 적용.">
+        <div class="kv">
+          <div><b>${lib.all.length}</b><span>모든 노트</span></div>
+          <div><b>${lib.organized().length}</b><span>서랍 폴더에 정리됨</span></div>
+          <div><b>${lib.inbox().length}</b><span>자동 분류만 됨</span></div>
+        </div>
+        <small class="muted">정리됨: 직접 옮기거나 Claude가 폴더에 넣은 노트. 자동 분류만 됨: 화면에서만 나눈 노트(드라이브에서는 00_인박스).</small>
+        <${Switch} label="세부 서랍까지 나누기" desc="예: 쇼핑 › 가전, 여행 › 숙소" checked=${cls.subs} onChange=${(v) => save({ classify: { ...cls, subs: v } })} />
+        <${Switch} label="직접 옮긴 노트에서 배우기" desc="서랍을 바꿀수록 더 잘 맞습니다." checked=${cls.learn} onChange=${(v) => save({ classify: { ...cls, learn: v } })} />
+        <${Line} label="자동 태그">${seg(cls.tags, (v) => save({ classify: { ...cls, tags: v } }), [[0, '끔'], [2, '2개'], [3, '3개'], [4, '4개'], [6, '6개']], '자동 태그 수')}</${Line}>
+        ${savedState && html`<small class="muted">${SAVED[savedState]}</small>`}
+      </${Section}>
+      <${Section} id="rules" title="분류 규칙" desc="이 낱말이나 사이트가 나오면 이 서랍, 이 태그. 자동 분류보다 먼저 적용됩니다.">
+        <${RulesEditor} />
+      </${Section}>
+      <${Section} id="keywords" title="/ 명령어" desc="입력칸과 노트에서 / 다음에 키워드를 적으면 정해 둔 글이 들어갑니다. 모든 기기에 함께 적용.">
+        <${KeywordsEditor} />
+      </${Section}>
+      <${Section} id="claude" title="Claude로 더 다듬기 (선택)" desc="예약 작업이 제목, 요약, 태그, 연결을 붙입니다. 추가 비용 없음.">
         <div class="kv"><div><b>${lib.index?.generatedAt ? relTime(lib.index.generatedAt) : '아직 안 켬'}</b><span>마지막으로 다듬은 때</span></div></div>
         ${token?.refreshToken && html`<div class="banner"><${Icon} name="check" /><p><b>정리기용 토큰을 받았어요.</b> 복사해서 Claude Code 환경 설정의 TD_GOOGLE_REFRESH_TOKEN에 넣으세요. 이 화면을 벗어나면 다시 볼 수 없어요. 채팅창에는 붙여 넣지 마세요.</p></div>
           <div class="code-box"><input class="input mono" readonly value=${token.refreshToken} onFocus=${(e) => e.target.select()} aria-label="정리기용 토큰" /><button type="button" class="btn" onClick=${() => copy(token.refreshToken, '토큰')}><${Icon} name="copy" />복사</button></div>`}
@@ -116,17 +254,18 @@ export function Settings({ offline }) {
           <small>보안 비밀은 이 브라우저에서 구글로만 보내고 저장하지 않아요. 순서는 docs/설정가이드.md 4단계에 있어요.</small>
         </form>
       </${Section}>
-      <${Section} title="아이폰 공유" desc="단축어 「메모로 보내기」가 여는 주소예요. 공유한 내용을 이 주소 뒤에 붙여 열면 서랍에 저장돼요.">
-        <div class="code-box"><input class="input mono" readonly value=${shareUrl} onFocus=${(e) => e.target.select()} aria-label="공유 주소" /><button type="button" class="btn" onClick=${() => copy(shareUrl, '주소')}><${Icon} name="copy" />복사</button></div>
-        <small class="muted">홈 화면에 추가: 사파리에서 이 앱을 열고 공유 버튼, 홈 화면에 추가. 만드는 순서는 docs/단축어.md에 있어요.</small>
-      </${Section}>
-      <${Section} title="내보내기" desc="옵시디언은 「메모」 폴더를 보관함으로 열면 됩니다.">
+      <${Section} id="share" title="공유·내보내기" desc="아이폰 단축어 주소와 노션용 zip. 옵시디언은 「메모」 폴더를 보관함으로 열면 됩니다.">
+        <div class="field" style="margin:0"><span>아이폰 공유 주소</span>
+          <div class="code-box"><input class="input mono" readonly value=${shareUrl} onFocus=${(e) => e.target.select()} aria-label="공유 주소" /><button type="button" class="btn" onClick=${() => copy(shareUrl, '주소')}><${Icon} name="copy" />복사</button></div>
+          <small>단축어 「메모로 보내기」가 이 주소 뒤에 공유한 내용을 붙여 엽니다. 순서는 docs/단축어.md.</small></div>
         <div class="row-ctl"><button type="button" class="btn" onClick=${exportZip} disabled=${zip !== null}><${Icon} name="download" />노션용 zip 받기</button></div>
         ${zip !== null && html`<div class="progress"><i style=${`width:${zip}%`}></i></div>`}
-        <small class="muted">노션의 가져오기, 텍스트와 마크다운에 zip을 올려요. 링크와 사진 경로를 노션이 읽는 형식으로 바꿔서 담아요.</small>
       </${Section}>
-      <${Section} title="정보">
-        <div class="row-ctl"><a class="btn btn-ghost" href="privacy.html">개인정보처리방침</a><a class="btn btn-ghost" href="terms.html">서비스 약관</a></div>
+      <${Section} id="keys" title="단축키">
+        <dl class="help-keys">${SHORTCUTS.map(([k, l]) => html`<div key=${k}><dt><${Keys} keys=${k} /></dt><dd>${l}</dd></div>`)}</dl>
+      </${Section}>
+      <${Section} title="도움말">
+        <div class="row-ctl"><a class="btn" href="#/help"><${Icon} name="help" />사용법</a><a class="btn btn-ghost" href="privacy.html">개인정보처리방침</a><a class="btn btn-ghost" href="terms.html">서비스 약관</a></div>
       </${Section}>
     </div>`;
 }

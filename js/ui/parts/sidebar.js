@@ -1,13 +1,12 @@
 // 옆 메뉴: 위 막대의 ☰ 로 열고, 핀을 누르면 왼쪽이나 오른쪽에 고정된다 (옵시디언의 옆 막대처럼).
-// 홈 · 모든 서랍 · 할 일 · 생각 지도 · 즐겨찾기, 서랍 목록, 넣는 곳, 설정.
+// 넣기 · 홈 · 모든 서랍 · 모든 노트(필터) · 할 일 · 오늘 노트 · 생각 지도 · 즐겨찾기, 서랍 목록, 넣는 곳, 설정 · 사용법.
+// 찾기는 위 막대의 돋보기(/, ⌘K)로 한다.
 import { html, useEffect } from '../h.js';
 import { Icon, Mascot } from '../icons.js';
 import { app, useLib } from '../state.js';
 import { go, folderHref } from '../router.js';
 import { drawerList } from '../categories.js';
 import { openComposer } from './composer.js';
-import { openTutorial } from './tutorial.js';
-import { openSpotlight } from './spotlight.js';
 import { openToday } from '../notebook.js';
 import { openTasks } from '../../core/tasks.js';
 
@@ -36,11 +35,11 @@ export function Sidebar({ path, pinned, side, docked, open, setOpen, setPinned, 
         <button type="button" class="icon-btn" aria-pressed=${pinned} aria-label=${pinned ? '고정 풀기' : '고정하기'} title=${pinned ? '고정 풀기' : '고정하기'} onClick=${() => { setPinned(!pinned); if (pinned) setOpen(false); }}><${Icon} name="pin" /></button>
         ${!docked && html`<button type="button" class="icon-btn" aria-label="메뉴 닫기" onClick=${() => setOpen(false)}><${Icon} name="x" /></button>`}
       </div>
-      <button type="button" class="sb-search" onClick=${act(() => openSpotlight())}><${Icon} name="search" /><span>찾기</span><kbd>/</kbd></button>
       <nav class="sb-nav" aria-label="주요 메뉴">
         <button type="button" class="sb-item" onClick=${act(() => { if (path !== '/') go('#/'); setTimeout(() => { if (!app.focusCapture?.()) openComposer(); }, 60); })}><${Icon} name="plus" /><span>넣기</span><kbd>Enter</kbd></button>
         ${item('#/', 'home', '홈', path === '/')}
-        ${item('#/drawers', 'drawer', '모든 서랍', path === '/drawers' || path === '/all')}
+        ${item('#/drawers', 'drawer', '모든 서랍', path === '/drawers')}
+        ${item('#/all', 'filter', '모든 노트 · 필터', path === '/all')}
         ${item('#/tasks', 'check', '할 일', path === '/tasks', tasksLeft > 0 && html`<span class="n">${tasksLeft}</span>`)}
         <button type="button" class="sb-item" onClick=${act(() => openToday())}><${Icon} name="calendar" /><span>오늘 노트</span><kbd>T</kbd></button>
         ${item('#/graph', 'graph', '생각 지도', path === '/graph')}
@@ -57,7 +56,7 @@ export function Sidebar({ path, pinned, side, docked, open, setOpen, setPinned, 
       <span class="grow"></span>
       <nav class="sb-nav sb-foot" aria-label="설정">
         ${item('#/settings', 'gear', '설정', path === '/settings')}
-        <button type="button" class="sb-item" onClick=${act(() => { go('#/'); setTimeout(openTutorial, 160); })}><${Icon} name="help" /><span>사용법</span></button>
+        ${item('#/help', 'help', '사용법', path === '/help')}
       </nav>
     </aside>`;
 }

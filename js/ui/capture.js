@@ -1,9 +1,11 @@
 // 사진 넣기: 어디서든(버튼, 붙여넣기, 끌어다 놓기) 같은 흐름으로 저장한다. 사진 속 글자는 드라이브가 읽어 둔다
 import { app, toast, say } from './state.js';
 import { go, noteHref } from './router.js';
+import { withTokens } from './quick.js';
 
-export async function capturePhotos(files, memo = '') {
+export async function capturePhotos(files, raw = '') {
   const list = [...files].filter((f) => f.type?.startsWith('image/'));
+  const { text: memo, extra } = withTokens(raw); // 함께 적은 #태그·@서랍
   if (!list.length) { toast('사진 파일만 넣을 수 있어요.'); return []; }
   const t = toast(list.length > 1 ? `사진 ${list.length}장을 올리는 중` : '사진을 올리는 중', { busy: true });
   const made = [];
@@ -11,7 +13,7 @@ export async function capturePhotos(files, memo = '') {
     for (let i = 0; i < list.length; i++) {
       const n = await app.lib.addCapture(list[i], i === 0 ? memo : '', (step) => {
         t.update(list.length > 1 ? `${i + 1}/${list.length}장, ${step}` : step, { busy: true });
-      });
+      }, extra);
       made.push(n);
     }
     const one = made.length === 1;

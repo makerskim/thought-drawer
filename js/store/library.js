@@ -37,11 +37,14 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
   const urls = new Map();
   let dirs = [];
   let index = null;
+  let settings = null; // 드라이브 _시스템/settings.json (기기 사이에 함께 쓰는 설정)
+  let settingsFile = null;
   const listeners = new Set();
   const taken = new Set();
   const state = { syncing: false, synced: false, error: null, lastSync: null };
 
-  const emit = () => listeners.forEach((fn) => fn());
+  let version = 0; // 바뀔 때마다 하나씩 (화면 쪽 계산을 다시 할지 정할 때 쓴다)
+  const emit = () => { version++; listeners.forEach((fn) => fn()); };
 
   function hydrate(file, meta, body, extra = {}) {
     const id = String(meta.id || /^(\d{14})/.exec(file.name)?.[1] || file.id);
@@ -89,6 +92,8 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
         dirs = v.dirs ?? [];
         for (const [name, id] of v.attachments ?? []) attachments.set(name, { id });
         index = v.index ?? null;
+        settings = v.settings ?? null;
+        settingsFile = v.settingsFile ?? null;
         state.lastSync = v.lastSync ?? null;
       } else if (String(key).startsWith('note:') && v?.file) {
         put(hydrate(v.file, v.meta, v.body, { snippet: v.snippet }));
@@ -108,14 +113,19 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
       attachments.clear();
       const md = [];
       let indexFile = null;
+      let nextSettings = null;
       for (const f of listing.files) {
         if (f.dir === ATTACH_DIR) attachments.set(f.name, { id: f.id });
-        else if (f.dir === SYSTEM_DIR) { if (f.name === 'index.json') indexFile = f; }
+        else if (f.dir === SYSTEM_DIR) { if (f.name === 'index.json') indexFile = f; else if (f.name === 'settings.json') nextSettings = f; }
         else if (f.name.endsWith('.md')) md.push(f);
       }
       if (indexFile && indexFile.modifiedTime !== index?._modifiedTime) {
         try { index = { ...JSON.parse(await adapter.readText(indexFile.id)), _modifiedTime: indexFile.modifiedTime }; } catch { index = null; }
       }
+      if (nextSettings && nextSettings.modifiedTime !== settingsFile?.modifiedTime) {
+        try { settings = JSON.parse(await adapter.readText(nextSettings.id)); } catch { /* 깨진 파일이면 그전 값 */ }
+      }
+      if (nextSettings) settingsFile = { id: nextSettings.id, modifiedTime: nextSettings.modifiedTime };
       const fromIndex = new Map((index?.notes ?? []).map((e) => [e.fileId, e]));
       const byFile = new Map([...notes.values()].map((n) => [n.fileId, n]));
       const seen = new Set();
@@ -144,7 +154,7 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
       }
       state.synced = true;
       state.lastSync = new Date().toISOString();
-      cache.set('listing', { dirs, attachments: [...attachments].map(([n, a]) => [n, a.id]), index, lastSync: state.lastSync }).catch(() => {});
+      saveListing();
     } catch (e) {
       state.error = e;
       throw e;
@@ -154,7 +164,15 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
     }
   }
 
+  function saveListing() {
+    cache.set('listing', { dirs, attachments: [...attachments].map(([n, a]) => [n, a.id]), index, settings, settingsFile, lastSync: state.lastSync }).catch(() => {});
+  }
+
   async function write(note, { meta, body }, { fromDir } = {}) {
+    // 새 노트는 넣기 전에 다듬는다 (자동 태그 등). 화면 쪽에서 lib.enrich 를 정해 준다.
+    if (!note && lib.enrich) {
+      try { ({ meta, body } = lib.enrich({ meta, body })); } catch (e) { console.warn('[enrich]', e); }
+    }
     const dir = meta.status === STATUS.inbox ? INBOX_DIR : (meta.category || INBOX_DIR);
     const name = note?.name ?? fileNameFor(meta);
     const text = serializeNote({ meta, body });
@@ -183,6 +201,19 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
     sync,
     get all() { return [...notes.values()].sort((a, b) => b.id.localeCompare(a.id)); },
     get index() { return index; },
+    get settings() { return settings; },
+    get version() { return version; },
+    enrich: null,
+    // 함께 쓰는 설정 저장: 드라이브 _시스템/settings.json
+    async saveSettings(next) {
+      const text = JSON.stringify(next, null, 2);
+      const file = await adapter.writeNote({ id: settingsFile?.id, dir: SYSTEM_DIR, name: 'settings.json', text, mimeType: 'application/json' });
+      settings = next;
+      settingsFile = { id: file.id, modifiedTime: file.modifiedTime };
+      saveListing();
+      emit();
+      return settings;
+    },
     get(id) { return notes.get(String(id)); },
     inbox() { return lib.all.filter((n) => n.meta.status === STATUS.inbox); },
     organized() { return lib.all.filter((n) => n.meta.status !== STATUS.inbox); },
@@ -315,7 +346,7 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
         emit();
       };
     },
-    async addCapture(file, memo = '', onStep) {
+    async addCapture(file, memo = '', onStep, extra = {}) {
       onStep?.('사진을 줄이는 중');
       const blob = await downscale(file);
       const draft = newNote({ type: 'capture', taken });
@@ -328,7 +359,7 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
         onStep?.('사진 속 글자를 읽는 중');
         try { ocr = await adapter.ocr(blob); } catch { ocr = ''; }
       }
-      return write(null, { meta: { ...draft.meta, attachments: [attName] }, body: captureBody({ attName, memo, ocr }) });
+      return write(null, { meta: { ...draft.meta, ...extra, attachments: [attName] }, body: captureBody({ attName, memo, ocr }) });
     },
     // 노트 안에 넣을 사진만 올린다 (사진 노트를 따로 만들지 않음). 첨부 이름을 돌려준다.
     async attach(file) {

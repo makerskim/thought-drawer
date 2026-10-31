@@ -65,6 +65,39 @@ def top(path: str) -> str:
     return (path or '').split('/')[0]
 
 
+def load_rules(store, files):
+    """웹앱 설정(_시스템/settings.json)의 내 분류 규칙. 앱의 자동 분류와 같은 규칙을 Claude도 따른다."""
+    f = next((x for x in files if x['dir'] == SYSTEM and x['name'] == 'settings.json'), None)
+    if not f:
+        return []
+    try:
+        rules = json.loads(store.read_text(f['id'])).get('rules') or []
+    except Exception:  # 깨진 파일이면 규칙 없이
+        return []
+    out = []
+    for r in rules:
+        match = str(r.get('match', '')).strip()
+        drawer = '/'.join(p.strip() for p in str(r.get('drawer', '')).split('/') if p.strip())
+        tags = [str(t).strip().lstrip('#') for t in (r.get('tags') or []) if str(t).strip()]
+        if match and (drawer or tags):
+            out.append({'match': match, 'drawer': drawer, 'tags': tags})
+    return out
+
+
+def rules_lines(rules):
+    if not rules:
+        return []
+    lines = ['## 내 분류 규칙 (사용자가 정함. 맞으면 반드시 따른다)', '']
+    for r in rules:
+        to = []
+        if r['drawer']:
+            to.append(f"category: {r['drawer']}")
+        if r['tags']:
+            to.append('tags에 ' + ', '.join(r['tags']))
+        lines.append(f"- 「{r['match']}」 중 하나가 나오면 → " + ', '.join(to))
+    return lines + ['']
+
+
 def load_index(store, files):
     f = next((x for x in files if x['dir'] == SYSTEM and x['name'] == 'index.json'), None)
     if not f:
@@ -211,7 +244,7 @@ def cmd_prepare(store, args):
 
     WORK.mkdir(parents=True, exist_ok=True)
     (WORK / 'batch.json').write_text(json.dumps(batch, ensure_ascii=False, indent=1), encoding='utf-8')
-    lines = [f'# 정리할 노트 {len(batch)}장 (전체 대기 {len(inbox_files)}장)', '', RULES, '## 기존 폴더 (노트 수)', '']
+    lines = [f'# 정리할 노트 {len(batch)}장 (전체 대기 {len(inbox_files)}장)', '', RULES, *rules_lines(load_rules(store, files)), '## 기존 폴더 (노트 수)', '']
     drawers = drawer_counts(organized)
     lines.append(', '.join(f'{c} ({n})' for c, n in drawers) if drawers else '(아직 없음. 필요한 폴더를 새로 만든다)')
     lines += ['', '## 노트', '']

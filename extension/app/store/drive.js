@@ -166,11 +166,11 @@ export function createDriveAdapter(auth) {
     },
     readText: (id) => call(`${API}/files/${id}?alt=media`, {}, 'text'),
     readBlob: (id) => call(`${API}/files/${id}?alt=media`, {}, 'blob'),
-    async writeNote({ id, dir, name, text, fromDir }) {
-      const blob = new Blob([text], { type: 'text/markdown' });
+    async writeNote({ id, dir, name, text, fromDir, mimeType = 'text/markdown' }) {
+      const blob = new Blob([text], { type: mimeType });
       if (!id) {
         const parent = await ensureDir(dir);
-        const { body, headers } = multipart({ name, parents: [parent], mimeType: 'text/markdown' }, blob);
+        const { body, headers } = multipart({ name, parents: [parent], mimeType }, blob);
         return toFile(await call(`${UPLOAD}/files?uploadType=multipart&fields=${FIELDS}`, { method: 'POST', headers, body }));
       }
       const p = new URLSearchParams({ uploadType: 'multipart', fields: FIELDS });

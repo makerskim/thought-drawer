@@ -9,6 +9,8 @@ import { openLayer } from './layers.js';
 import { capturePhotos } from '../capture.js';
 import { quickSave, kindOfText } from '../quick.js';
 import { modKey } from '../format.js';
+import { useSlash } from './slash.js';
+import { preview, GuessLine } from './guess.js';
 
 const HINT = {
   empty: ['memo', '메모, 링크, 할 일'],
@@ -33,22 +35,28 @@ function Composer({ close, initial = '' }) {
     el?.setSelectionRange(el.value.length, el.value.length);
   }, []);
 
-  const k = kindOfText(text);
+  const set = (v) => { draft = v; setText(v); };
+  const slash = useSlash({ text, setText: set, ref, onAction: (a, rest) => {
+    if (a === 'photo') { draft = ''; close(); app.pickPhotos(rest); } else if (a === 'paste') { navigator.clipboard?.readText?.().then((t) => t && set(`${rest}${rest ? '\n' : ''}${t}`)).catch(() => toast('붙여넣기 권한이 필요합니다')); } else if (a === 'big') bigNote(rest);
+  } });
+  const pre = text.trim() ? preview(text, app.lib, slash.allow) : null;
+  const k = kindOfText(pre?.text ?? text);
   const [icon, hint] = HINT[k.kind];
   const save = async (open = false) => {
     if (!text.trim() || busy) return;
     setBusy(true);
-    try { await quickSave(text, { open }); draft = ''; setText(''); close(); } catch (e) { toast(e.message); setBusy(false); }
+    try { await quickSave(text, { open, allow: slash.allow }); draft = ''; setText(''); close(); } catch (e) { toast(e.message); setBusy(false); }
   };
   const photos = (files) => { draft = ''; close(); capturePhotos(files, text); };
-  const bigNote = () => {
-    const [first, ...rest] = text.split('\n');
+  const bigNote = (t = text) => {
+    const [first, ...rest] = t.split('\n');
     draft = '';
     close();
     go(`#/new${first.trim() ? `?title=${encodeURIComponent(first.trim())}` : ''}`);
     if (rest.join('\n').trim()) toast('나머지는 본문에 붙여 넣으세요');
   };
   const onKeyDown = (e) => {
+    if (slash.onKeyDown(e)) return;
     if (e.isComposing || e.keyCode === 229) return;
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(e.metaKey || e.ctrlKey); }
   };
@@ -64,13 +72,16 @@ function Composer({ close, initial = '' }) {
       <button type="button" class="icon-btn" aria-label="닫기" title="닫기 (Esc)" onClick=${close}><${Icon} name="x" /></button>
     </div>
     <textarea ref=${ref} rows="3" value=${text} aria-label="넣을 내용" enterkeyhint="send"
-      placeholder="메모, 링크, 할 일"
-      onInput=${(e) => { draft = e.target.value; setText(draft); }} onKeyDown=${onKeyDown}
+      placeholder="메모, 링크, 할 일 · / 명령어"
+      onInput=${(e) => { set(e.target.value); slash.refresh(e.target.value, e.target.selectionStart); }} onKeyDown=${onKeyDown}
+      onKeyUp=${(e) => { if (/^(Arrow(Left|Right)|Home|End)$/.test(e.key)) slash.refresh(); }} onClick=${() => slash.refresh()} onBlur=${() => slash.close()}
       onPaste=${(e) => {
         const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
         if (files.length) { e.preventDefault(); e.stopPropagation(); photos(files); }
       }}></textarea>
+    ${slash.view}
     <p class=${cx('composer-hint', `h-${k.kind}`)}><${Icon} name=${icon} /><span>${hint}${k.host ? html` <b>${k.host}</b>` : ''}${k.title ? html` <b>${k.title}</b>` : ''}</span></p>
+    ${pre && html`<${GuessLine} pre=${pre} />`}
     <div class="composer-foot">
       <button type="button" class="btn btn-ghost" onClick=${() => { draft = ''; close(); app.pickPhotos(text); }}><${Icon} name="capture" />사진</button>
       <button type="button" class="btn btn-ghost hide-m" onClick=${bigNote} title="편집기에서 길게 쓰기"><${Icon} name="pen" />크게 쓰기</button>

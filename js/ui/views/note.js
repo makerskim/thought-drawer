@@ -3,7 +3,7 @@
 import { html, useState, useEffect, useLayoutEffect, useRef, useCallback, autosize } from '../h.js';
 import { Icon, Mascot, TYPE_ICON } from '../icons.js';
 import { app, useLib, toast } from '../state.js';
-import { go, setUrl, noteHref, folderHref } from '../router.js';
+import { go, setUrl, noteHref, folderHref, tagHref } from '../router.js';
 import { SaveState } from '../parts/shell.js';
 import { Tag, MenuItem, Empty, SkeletonRows, KindIcon, FolderDot, titleOf } from '../parts/common.js';
 import { popover, modal } from '../parts/layers.js';
@@ -13,7 +13,7 @@ import { splitLinks, joinLinks } from '../../core/wiki.js';
 import { categoryParts, embeds } from '../../core/note.js';
 import { relTime, fullDate, KIND_LABEL } from '../format.js';
 import { TEMPLATES, rememberSeen } from '../notebook.js';
-import { categoryOf, categoryLook } from '../categories.js';
+import { categoryOf, categoryLook, tagsOf } from '../categories.js';
 
 const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
 const shortDate = (iso) => { const d = new Date(iso); return Number.isNaN(+d) ? '' : `${d.getFullYear() === new Date().getFullYear() ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월 ${d.getDate()}일`; };
@@ -262,6 +262,7 @@ export function NoteView({ id, params }) {
   const m = note?.meta ?? { type: 'memo', status: 'inbox' };
   const folder = m.status === 'organized' ? m.category : null;
   const cat = note ? categoryOf(note, lib) : null;
+  const autoTags = note ? tagsOf(note, lib) : [];
 
   const ensureSaved = async () => { await flush(); return lib.get(latest.current.noteId); };
   const update = async (meta) => {
@@ -302,7 +303,7 @@ export function NoteView({ id, params }) {
   return html`<div class="ws">
     <${Explorer} note=${note} cat=${cat} />
     <div class="ws-main">
-      <${WsBar} noteId=${noteId} siblings=${note && cat ? lib.all.filter((n) => categoryOf(n, lib).name === cat.name).map((n) => n.id) : []} crumb=${html`${cat ? html`<a href=${folderHref(cat.name)}>${cat.name}</a><${Icon} name="chevron" />` : html`<span>새 노트</span><${Icon} name="chevron" />`}<b>${title.trim() || (note ? titleOf(note) : '제목 없음')}</b>`} right=${html`
+      <${WsBar} noteId=${noteId} siblings=${note && cat ? lib.all.filter((n) => categoryOf(n, lib).name === cat.name).map((n) => n.id) : []} crumb=${html`${cat ? html`<a href=${folderHref(cat.name)}>${cat.name}</a><${Icon} name="chevron" />${cat.sub && html`<a href=${folderHref(`${cat.name}/${cat.sub}`)}>${cat.sub}</a><${Icon} name="chevron" />`}` : html`<span>새 노트</span><${Icon} name="chevron" />`}<b>${title.trim() || (note ? titleOf(note) : '제목 없음')}</b>`} right=${html`
         <${SaveState} state=${saveState} />
         <span class="grow"></span>
         ${note && html`<button type="button" class=${`icon-btn${pinned ? ' starred' : ''}`} aria-pressed=${pinned} aria-label="즐겨찾기" title="즐겨찾기" onClick=${togglePin}><${Icon} name="star" /></button>`}
@@ -316,7 +317,9 @@ export function NoteView({ id, params }) {
               <${FolderDot} path=${cat?.path ?? ''} />${cat ? categoryParts(cat.path).join(' / ') : '자동 분류'}${cat?.auto && html`<span class="auto-badge">자동</span>`}<${Icon} name="down" /></button>
             ${cat?.auto && html`<p class="auto-why"><${Mascot} size=${18} /><span>자동 분류${cat.why ? `: ${cat.why}` : ''}</span></p>`}</dd>
           <dt><${Icon} name="tag" />태그</dt>
-          <dd><${TagEditor} tags=${m.tags ?? []} onChange=${(tags) => update({ tags })} /></dd>
+          <dd><${TagEditor} tags=${m.tags ?? []} onChange=${(tags) => update({ tags })} />
+            ${note && !(m.tags ?? []).length && autoTags.length > 0 && html`<p class="auto-tags"><span class="auto-badge">자동</span>${autoTags.map((t) => html`<a key=${t} class="atag" href=${tagHref(t)}>#${t}</a>`)}
+              <button type="button" class="btn-link" onClick=${() => update({ tags: autoTags })}>태그로 저장</button></p>`}</dd>
           <dt><${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} />종류</dt>
           <dd>${kindLabel}${m.author ? ` · @${m.author}` : ''}</dd>
           ${m.source && html`<dt><${Icon} name="external" />출처</dt><dd><a href=${m.source} target="_blank" rel="noopener" title=${m.source}>${hostOf(m.source)}</a></dd>`}
@@ -338,7 +341,11 @@ export function NoteView({ id, params }) {
         ${loaded
           ? html`<${NoteEditor} noteId=${noteId} value=${main} onChange=${change(setMain)} editorRef=${editorRef}
               onReady=${(ed) => { if (wantBody.current) { wantBody.current = false; ed.commands.focus('start'); } }}
-              placeholder="/ 블록, [[ 노트 연결"
+              placeholder="/ 명령어, [[ 노트 연결"
+              onTokens=${async ({ tags, drawer }) => {
+                if (tags.length) await update({ tags: [...new Set([...(lib.get(latest.current.noteId)?.meta.tags ?? m.tags ?? []), ...tags])] });
+                if (drawer) { const n = await ensureSaved(); if (n) { await lib.moveTo(lib.get(n.id) ?? n, drawer); toast(`${drawer.replace('/', ' / ')}(으)로 옮김`); } }
+              }}
               onImage=${(src) => modal((close) => html`<${Lightbox} src=${src} close=${close} />`)} />`
           : html`<div class="sk" style="height:16px;width:80%;margin-bottom:10px"></div><div class="sk" style="height:16px;width:60%"></div>`}
         ${note && html`<p class="facts"><span>${fullDate(m.created)}에 넣음</span><span>${relTime(m.updated || m.created)} 고침</span>${m.organized && html`<span>${relTime(m.organized)} Claude가 정리</span>`}<span class="num">No.${note.id}</span></p>`}

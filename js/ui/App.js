@@ -18,6 +18,8 @@ import { Ask } from './views/ask.js';
 import { Graph } from './views/graph.js';
 import { Login, Settings, Import, Bookmarks, Share, Paste } from './views/more.js';
 import { Connect } from './views/connect.js';
+import { Help } from './views/help.js';
+import { enrichNew } from './categories.js';
 import { createLibrary } from '../store/library.js';
 import { createDriveAdapter } from '../store/drive.js';
 import { createMemoryAdapter } from '../store/memory.js';
@@ -38,17 +40,18 @@ function Screen({ route, offline }) {
   if (path === '/ask') return html`<${Ask} key=${`ask:${seq}`} params=${params} />`;
   if (path === '/drawers') return html`<${Drawers} />`;
   if (path === '/tasks') return html`<${Tasks} />`;
-  if (path === '/all') return html`<${Shelf} scope=${{ kind: 'all' }} />`;
-  if (path === '/star') return html`<${Shelf} scope=${{ kind: 'star' }} />`;
-  if (path === '/inbox') return html`<${Shelf} scope=${{ kind: 'inbox' }} />`;
-  if (path === '/search') return html`<${Shelf} key=${`s:${params.get('q') ?? ''}`} scope=${{ kind: 'search', value: params.get('q') ?? '' }} />`;
-  if ((m = /^\/f\/(.+)$/.exec(path))) return html`<${Shelf} scope=${{ kind: 'folder', value: decodeURIComponent(m[1]) }} />`;
-  if ((m = /^\/t\/(.+)$/.exec(path))) return html`<${Shelf} scope=${{ kind: 'tag', value: decodeURIComponent(m[1]) }} />`;
+  if (path === '/all') return html`<${Shelf} scope=${{ kind: 'all' }} params=${params} />`;
+  if (path === '/star') return html`<${Shelf} scope=${{ kind: 'star' }} params=${params} />`;
+  if (path === '/inbox') return html`<${Shelf} scope=${{ kind: 'inbox' }} params=${params} />`;
+  if (path === '/search') return html`<${Shelf} key=${`s:${params.get('q') ?? ''}`} scope=${{ kind: 'search', value: params.get('q') ?? '' }} params=${params} />`;
+  if ((m = /^\/f\/(.+)$/.exec(path))) return html`<${Shelf} scope=${{ kind: 'folder', value: decodeURIComponent(m[1]) }} params=${params} />`;
+  if ((m = /^\/t\/(.+)$/.exec(path))) return html`<${Shelf} scope=${{ kind: 'tag', value: decodeURIComponent(m[1]) }} params=${params} />`;
   if (path === '/graph') return html`<${Graph} />`;
   if (path === '/import') return html`<${Import} />`;
   if (path === '/bookmarks') return html`<${Bookmarks} />`;
   if (path === '/connect') return html`<${Connect} />`;
-  if (path === '/settings') return html`<${Settings} offline=${offline} />`;
+  if (path === '/settings') return html`<${Settings} offline=${offline} params=${params} />`;
+  if (path === '/help') return html`<${Help} />`;
   if (path === '/share') return html`<${Share} params=${params} />`;
   if (path === '/paste') return html`<${Paste} />`;
   return html`<${Home} />`;
@@ -116,6 +119,7 @@ export function App({ auth }) {
     app.profile = profile;
     const adapter = test ? createMemoryAdapter(test) : createDriveAdapter(auth);
     app.lib = createLibrary(adapter, { cacheName: test ? 'td-test' : `td-cache:${profile.email ?? 'me'}` });
+    app.lib.enrich = (n) => enrichNew(n, app.lib); // 새 노트에 자동 태그
     if (test) { await app.lib.clearCache(); window.__TD_APP__ = app; }
     const cached = await app.lib.loadCached();
     if (cached) setPhase('ready');
@@ -166,7 +170,7 @@ export function App({ auth }) {
       if (isTyping(document.activeElement) || e.metaKey || e.ctrlKey || e.altKey) return;
       // Enter: 무엇에도 커서가 없으면 가운데 입력창 (단추나 카드에 있으면 그것을 누른 것)
       const idle = !document.activeElement || document.activeElement === document.body || document.activeElement.matches('.ws-main, main');
-      if (e.key === 'Enter' && !e.shiftKey && idle && !/^\/(settings|import|bookmarks|connect|share|paste)$/.test(route.path)) { e.preventDefault(); if (isSheet || !app.focusCapture?.()) openComposer(); return; }
+      if (e.key === 'Enter' && !e.shiftKey && idle && !/^\/(settings|import|bookmarks|connect|share|paste|help)$/.test(route.path)) { e.preventDefault(); if (isSheet || !app.focusCapture?.()) openComposer(); return; }
       if (e.key === '/') { e.preventDefault(); app.find(); }
       else if (e.key === 'n') { e.preventDefault(); go('#/new'); }
       else if (e.key === 't') { e.preventDefault(); openToday(); }

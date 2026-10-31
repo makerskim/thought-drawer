@@ -13,20 +13,18 @@ import { openComposer } from '../parts/composer.js';
 import { openTutorial } from '../parts/tutorial.js';
 import { capturePhotos, readClipboard } from '../capture.js';
 import { quickSave, kindOfText } from '../quick.js';
+import { useSlash } from '../parts/slash.js';
+import { preview, GuessLine } from '../parts/guess.js';
 import { openToday, todayKey, findDaily } from '../notebook.js';
-import { categoryOf, guessCategory, drawerList, inDrawer, categoryLook } from '../categories.js';
+import { categoryOf, guessCategory, drawerList, inDrawer, categoryLook, settingsOf, tagsOf, tagCounts } from '../categories.js';
 import { search, parseQuery } from '../../core/search.js';
+import { readFilter, applyFilter, activeCount, SORTS } from '../../core/filter.js';
+import { FilterBar, clearFilters } from '../parts/filters.js';
 import { categoryParts } from '../../core/note.js';
 import { openTasks, setTask } from '../../core/tasks.js';
 import { relTime } from '../format.js';
 
 const PAGE = 60;
-const TYPES = [['', '전체'], ['memo', '메모'], ['bookmark', '링크'], ['capture', '사진'], ['instagram', '인스타']];
-const SORTS = [['new', '넣은 순'], ['updated', '고친 순'], ['title', '이름 순']];
-const SORTER = {
-  updated: (a, b) => String(b.meta.updated || b.meta.created).localeCompare(String(a.meta.updated || a.meta.created)),
-  title: (a, b) => titleOf(a).localeCompare(titleOf(b), 'ko'),
-};
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 // 처음 한 번은 사용법 안내 (노트가 그려진 뒤에)
@@ -40,16 +38,6 @@ function useFirstTour(lib) {
 }
 
 // ---------- 넣는 칸 (애플 검색창처럼 가운데 긴 칸) ----------
-function draftMeta(text) {
-  const k = kindOfText(text);
-  const t = text.trim();
-  if (k.kind === 'link' || k.kind === 'instagram') {
-    const [url, ...rest] = t.split(/\s+/);
-    return { meta: { type: k.kind === 'instagram' ? 'instagram' : 'bookmark', source: url }, body: rest.join(' ') };
-  }
-  const lines = t.split('\n');
-  return k.kind === 'titled' ? { meta: { title: lines[0] }, body: lines.slice(1).join('\n') } : { meta: {}, body: t };
-}
 
 // 첫 화면의 서랍이: 넣는 칸 위에 앉아 적는 글을 보고, 어느 서랍으로 갈지 말해 주고, 넣으면 기뻐한다.
 // 가만히 있으면 가끔 눈을 깜빡이고 쓰는 법을 하나씩 알려 준다. 누르면 말을 건다.
@@ -71,10 +59,11 @@ function HeroMascot({ text, guess, link, drag, busy }) {
   const [hop, setHop] = useState(0);
   const tip = useRef(0);
   const idle = useRef(Date.now());
+  const [talk] = usePref('mascotTalk', 'on'); // on: 말 많이, quiet: 필요할 때만, off: 말 안 함
   // 처음 한 번 인사
   const typing = useRef(false);
   typing.current = !!text.trim();
-  useEffect(() => { const t = setTimeout(() => { if (!typing.current) setBubble((b) => b ?? { text: GREET(), until: Date.now() + 6000 }); }, 700); return () => clearTimeout(t); }, []);
+  useEffect(() => { if (talk !== 'on') return undefined; const t = setTimeout(() => { if (!typing.current) setBubble((b) => b ?? { text: GREET(), until: Date.now() + 6000 }); }, 700); return () => clearTimeout(t); }, []);
   // 다른 곳에서 건넨 말 (넣었어요 등)
   useEffect(() => { if (said) { setBubble({ text: said.text, mood: said.mood, until: said.until }); if (said.hop) setHop((h) => h + 1); idle.current = Date.now(); } }, [said?.id]);
   // 적는 동안: 무엇으로, 어느 서랍으로 갈지
@@ -87,12 +76,12 @@ function HeroMascot({ text, guess, link, drag, busy }) {
   // 오래 가만히 있으면 쓰는 법 하나 (세 번까지)
   useEffect(() => {
     const iv = setInterval(() => {
-      if (text.trim() || tip.current >= 3 || Date.now() - idle.current < 30000) return;
+      if (talk !== 'on' || text.trim() || tip.current >= 3 || Date.now() - idle.current < 30000) return;
       idle.current = Date.now();
       setBubble({ text: TIPS[tip.current++ % TIPS.length], until: Date.now() + 6000 });
     }, 5000);
     return () => clearInterval(iv);
-  }, [text]);
+  }, [text, talk]);
   // 말풍선은 정한 시간이 지나면 닫힌다
   useEffect(() => {
     if (!bubble) return undefined;
@@ -104,9 +93,14 @@ function HeroMascot({ text, guess, link, drag, busy }) {
   const poke = () => { setHop((h) => h + 1); setBubble({ text: drag ? '여기 놓으세요!' : TIPS[tip.current++ % TIPS.length], until: Date.now() + 5000 }); };
   return html`<div class="cap-mascot">
     <button type="button" class=${cx('cm-body', hop && `hop${hop % 2}`)} onClick=${poke} aria-label="서랍이에게 말 걸기" title="서랍이"><${Mascot} size=${64} mood=${mood} look=${look} /></button>
-    ${(bubble || drag) && html`<p class="cm-bubble" role="status" key=${drag ? 'drag' : bubble.text}>${drag ? '여기 놓으세요!' : bubble.text}</p>`}
+    ${talk !== 'off' && (bubble || drag) && html`<p class="cm-bubble" role="status" key=${drag ? 'drag' : bubble.text}>${drag ? '여기 놓으세요!' : bubble.text}</p>`}
   </div>`;
 }
+
+const bigNote = (text) => {
+  const first = text.split('\n')[0].trim();
+  go(`#/new${first ? `?title=${encodeURIComponent(first)}` : ''}`);
+};
 
 function CaptureBar() {
   const lib = useLib();
@@ -119,13 +113,15 @@ function CaptureBar() {
     app.focusCapture = () => { const el = ref.current; if (!el) return false; el.focus(); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); return true; };
     return () => { app.focusCapture = null; };
   }, []);
-  const k = kindOfText(text);
-  const d = text.trim() ? draftMeta(text) : null;
-  const guess = d ? guessCategory(d.meta, d.body, lib) : null;
+  const slash = useSlash({ text, setText, ref, onAction: (a, rest) => {
+    if (a === 'photo') { app.pickPhotos(rest); setText(''); } else if (a === 'paste') paste(); else if (a === 'big') { bigNote(rest); setText(''); }
+  } });
+  const pre = text.trim() ? preview(text, lib, slash.allow) : null;
+  const k = kindOfText(pre?.text ?? text);
   const save = async (open = false) => {
     if (!text.trim() || busy) return;
     setBusy(true);
-    try { await quickSave(text, { open }); setText(''); } catch (e) { say(`앗, 넣지 못했어요. ${e.message}`, { mood: 'wow' }); toast(e.message); }
+    try { await quickSave(text, { open, allow: slash.allow }); setText(''); } catch (e) { say(`앗, 넣지 못했어요. ${e.message}`, { mood: 'wow' }); toast(e.message); }
     setBusy(false);
   };
   const photos = (files) => { capturePhotos(files, text); setText(''); };
@@ -148,16 +144,18 @@ function CaptureBar() {
       onDragOver=${(e) => { if ([...(e.dataTransfer?.types ?? [])].includes('Files')) { e.preventDefault(); e.stopPropagation(); setDrag(true); } }}
       onDragLeave=${() => setDrag(false)}
       onDrop=${(e) => { if (!e.dataTransfer?.files?.length) return; e.preventDefault(); e.stopPropagation(); setDrag(false); photos([...e.dataTransfer.files]); }}>
-    <${HeroMascot} text=${text} guess=${guess?.category} link=${k.kind === 'link' || k.kind === 'instagram'} drag=${drag} busy=${busy} />
+    <${HeroMascot} text=${text} guess=${slash.menu ? null : pre?.label} link=${k.kind === 'link' || k.kind === 'instagram'} drag=${drag} busy=${busy} />
     <div class="capbar-box">
       <button type="button" class="cap-plus" aria-label="넣는 방법 더 보기" aria-haspopup="menu" aria-expanded="false" title="더 보기" onClick=${(e) => more(e.currentTarget)}><${Icon} name="plus" /></button>
-      <textarea ref=${ref} rows="1" value=${text} aria-label="넣을 내용" enterkeyhint="send" placeholder="메모, 링크, 할 일"
-        onInput=${(e) => setText(e.target.value)}
-        onKeyDown=${(e) => { if (e.isComposing || e.keyCode === 229) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(e.metaKey || e.ctrlKey); } else if (e.key === 'Escape' && text) { e.preventDefault(); e.stopPropagation(); setText(''); } }}
+      <textarea ref=${ref} rows="1" value=${text} aria-label="넣을 내용" enterkeyhint="send" placeholder="메모, 링크, 할 일 · / 명령어"
+        onInput=${(e) => { setText(e.target.value); slash.refresh(e.target.value, e.target.selectionStart); }}
+        onKeyUp=${(e) => { if (/^(Arrow(Left|Right)|Home|End)$/.test(e.key)) slash.refresh(); }} onClick=${() => slash.refresh()} onBlur=${() => slash.close()}
+        onKeyDown=${(e) => { if (slash.onKeyDown(e)) return; if (e.isComposing || e.keyCode === 229) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(e.metaKey || e.ctrlKey); } else if (e.key === 'Escape' && text) { e.preventDefault(); e.stopPropagation(); setText(''); } }}
         onPaste=${(e) => { const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/')); if (files.length) { e.preventDefault(); e.stopPropagation(); photos(files); } }}></textarea>
       <button type="button" class="cap-save" disabled=${busy || !text.trim()} onClick=${() => save()}>넣기</button>
     </div>
-    ${guess && html`<p class="cap-hint"><span class="cap-guess"><${Icon} name=${categoryLook(guess.category).icon} /><b>${guess.category}</b> 서랍으로</span></p>`}
+    ${slash.view}
+    ${pre && !slash.menu && html`<${GuessLine} pre=${pre} />`}
   </div>`;
 }
 
@@ -258,10 +256,11 @@ export function Drawers() {
   const list = drawerList(lib);
   return html`<div class="drawers-page">
     <${Conn} />
-    <div class="page-hero"><h1>서랍.</h1><p>자동으로 분류된 서랍입니다.</p></div>
+    <div class="page-hero"><h1>서랍.</h1><p>서랍과 세부 서랍으로 자동 분류됩니다.</p></div>
     <div class="dbig-grid drawers">
       ${list.map((d) => html`<a key=${d.name} class=${`dbig c${d.look.tone}`} href=${folderHref(d.name)}>
         <span class="dbig-ic"><${Icon} name=${d.look.icon} /></span><b>${d.name}</b><span>${d.count}개${d.auto ? ` · 자동 ${d.auto}` : ''}</span>
+        ${d.subs.length > 0 && html`<span class="dsubs">${d.subs.slice(0, 4).map(([n, c]) => `${n} ${c}`).join(' · ')}</span>`}
         <ul>${lib.all.filter((n) => categoryOf(n, lib).name === d.name).slice(0, 3).map((n) => html`<li key=${n.id}>${titleOf(n)}</li>`)}</ul>
       </a>`)}
       <a class="dbig c6" href="#/all"><span class="dbig-ic"><${Icon} name="grid" /></span><b>모든 노트</b><span>${lib.all.length}개</span></a>
@@ -289,15 +288,14 @@ function useMore(key, total) {
 function TagList({ close }) {
   const lib = useLib();
   const [q, setQ] = useState('');
-  const counts = new Map();
-  for (const n of lib.all) for (const t of n.meta.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
-  const list = [...counts].filter(([t]) => t.toLowerCase().includes(q.trim().toLowerCase())).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko'));
+  const all = tagCounts(lib);
+  const list = all.filter(([t]) => t.toLowerCase().includes(q.trim().toLowerCase()));
   const pick = (i) => { close(); go(tagHref(list[i][0])); };
   const [idx, , onKeyDown] = useListNav(list.length, pick, [q]);
   return html`<div class="pop-search"><input autofocus value=${q} onInput=${(e) => setQ(e.target.value)} onKeyDown=${onKeyDown} placeholder="태그 찾기" aria-label="태그 찾기" /></div>
     <div class="pop-list">${list.length
       ? list.map(([t, c], i) => html`<${MenuItem} key=${t} icon="tag" label=${t} sub=${String(c)} on=${i === idx} onClick=${() => pick(i)} />`)
-      : html`<p class="mi-label">${counts.size ? '맞는 태그가 없어요' : '아직 태그가 없어요'}</p>`}</div>`;
+      : html`<p class="mi-label">${all.length ? '맞는 태그 없음' : '태그 없음'}</p>`}</div>`;
 }
 
 function List({ notes, hl, more }) {
@@ -344,68 +342,70 @@ function pick(lib, scope) {
   if (scope.kind === 'all') return lib.all;
   if (scope.kind === 'star') return lib.pinned();
   if (scope.kind === 'inbox') return lib.inbox();
-  if (scope.kind === 'tag') return lib.all.filter((n) => (n.meta.tags ?? []).includes(scope.value));
+  if (scope.kind === 'tag') return lib.all.filter((n) => tagsOf(n, lib).includes(scope.value));
   return lib.all.filter((n) => inDrawer(n, lib, scope.value));
 }
 
-// scope: { kind: 'folder'|'tag'|'star'|'inbox'|'all'|'search', value }
-export function Shelf({ scope }) {
+// scope: { kind: 'folder'|'tag'|'star'|'inbox'|'all'|'search', value }, params: 주소의 필터
+export function Shelf({ scope, params }) {
   const lib = useLib();
-  const [type, setType] = useState('');
+  const f = readFilter(params ?? new URLSearchParams());
   const [view, setView] = usePref('view', 'wall');
   const [sort, setSort] = usePref('sort', 'new');
   const [q, setQ] = useState(scope.kind === 'search' ? scope.value : '');
-  useEffect(() => { setType(''); window.scrollTo(0, 0); }, [scope.kind, scope.value]);
+  useEffect(() => { window.scrollTo(0, 0); }, [scope.kind, scope.value]);
   const searching = scope.kind === 'search';
   const pq = parseQuery(q);
   const base = searching ? (q.trim() ? search(lib.all, pq, { limit: 400 }).map((h) => h.note) : []) : pick(lib, scope);
-  const typed = type ? base.filter((n) => (n.meta.type ?? 'memo') === type) : base;
-  const notes = !searching && SORTER[sort] ? [...typed].sort(SORTER[sort]) : typed;
+  const ctx = { cat: (n) => categoryOf(n, lib), tags: (n) => tagsOf(n, lib), title: titleOf };
+  const prog = useBodies(f.has.some((k) => k === 'todo' || k === 'open' || k === 'done'));
+  const sortKey = f.sort || (searching ? '' : sort);
+  const notes = applyFilter(base, { ...f, sort: sortKey }, ctx);
+  const filtered = activeCount(f) > 0;
   app.visible = notes.map((n) => n.id);
   const hl = searching ? highlighter(pq.terms) : null;
-  const more = useMore(`${scope.kind}|${scope.value}|${type}|${sort}|${q}`, notes.length);
-  const counts = new Map();
-  for (const n of base) counts.set(n.meta.type ?? 'memo', (counts.get(n.meta.type ?? 'memo') ?? 0) + 1);
+  const more = useMore(`${scope.kind}|${scope.value}|${params?.toString() ?? ''}|${sort}|${q}`, notes.length);
   const top = scope.kind === 'folder' ? categoryParts(scope.value)[0] : null;
-  const look = categoryLook(top ?? '');
-  const subs = top ? lib.folders().find((f) => f.path === top)?.children ?? [] : [];
+  const entry = top ? drawerList(lib).find((d) => d.name === top) : null;
+  const real = top ? lib.folders().find((x) => x.path === top)?.children ?? [] : [];
+  const subs = entry ? [...entry.subs, ...real.filter((r) => !entry.subs.some(([n]) => n === r.name)).map((r) => [r.name, r.count])] : real.map((r) => [r.name, r.count]);
   const autoN = scope.kind === 'folder' ? base.filter((n) => categoryOf(n, lib).auto).length : 0;
-  const title = { folder: categoryParts(scope.value ?? '').join(' / '), tag: `#${scope.value}`, star: '즐겨찾기', inbox: 'Claude 정리 전', all: '모든 노트', search: '찾기' }[scope.kind];
+  const title = { folder: categoryParts(scope.value ?? '').join(' / '), tag: `#${scope.value}`, star: '즐겨찾기', inbox: '자동 분류만 된 노트', all: '모든 노트', search: '찾기' }[scope.kind];
   const menu = (anchor) => popover(anchor, (close) => html`
     <div class="mi-label">정렬</div>
-    ${SORTS.map(([k, label]) => html`<${MenuItem} key=${k} icon=${sort === k ? 'check' : 'blank'} label=${label} onClick=${() => { close(); setSort(k); }} />`)}
+    ${SORTS.map(([k, label]) => html`<${MenuItem} key=${k} icon=${sortKey === k ? 'check' : 'blank'} label=${label} onClick=${() => { close(); setSort(k); }} />`)}
     <div class="mi-sep"></div>
     <div class="mi-label">보기</div>
     <${MenuItem} icon=${view === 'wall' ? 'check' : 'blank'} label="포스터" onClick=${() => { close(); setView('wall'); }} />
     <${MenuItem} icon=${view === 'list' ? 'check' : 'blank'} label="목록 (여러 개 고르기)" onClick=${() => { close(); setView('list'); }} />
     <div class="mi-sep"></div>
     <${MenuItem} icon="tag" label="태그 모아 보기" onClick=${() => { close(); setTimeout(() => popover(anchor, (c2) => html`<${TagList} close=${c2} />`, { width: 260 }), 0); }} />`, { width: 240 });
+  const count = filtered ? `${notes.length}개 / 전체 ${base.length}개` : `${base.length}개`;
   return html`<div class="shelf">
-    <${PageBar} title=${title} back="#/drawers" right=${html`<button type="button" class="btn btn-ghost view-btn" aria-haspopup="menu" aria-expanded="false" aria-label="보기 설정" onClick=${(e) => menu(e.currentTarget)}><${Icon} name=${view === 'list' ? 'list' : 'grid'} /><span class="hide-m">${searching ? '맞는 순' : SORTS.find(([k]) => k === sort)?.[1]}</span></button>`} />
+    <${PageBar} title=${title} back="#/drawers" right=${html`<button type="button" class="btn btn-ghost view-btn" aria-haspopup="menu" aria-expanded="false" aria-label="보기 설정" onClick=${(e) => menu(e.currentTarget)}><${Icon} name=${view === 'list' ? 'list' : 'grid'} /><span class="hide-m">${sortKey ? SORTS.find(([k]) => k === sortKey)?.[1] : '맞는 순'}</span></button>`} />
     ${searching
       ? html`<div class="page-hero"><h1>${q.trim() ? `“${q.trim()}”` : '찾기'}</h1>
           <form class="ask-box" style="margin-top:18px;max-width:640px" onSubmit=${(e) => { e.preventDefault(); setUrl(`#/search?q=${encodeURIComponent(q)}`); }}>
             <${Icon} name="search" /><textarea rows="1" value=${q} aria-label="찾을 말" placeholder="찾을 말" onInput=${(e) => setQ(e.target.value)} onKeyDown=${(e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); setUrl(`#/search?q=${encodeURIComponent(q)}`); } }}></textarea>
             <a class="btn btn-primary" href=${`#/ask?q=${encodeURIComponent(q.trim())}`}><${Icon} name="sparkle" />물어보기</a></form>
-          <p>${q.trim() ? `${notes.length}개` : '제목, 본문, 태그, 사진 속 글자에서 찾습니다.'}</p></div>`
+          <p>${q.trim() ? count : '제목, 본문, 태그, 사진 속 글자에서 찾습니다.'}</p></div>`
       : html`<div class="page-hero">
           <h1>${title}.</h1>
-          <p>${base.length}개</p>
+          <p class="sh-count">${count}${prog ? ` · 할 일 확인 중 ${prog[0]}/${prog[1]}` : ''}</p>
           ${autoN > 0 && html`<p class="sh-note"><${Icon} name="sparkle" /><span>자동 분류 ${autoN}개. 노트에서 서랍을 바꿀 수 있습니다.</span></p>`}
-          ${subs.length > 0 && html`<nav class="chip-row" style="margin-top:16px" aria-label="안쪽 서랍">
+          ${subs.length > 0 && html`<nav class="chip-row sub-chips" style="margin-top:16px" aria-label="세부 서랍">
             <a class="chip" href=${folderHref(top)} aria-current=${scope.value === top ? 'page' : undefined}>${top} 전체</a>
-            ${subs.map((f) => html`<a key=${f.path} class="chip" href=${folderHref(f.path)} aria-current=${scope.value === f.path ? 'page' : undefined}>${f.name}<span class="n">${f.count}</span></a>`)}
+            ${subs.map(([name, c]) => html`<a key=${name} class="chip" href=${folderHref(`${top}/${name}`)} aria-current=${scope.value === `${top}/${name}` ? 'page' : undefined}>${name}<span class="n">${c}</span></a>`)}
           </nav>`}
         </div>`}
-    ${base.length > 0 && html`<div class="filters type-chips" role="group" aria-label="종류">
-      ${TYPES.filter(([k]) => !k || counts.get(k) || type === k).map(([k, label]) => html`<button type="button" key=${k || 'all'} class="chip" aria-pressed=${type === k}
-        onClick=${() => setType(type === k ? '' : k)}>${k && html`<${Icon} name=${TYPE_ICON[k]} />`}${label}${k && html`<span class="n">${counts.get(k) ?? 0}</span>`}</button>`)}
-    </div>`}
+    ${base.length > 0 && html`<${FilterBar} notes=${base} f=${f} ctx=${ctx} drawer=${scope.kind === 'folder'} />`}
     ${!notes.length
-      ? (searching && q.trim()
-        ? html`<${Empty} mood="wow" title="결과 없음" text="다른 낱말로 찾아보세요.">
-            <button type="button" class="btn" onClick=${() => openComposer(q)}><${Icon} name="plus" />메모로 넣기</button></${Empty}>`
-        : !searching && html`<${Empty} mood="think" title="비어 있음" text="" />`)
+      ? (filtered && base.length
+        ? html`<${Empty} mood="think" title="맞는 노트 없음" text="필터를 줄여 보세요."><button type="button" class="btn" onClick=${clearFilters}>필터 지우기</button></${Empty}>`
+        : searching && q.trim()
+          ? html`<${Empty} mood="wow" title="결과 없음" text="다른 낱말로 찾아보세요.">
+              <button type="button" class="btn" onClick=${() => openComposer(q)}><${Icon} name="plus" />메모로 넣기</button></${Empty}>`
+          : !searching && html`<${Empty} mood="think" title="비어 있음" text="" />`)
       : view === 'list'
         ? html`<${List} notes=${notes} hl=${hl} more=${more} />`
         : html`<div class="grid">${notes.slice(0, more[0]).map((n) => html`<${Poster} key=${n.id} note=${n} hl=${hl} />`)}</div><div ref=${more[1]} class="sentinel"></div>`}
@@ -426,13 +426,13 @@ async function flipTask(lib, n, t, done) {
 const taskGroups = (lib) => lib.all.map((n) => ({ n, tasks: n.body ? openTasks(n.body) : [] })).filter((g) => g.tasks.length)
   .sort((a, b) => String(b.n.meta.updated || b.n.meta.created).localeCompare(String(a.n.meta.updated || a.n.meta.created)));
 
-export function Tasks() {
+// 본문을 아직 안 받은 노트는 받아 온다 (한 번 받으면 기기에 남는다). 할 일 화면, 할 일 필터가 쓴다.
+function useBodies(enabled = true) {
   const lib = useLib();
   const [prog, setProg] = useState(null);
-  // 본문을 아직 안 받은 노트는 받아 온다 (한 번 받으면 기기에 남는다)
   useEffect(() => {
-    const missing = lib.all.filter((n) => n.body === undefined);
-    if (!missing.length) return undefined;
+    const missing = enabled ? lib.all.filter((n) => n.body === undefined) : [];
+    if (!missing.length) { setProg(null); return undefined; }
     let alive = true;
     let done = 0;
     setProg([0, missing.length]);
@@ -445,7 +445,13 @@ export function Tasks() {
     };
     Promise.all([work(), work(), work(), work()]).then(() => alive && setProg(null));
     return () => { alive = false; };
-  }, [lib.all.length]);
+  }, [lib.all.length, enabled]);
+  return prog;
+}
+
+export function Tasks() {
+  const lib = useLib();
+  const prog = useBodies(true);
   const groups = taskGroups(lib);
   const left = groups.reduce((s, g) => s + g.tasks.length, 0);
   return html`<div class="tasks-page">

@@ -8,6 +8,8 @@ import { go, noteHref } from './router.js';
 import { toEditorMarkdown, fromEditorMarkdown, WIKI, ATT } from '../core/wiki.js';
 import { search } from '../core/search.js';
 import { displayTitle } from '../core/note.js';
+import { fillVars, takeTokens, matchSlash } from '../core/slash.js';
+import { settingsOf, drawerTargets } from './categories.js';
 
 let bundle;
 const loadBundle = () => (bundle ??= import('../vendor/editor.bundle.js'));
@@ -28,9 +30,17 @@ const BLOCKS = [
   { key: 'link', icon: 'connect', label: '다른 노트 잇기', hint: '[[', special: 'link' },
 ];
 
+// 날짜·시각과 내 키워드 (설정 → / 명령어)도 같은 목록에
+const STAMPS = [
+  { key: '오늘', alias: ['today', '날짜'], icon: 'calendar', label: '오늘 날짜', text: '{오늘}' },
+  { key: '내일', alias: ['tomorrow'], icon: 'calendar', label: '내일 날짜', text: '{내일}' },
+  { key: '지금', alias: ['now', '시간'], icon: 'clock', label: '지금 시각', text: '{지금}' },
+];
+const KO = { h1: ['제목1', '큰제목'], h2: ['제목2'], h3: ['제목3'], ul: ['목록', '글머리'], ol: ['번호'], todo: ['할일', '체크'], quote: ['인용'], code: ['코드'], hr: ['구분선', '줄'], photo: ['사진', '이미지'], link: ['잇기', '연결'] };
 function matchBlocks(q) {
-  const s = q.trim();
-  return s ? BLOCKS.filter((b) => b.label.includes(s) || b.key.startsWith(s)) : BLOCKS;
+  const mine = app.lib ? settingsOf(app.lib).keywords.map((k) => ({ key: k.key, icon: 'sparkle', label: k.key, hint: '내 키워드', text: k.text, mine: true })) : [];
+  const all = [...BLOCKS.map((b) => ({ ...b, alias: KO[b.key] ?? [] })), ...STAMPS, ...mine];
+  return matchSlash(q, all).slice(0, 24);
 }
 
 function matchNotes(q, selfId) {
@@ -72,7 +82,7 @@ export function fileRules(Image, HardBreak) {
 }
 
 // 노트 화면에 쓰는 편집기. key를 노트마다 달리 줘서 다시 만든다.
-export function NoteEditor({ value, onChange, onImage, noteId, placeholder, editorRef, onReady }) {
+export function NoteEditor({ value, onChange, onImage, noteId, placeholder, editorRef, onReady, onTokens }) {
   const host = useRef();
   const ed = useRef(null);
   const [ready, setReady] = useState(false);
@@ -207,7 +217,7 @@ export function NoteEditor({ value, onChange, onImage, noteId, placeholder, edit
     if (!empty) { setMenu(null); return; }
     const before = $from.parent.textBetween(0, $from.parentOffset, undefined, '￼');
     const link = /\[\[([^\]\n]{0,40})$/.exec(before);
-    const block = /^\/([^\s/]{0,12})$/.exec(before);
+    const block = /(?:^|\s)\/([^\s/]{0,12})$/.exec(before);
     if (!link && !block) { if (menuRef.current) setMenu(null); return; }
     const coords = e.view.coordsAtPos($from.pos);
     const query = (link ?? block)[1];
@@ -254,6 +264,13 @@ export function NoteEditor({ value, onChange, onImage, noteId, placeholder, edit
       return;
     }
     e.chain().focus().deleteRange({ from: m.from, to }).run();
+    if (item.text !== undefined) {
+      // 내 키워드: #태그·@서랍 은 노트에 달고, 나머지 글을 넣는다
+      const got = takeTokens(fillVars(item.text), { drawers: drawerTargets(app.lib) });
+      if (got.tags.length || got.drawer) onTokens?.(got);
+      if (got.text) e.chain().focus().insertContent(item.mine ? toEditorMarkdown(got.text) : got.text).run();
+      return;
+    }
     if (item.special === 'photo') { choosePhotos(); return; }
     if (item.special === 'link') { e.chain().focus().insertContent('[[').run(); return; }
     item.run(e.chain().focus()).run();
@@ -291,7 +308,7 @@ export function NoteEditor({ value, onChange, onImage, noteId, placeholder, edit
           ${mark('link', () => { const href = ed.current.getAttributes('link').href ?? ''; setLinkEdit(href.startsWith(WIKI) ? '' : href); return ed.current.chain(); }, html`<${Icon} name="link" />`, '링크')}`}
     </div>`}
     ${menu && menu.items.length > 0 && html`<div class="pop slash" style=${`left:${Math.min(menu.x, window.innerWidth - 300)}px;top:${menu.y + 6}px`} role="listbox">
-      <div class="mi-label">${menu.kind === 'link' ? '이을 노트' : '블록 넣기'}</div>
+      <div class="mi-label">${menu.kind === 'link' ? '이을 노트' : '명령어'}</div>
       ${menu.items.map((it, i) => html`<button type="button" key=${it.id ?? it.key} role="option" aria-selected=${i === menu.idx} class=${`mi${i === menu.idx ? ' on' : ''}`}
           onMouseDown=${(ev) => ev.preventDefault()} onMouseMove=${() => i !== menu.idx && setMenu({ ...menu, idx: i })} onClick=${() => pick(menu, i)}>
         ${menu.kind === 'link'

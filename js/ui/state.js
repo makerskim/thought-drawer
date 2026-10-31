@@ -28,11 +28,19 @@ export const prefs = {
   },
   set(key, value) {
     try { value == null ? localStorage.removeItem(PREFIX + key) : localStorage.setItem(PREFIX + key, JSON.stringify(value)); } catch { /* 저장 불가 */ }
+    prefSubs.forEach((fn) => fn(key, value));
   },
 };
+const prefSubs = new Set();
 
+// 같은 값을 쓰는 다른 화면(설정 ↔ 옆 메뉴)도 함께 바뀐다
 export function usePref(key, fallback) {
   const [v, setV] = useState(() => prefs.get(key, fallback));
+  useEffect(() => {
+    const on = (k, nv) => { if (k === key) setV(nv ?? fallback); };
+    prefSubs.add(on);
+    return () => prefSubs.delete(on);
+  }, [key]);
   return [v, (nv) => { prefs.set(key, nv); setV(nv); }];
 }
 

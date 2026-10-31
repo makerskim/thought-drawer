@@ -70,6 +70,8 @@ const P = {
   bookmark: '<path d="M6.5 4.5h11v15.5L12 16.2l-5.5 3.8z"/>',
   help: '<circle cx="12" cy="12" r="8"/><path d="M9.8 9.6a2.3 2.3 0 1 1 3.1 2.2c-.6.3-.9.7-.9 1.3v.4"/><path d="M12 16.4h.01"/>',
   pen: '<path d="M14.5 5.5l4 4L9 19H5v-4z"/><path d="M12.5 7.5l4 4"/>',
+  filter: '<path d="M4 6h16M7 12h10M10 18h4"/>',
+  slash: '<rect x="3.5" y="4.5" width="17" height="15" rx="3.5"/><path d="m13.8 8-3.6 8"/>',
   sun: '<circle cx="12" cy="12" r="3.8"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>',
 };
 
