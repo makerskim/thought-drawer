@@ -206,6 +206,8 @@ export function createDriveAdapter(auth) {
         call(`${API}/files/${doc.id}`, { method: 'DELETE' }, 'none').catch(() => {});
       }
     },
+    // 구글 저장 공간 (바이트): limit 전체(무제한이면 없음), usage 쓴 양(Gmail·포토 포함), usageInDrive 드라이브, usageInDriveTrash 휴지통
+    async quota() { return (await call(`${API}/about?fields=storageQuota`)).storageQuota ?? {}; },
     canOcr: true,
     mkdir: (path) => ensureDir(path),
   };

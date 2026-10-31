@@ -10,7 +10,7 @@ export function createMemoryAdapter(seed = {}) {
   const dirs = new Set([INBOX_DIR]);
   let seq = 0;
   const now = () => new Date(Date.now() + seq).toISOString();
-  const pub = (f) => ({ id: f.id, name: f.name, dir: f.dir, mimeType: f.mimeType, modifiedTime: f.modifiedTime });
+  const pub = (f) => ({ id: f.id, name: f.name, dir: f.dir, mimeType: f.mimeType, modifiedTime: f.modifiedTime, size: typeof f.data === 'string' ? new Blob([f.data]).size : f.data?.size ?? 0 });
   const add = (dir, name, data, mimeType) => {
     const f = { id: `m${++seq}`, name, dir, mimeType, modifiedTime: now(), data };
     files.set(f.id, f);
@@ -46,6 +46,8 @@ export function createMemoryAdapter(seed = {}) {
     async untrash(id) { files.set(id, trashed.get(id)); trashed.delete(id); },
     async uploadAttachment(blob, name) { return pub(add('_첨부', name, blob, blob.type)); },
     async ocr() { return ''; },
+    // 시험용 저장 공간: 15GB 중 드라이브 2.1GB, 전체 6.2GB
+    async quota() { return seed.quota ?? { limit: String(15 * 1024 ** 3), usage: String(Math.round(6.2 * 1024 ** 3)), usageInDrive: String(Math.round(2.1 * 1024 ** 3)), usageInDriveTrash: '0' }; },
     async mkdir(path) { dirs.add(path); },
   };
 }

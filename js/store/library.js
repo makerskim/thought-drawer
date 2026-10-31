@@ -43,6 +43,7 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
   const taken = new Set();
   const state = { syncing: false, synced: false, error: null, lastSync: null };
 
+  let bytes = 0; // 「메모」 폴더가 드라이브에서 쓰는 양 (노트 + 사진 + 설정)
   let version = 0; // 바뀔 때마다 하나씩 (화면 쪽 계산을 다시 할지 정할 때 쓴다)
   const emit = () => { version++; listeners.forEach((fn) => fn()); };
 
@@ -94,6 +95,7 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
         index = v.index ?? null;
         settings = v.settings ?? null;
         settingsFile = v.settingsFile ?? null;
+        bytes = v.bytes ?? 0;
         state.lastSync = v.lastSync ?? null;
       } else if (String(key).startsWith('note:') && v?.file) {
         put(hydrate(v.file, v.meta, v.body, { snippet: v.snippet }));
@@ -109,6 +111,7 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
     emit();
     try {
       const listing = await adapter.list();
+      bytes = listing.files.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
       dirs = listing.dirs.filter((d) => !SPECIAL_DIRS.has(d.split('/')[0]));
       attachments.clear();
       const md = [];
@@ -165,7 +168,7 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
   }
 
   function saveListing() {
-    cache.set('listing', { dirs, attachments: [...attachments].map(([n, a]) => [n, a.id]), index, settings, settingsFile, lastSync: state.lastSync }).catch(() => {});
+    cache.set('listing', { dirs, attachments: [...attachments].map(([n, a]) => [n, a.id]), index, settings, settingsFile, bytes, lastSync: state.lastSync }).catch(() => {});
   }
 
   async function write(note, { meta, body }, { fromDir } = {}) {
@@ -203,6 +206,14 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
     get index() { return index; },
     get settings() { return settings; },
     get version() { return version; },
+    get bytes() { return bytes; },
+    // 구글 저장 공간 → { limit, used, drive, app } (바이트, limit 0이면 무제한)
+    async quota() {
+      if (!adapter.quota) return null;
+      const q = await adapter.quota();
+      const n = (v) => Number(v) || 0;
+      return { limit: n(q.limit), used: n(q.usage), drive: n(q.usageInDrive), app: bytes };
+    },
     enrich: null,
     // 함께 쓰는 설정 저장: 드라이브 _시스템/settings.json
     async saveSettings(next) {

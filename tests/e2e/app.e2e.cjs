@@ -312,7 +312,14 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   const acct = await p.locator('.pop').innerText();
   const acctItems = await p.$$eval('.pop .mi', (els) => els.map((e) => e.textContent.trim()));
   ok(acct.includes('나') && acct.includes('me@example.com') && acct.includes('연결됨'), 'account menu: name, email, connection');
-  ok(JSON.stringify(acctItems) === JSON.stringify(['드라이브에서 「메모」 폴더 열기', '드라이브와 다시 맞추기', '구글 계정 관리', '로그아웃']), `account menu: Google items only (${acctItems.join(', ')})`);
+  ok(JSON.stringify(acctItems) === JSON.stringify(['메모 폴더 열기', '동기화', '구글 계정', '로그아웃']), `account menu: short Google items only (${acctItems.join(', ')})`);
+  await p.waitForSelector('.pop .qbar i');
+  const quota = await p.locator('.pop .quota').innerText();
+  const segs = await p.$$eval('.pop .qbar i', (els) => els.map((e) => e.getBoundingClientRect().width));
+  const barW = await p.$eval('.pop .qbar', (e) => e.getBoundingClientRect().width);
+  ok(quota.includes('6.2GB / 15GB') && quota.includes('Gmail·포토') && quota.includes('4.1GB') && quota.includes('8.8GB'), 'storage: used / total, parts and what is left');
+  ok(segs.length === 4 && Math.abs(segs[2] / barW - 4.1 / 15) < 0.03 && segs[0] >= 2.5, `storage: bar split in proportion (${segs.map((w) => Math.round(w)).join('/')} of ${Math.round(barW)})`);
+  ok((await p.$eval('.pop .qbar', (e) => e.getAttribute('aria-label'))).includes('남음 8.8GB'), 'storage: bar has a spoken summary');
   await p.click('.pop .mi:has-text("로그아웃")');
   await p.waitForSelector('.overlay :text("로그아웃할까요?")');
   await p.keyboard.press('Escape');
@@ -363,11 +370,15 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.context().close();
 
   // ---- 낮 화면, 빈 서랍 ----
-  p = await open(b, { seedData: { profile: { name: '나', email: 'me@example.com' }, files: [] } });
+  p = await open(b, { seedData: { profile: { name: '나', email: 'me@example.com' }, files: [], quota: { limit: String(15 * 1024 ** 3), usage: String(14 * 1024 ** 3), usageInDrive: String(3 * 1024 ** 3) } } });
   await p.evaluate(() => { localStorage.setItem('td.theme', '"light"'); });
   await p.reload();
   await p.waitForSelector('.empty');
   ok((await p.evaluate(() => document.documentElement.dataset.theme)) === 'light' && await p.locator('.tiles .tile').count() === 4, 'empty + light: headline, empty note, tiles');
+  await p.click('.gnav .me');
+  await p.waitForSelector('.pop .quota-warn');
+  ok((await p.locator('.pop .quota-warn').innerText()).includes('거의 찼어요'), 'storage: warns when 90% full');
+  await p.keyboard.press('Escape');
   ok(p.errors.length === 0, 'empty: no page errors ' + p.errors.join(' | '));
   await b.close();
 })();

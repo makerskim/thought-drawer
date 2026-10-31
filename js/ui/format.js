@@ -45,3 +45,14 @@ export const tagTone = (name) => hash(name) % 6;
 
 export const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 export const modKey = isMac ? '⌘' : 'Ctrl';
+
+// 바이트 → 12KB, 3.4MB, 6.2GB, 15GB (구글처럼 1024 단위)
+export function fmtBytes(n) {
+  const v = Number(n) || 0;
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  let x = v;
+  while (x >= 1024 && i < units.length - 1) { x /= 1024; i++; }
+  const d = i >= 2 && x < 10 ? 1 : 0;
+  return `${x.toFixed(d).replace(/\.0$/, '')}${units[i]}`;
+}
