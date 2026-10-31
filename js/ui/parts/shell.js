@@ -1,4 +1,4 @@
-// 화면 틀 조각: 메뉴 단추, 보조 화면(설정 등)의 머리줄, 저장 상태, 연결 문제 띠
+// 화면 틀 조각: 위 막대, 메뉴, 보조 화면의 두 번째 막대, 바닥, 저장 상태, 연결 문제 띠
 import { html } from '../h.js';
 import { Icon, Logo } from '../icons.js';
 import { app, useConn } from '../state.js';
@@ -50,14 +50,35 @@ export function MenuButton() {
   </button>`;
 }
 
-// 보조 화면 위쪽: 서랍으로 돌아가기, 제목
-export function PageBar({ title, right = null }) {
-  return html`<header class="pagebar">
-    <a class="pb-back" href="#/" aria-label="서랍으로 돌아가기"><${Icon} name="back" /><${Logo} size=${34} /></a>
-    <b class="pb-title">${title}</b>
+// 위 막대 (애플 홈페이지처럼 얇고, 가운데에 주요 메뉴)
+const LINKS = [['#/', '홈', (p) => p === '/'], ['#/drawers', '서랍', (p) => /^\/(drawers|f\/|t\/|star|inbox)/.test(p)], ['#/tasks', '할 일', (p) => p === '/tasks'], ['#/graph', '생각 지도', (p) => p === '/graph'], ['#/connect', '넣는 법', (p) => /^\/(connect|bookmarks|import)/.test(p)]];
+export function GlobalNav({ path }) {
+  return html`<header class="gnav"><div class="gnav-in">
+    <a class="gn-brand" href="#/" aria-label="Thought Drawer 홈"><${Logo} size=${26} /><span>Thought Drawer</span></a>
+    <nav class="gn-links" aria-label="주요 메뉴">${LINKS.map(([href, label, on]) => html`<a key=${href} href=${href} aria-current=${on(path) ? 'page' : undefined}>${label}</a>`)}</nav>
+    <div class="gn-end">
+      <button type="button" class="gn-btn" aria-label="찾기와 빠른 실행" title=${`찾기 (/ 또는 ${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+K)`} onClick=${() => app.find()}><${Icon} name="search" /></button>
+      <button type="button" class="add-btn" title="넣기 (Enter)" onClick=${() => { if (!app.focusCapture?.()) openComposer(); }}><${Icon} name="plus" /><span>넣기</span></button>
+      <${MenuButton} />
+    </div>
+  </div></header>`;
+}
+
+// 보조 화면의 두 번째 막대: 뒤로, 화면 이름, 오른쪽 단추들
+export function PageBar({ title, right = null, back = '#/' }) {
+  return html`<div class="lnav"><div class="lnav-in">
+    <a class="lnav-back" href=${back} aria-label="뒤로"><${Icon} name="back" /></a>
+    <b class="lnav-title">${title}</b>
     <span class="grow"></span>
     ${right}
-    <${MenuButton} />
-  </header>
+  </div></div>
   <${Conn} />`;
+}
+
+// 바닥 (애플 홈페이지 아래 작은 글씨)
+export function Footer() {
+  return html`<footer class="foot">
+    <nav aria-label="바닥 메뉴"><a href="#/connect">넣는 법</a><a href="#/drawers">모든 서랍</a><a href="#/bookmarks">북마크 가져오기</a><a href="#/settings">설정</a><a href="privacy.html">개인정보처리방침</a><a href="terms.html">서비스 약관</a></nav>
+    <p>노트는 내 구글 드라이브의 「메모」 폴더에 마크다운 파일로 저장됩니다. 앱은 자기가 만든 파일만 볼 수 있고, 옵시디언에서도 그대로 열립니다.</p>
+  </footer>`;
 }

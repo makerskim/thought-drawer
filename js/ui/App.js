@@ -1,13 +1,16 @@
-// 앱 뼈대: 로그인 → 기기 사본으로 바로 열기 → 드라이브와 맞추기. 그 위에 화면, 단축키, 붙여넣기·끌어다 놓기.
+// 앱 뼈대: 로그인 → 기기 사본으로 바로 열기 → 드라이브와 맞추기.
+// 화면은 위 막대(애플) 아래 한 장씩: 홈, 서랍, 할 일, 노트 작업 공간(옵시디언), 보조 화면. 단축키, 붙여넣기·끌어다 놓기.
 import { html, useState, useEffect, useRef, cx } from './h.js';
 import { Icon } from './icons.js';
 import { app, toast, setConn } from './state.js';
-import { useRoute, go, parse, syncFromLocation } from './router.js';
+import { useRoute, go, syncFromLocation } from './router.js';
 import { Layers, Toasts, closeAll } from './parts/layers.js';
 import { openComposer } from './parts/composer.js';
 import { openToday } from './notebook.js';
 import { capturePhotos, pickPhotos } from './capture.js';
-import { Drawer } from './views/drawer.js';
+import { Home, Drawers, Shelf, Tasks } from './views/drawer.js';
+import { GlobalNav } from './parts/shell.js';
+import { openSpotlight } from './parts/spotlight.js';
 import { NoteView } from './views/note.js';
 import { preloadEditor } from './editor.js';
 import { Ask } from './views/ask.js';
@@ -22,29 +25,32 @@ import { DriveError } from '../store/drive.js';
 
 const isTyping = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 
-// 서랍 위에 옆 창으로 여는 것: 노트, 새 노트, 묻기
-const SHEET = /^\/(n\/.+|new|ask)$/;
-// 서랍 대신 화면을 채우는 것
-const PAGES = new Set(['/settings', '/import', '/bookmarks', '/connect', '/graph', '/share', '/paste']);
-let listHash = '#/'; // 옆 창을 닫으면 돌아갈 서랍 주소
+// 노트 작업 공간으로 여는 것 (닫으면 보던 목록으로 돌아간다)
+const NOTE = /^\/(n\/.+|new)$/;
+let listHash = '#/';
 
-function Sheet({ route }) {
+function Screen({ route, offline }) {
   const { path, params, seq } = route;
-  const m = /^\/n\/(.+)$/.exec(path);
-  if (m) return html`<${NoteView} key=${`n:${m[1]}`} id=${decodeURIComponent(m[1])} />`;
+  let m;
+  if ((m = /^\/n\/(.+)$/.exec(path))) return html`<${NoteView} key=${`n:${m[1]}`} id=${decodeURIComponent(m[1])} />`;
   if (path === '/new') return html`<${NoteView} key=${`new:${seq}`} id="new" params=${params} />`;
-  return html`<${Ask} key=${`ask:${seq}`} params=${params} />`;
-}
-
-function Page({ route, offline }) {
-  const { path, params } = route;
+  if (path === '/ask') return html`<${Ask} key=${`ask:${seq}`} params=${params} />`;
+  if (path === '/drawers') return html`<${Drawers} />`;
+  if (path === '/tasks') return html`<${Tasks} />`;
+  if (path === '/all') return html`<${Shelf} scope=${{ kind: 'all' }} />`;
+  if (path === '/star') return html`<${Shelf} scope=${{ kind: 'star' }} />`;
+  if (path === '/inbox') return html`<${Shelf} scope=${{ kind: 'inbox' }} />`;
+  if (path === '/search') return html`<${Shelf} key=${`s:${params.get('q') ?? ''}`} scope=${{ kind: 'search', value: params.get('q') ?? '' }} />`;
+  if ((m = /^\/f\/(.+)$/.exec(path))) return html`<${Shelf} scope=${{ kind: 'folder', value: decodeURIComponent(m[1]) }} />`;
+  if ((m = /^\/t\/(.+)$/.exec(path))) return html`<${Shelf} scope=${{ kind: 'tag', value: decodeURIComponent(m[1]) }} />`;
   if (path === '/graph') return html`<${Graph} />`;
   if (path === '/import') return html`<${Import} />`;
   if (path === '/bookmarks') return html`<${Bookmarks} />`;
   if (path === '/connect') return html`<${Connect} />`;
   if (path === '/settings') return html`<${Settings} offline=${offline} />`;
   if (path === '/share') return html`<${Share} params=${params} />`;
-  return html`<${Paste} />`;
+  if (path === '/paste') return html`<${Paste} />`;
+  return html`<${Home} />`;
 }
 
 export function App({ auth }) {
@@ -57,12 +63,10 @@ export function App({ auth }) {
 
   app.auth = auth;
   app.pickPhotos = pickPhotos;
-  const isSheet = SHEET.test(route.path);
-  const isPage = PAGES.has(route.path);
-  if (!isSheet && !isPage) listHash = route.hash;
-  app.closeSheet = () => go(listHash);
-  // 어디서든 칸으로: 다른 화면이면 서랍으로 돌아온 뒤
-  app.find = () => { if (isPage) go(listHash); setTimeout(() => app.focusOmni?.(), 0); };
+  const isSheet = NOTE.test(route.path);
+  if (!isSheet && !/^\/(share|paste)$/.test(route.path)) listHash = route.hash;
+  app.closeSheet = () => go(listHash === route.hash ? '#/' : listHash);
+  app.find = () => openSpotlight();
 
   // 드라이브와 맞추기. 문제가 있으면 원인과 고치는 버튼을 위쪽 띠에 보여 준다.
   const sync = async () => {
@@ -122,8 +126,8 @@ export function App({ auth }) {
     setBusy(false);
   };
 
-  // 설정 같은 화면은 맨 위부터 연다
-  useEffect(() => { if (isPage) window.scrollTo(0, 0); }, [route.path]);
+  // 화면을 바꾸면 맨 위부터 (노트 사이를 오갈 때는 제외)
+  useEffect(() => { if (!isSheet) window.scrollTo(0, 0); }, [route.path]);
 
   // 편집기는 커서 첫 화면에 필요 없어서, 화면이 뜬 뒤 쉬는 틈에 받아 둔다
   useEffect(() => {
@@ -141,14 +145,14 @@ export function App({ auth }) {
       // 입력창이 이미 처리한 키(넣고 닫은 Enter 등)는 다시 받지 않는다
       if (e.defaultPrevented || document.querySelector('.overlay, .pop, .tour')) return;
       if (e.key === 'Escape') {
-        if (isTyping(document.activeElement)) { if (!document.activeElement.closest('.omni')) document.activeElement.blur(); return; }
+        if (isTyping(document.activeElement)) { if (!document.activeElement.closest('.capbar')) document.activeElement.blur(); return; }
         if (isSheet) { e.preventDefault(); app.closeSheet(); }
         return;
       }
       if (isTyping(document.activeElement) || e.metaKey || e.ctrlKey || e.altKey) return;
       // Enter: 무엇에도 커서가 없으면 가운데 입력창 (단추나 카드에 있으면 그것을 누른 것)
-      const idle = !document.activeElement || document.activeElement === document.body || document.activeElement.matches('.stage-main, .results, .sheet');
-      if (e.key === 'Enter' && !e.shiftKey && !isPage && idle) { e.preventDefault(); if (isSheet || !app.focusCapture?.()) openComposer(); return; }
+      const idle = !document.activeElement || document.activeElement === document.body || document.activeElement.matches('.ws-main, main');
+      if (e.key === 'Enter' && !e.shiftKey && idle && !/^\/(settings|import|bookmarks|connect|share|paste)$/.test(route.path)) { e.preventDefault(); if (isSheet || !app.focusCapture?.()) openComposer(); return; }
       if (e.key === '/') { e.preventDefault(); app.find(); }
       else if (e.key === 'n') { e.preventDefault(); go('#/new'); }
       else if (e.key === 't') { e.preventDefault(); openToday(); }
@@ -189,25 +193,16 @@ export function App({ auth }) {
       window.removeEventListener('drop', onDrop);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [phase, route.path, isSheet, isPage]);
+  }, [phase, route.path, isSheet]);
 
   if (phase === 'boot') {
     return html`<div class="login" aria-busy="true"><div class="login-card"><div class="sk" style="width:52px;height:52px;margin:0 auto;border-radius:12px"></div></div></div>`;
   }
   if (phase === 'login') return html`<${Login} onSignIn=${signIn} busy=${busy} error=${error} /><${Toasts} />`;
 
-  if (isPage) {
-    return html`<div class="page-shell"><${Page} route=${route} offline=${offline.current} /></div>
-    <${Layers} />
-    <${Toasts} />`;
-  }
-  const sheetNote = /^\/n\/(.+)$/.exec(route.path)?.[1];
   return html`
-    <div class=${cx('stage', isSheet && 'with-sheet')}>
-      <div class="stage-main"><${Drawer} path=${parse(listHash).path} activeId=${sheetNote && decodeURIComponent(sheetNote)} /></div>
-      ${isSheet && html`<div class="sheet-scrim" onClick=${() => app.closeSheet()}></div>
-        <aside class="sheet" aria-label=${route.path === '/ask' ? '묻기' : '노트'}><${Sheet} route=${route} /></aside>`}
-    </div>
+    <${GlobalNav} path=${route.path} />
+    <main class=${cx('view', isSheet && 'is-note')} id="main"><${Screen} route=${route} offline=${offline.current} /></main>
     <${Layers} />
     <${Toasts} />
     ${veil && html`<div class="drop-veil"><div><${Icon} name="capture" />놓으면 바로 넣어요</div></div>`}`;

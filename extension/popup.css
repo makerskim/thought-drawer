@@ -1,49 +1,20 @@
-/* Thought Drawer 확장 프로그램 팝업. 색과 모양은 웹앱(css/app.css)과 같은 값을 쓴다 (상록 초록 + 따뜻한 회색). */
+/* Thought Drawer 확장 프로그램 팝업. 색과 모양은 웹앱(css/app.css)과 같은 값을 쓴다 (검은 바탕 + 보라). */
 
-@font-face { font-family: 'NanumSquareRound'; font-weight: 800; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/@kfonts/nanum-square-round@0.2.0/NanumSquareRoundEB.woff2) format('woff2'); }
 
 :root {
-  --bg: #f6f6f3;
-  --paper: #ffffff;
-  --bg-soft: #f1f1ee;
-  --bg-soft-2: #e8e8e4;
-  --hover: rgba(40, 40, 30, .05);
-  --text: #1e1f1c;
-  --text-2: #5b5c57;
-  --text-3: #8f8f89;
-  --border: #e8e8e3;
-  --border-2: #d9d9d3;
-  --accent: #0e7a59;
-  --accent-soft: #e4f4ec;
-  --hl: #93d4bb;
-  --hl-soft: #ffe680;
-  --btn: #0e7a59;
-  --btn-text: #ffffff;
-  --btn-hover: #0b6a4d;
-  --memo: #fffae3;
-  --lemon: #ffd84a;
-  --m-body: #2bad7d;
-  --m-deep: #17845c;
-  --m-ink: #1d2420;
-  --danger: #e0445a;
-  --ok: #1fae7a;
-  --shadow-pop: 0 0 0 1px rgba(30, 30, 20, .06), 0 22px 48px -14px rgba(30, 30, 20, .32);
-  --shadow-card: 0 1px 2px rgba(30, 30, 20, .04), 0 6px 16px -10px rgba(30, 30, 20, .14);
-  --font: 'Wanted Sans Variable', 'Wanted Sans', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
-  --font-display: 'NanumSquareRound', var(--font);
+  --bg: #141414; --paper: #1f1f1f; --bg-soft: #262626; --bg-soft-2: #303030; --hover: rgba(255, 255, 255, .06);
+  --text: #f5f5f7; --text-2: #a1a1a6; --text-3: #6e6e73; --border: rgba(255, 255, 255, .08); --border-2: rgba(255, 255, 255, .14);
+  --accent: #7a5af8; --accent-soft: rgba(122, 90, 248, .2); --hl: #a88bfa; --hl-soft: rgba(255, 216, 74, .35);
+  --btn: #7a5af8; --btn-text: #ffffff; --btn-hover: #8b6cff; --memo: #2a2618; --lemon: #ffd84a;
+  --m-body: #8b6cff; --m-deep: #6247d6; --m-ink: #16131f;
+  --danger: #ff5f6d; --ok: #30d158;
+  --shadow-pop: 0 0 0 1px rgba(255, 255, 255, .08), 0 24px 60px -12px rgba(0, 0, 0, .8);
+  --shadow-card: 0 8px 24px -12px rgba(0, 0, 0, .7);
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Apple SD Gothic Neo', 'Wanted Sans Variable', 'Malgun Gothic', system-ui, sans-serif;
+  --font-display: var(--font);
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --ease: cubic-bezier(.2, .7, .2, 1);
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #191919; --paper: #222221; --bg-soft: #2a2a29; --bg-soft-2: #333331; --hover: rgba(255, 255, 240, .06);
-    --text: #ecece8; --text-2: #b1b1aa; --text-3: #7d7d77; --border: #2d2d2b; --border-2: #3b3b38;
-    --accent-soft: rgba(14, 122, 89, .26); --memo: #2b2919;
-    --shadow-pop: 0 0 0 1px rgba(255, 255, 255, .06), 0 22px 48px -14px rgba(0, 0, 0, .75);
-    --shadow-card: 0 6px 16px -10px rgba(0, 0, 0, .6);
-    color-scheme: dark;
-  }
+  --ease: cubic-bezier(.25, .1, .25, 1);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -64,7 +35,7 @@ button, input, textarea { font: inherit; color: inherit; }
 
 /* 머리줄 */
 .top { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 10px 0 12px; border-bottom: 1px solid var(--border); }
-.top b { font: 800 16px/1 var(--font-display); letter-spacing: -.01em; }
+.top b { font: 600 15px/1 var(--font); letter-spacing: -.02em; }
 .logo { flex: none; }
 .icon-btn, .avatar {
   width: 30px; height: 30px; border: 0; border-radius: 7px; background: none; color: var(--text-2);

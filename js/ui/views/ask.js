@@ -3,7 +3,7 @@ import { html, useState, useMemo } from '../h.js';
 import { Icon } from '../icons.js';
 import { useLib, toast } from '../state.js';
 import { setUrl, folderHref } from '../router.js';
-import { SheetBar } from './note.js';
+import { PageBar } from '../parts/shell.js';
 import { NoteRow, Empty, highlighter } from '../parts/common.js';
 import { answerLocally, buildClaudePrompt, claudeUrl } from '../../core/ask.js';
 import { categoryParts } from '../../core/note.js';
@@ -22,9 +22,9 @@ export function Ask({ params }) {
   const hl = result ? highlighter(result.terms) : null;
   const prompt = result?.total ? buildClaudePrompt(asked, result.results.slice(0, 15)) : '';
   return html`
-    <${SheetBar} />
-    <div class="sheet-body"><div class="note-page">
-      <h1 class="sheet-title">무엇이 궁금하세요?</h1>
+    <${PageBar} title="물어보기" />
+    <div class="page narrow">
+      <div class="page-head"><h1>무엇이 궁금하세요?</h1><p>문장으로 물으면 관련 노트를 서랍별로 모아 보여 드려요. 정리된 답이 필요하면 Claude에게 넘겨요.</p></div>
       <form class="ask-box" onSubmit=${submit}>
         <${Icon} name="sparkle" />
         <textarea rows="1" value=${q} aria-label="질문" placeholder="예: 사고 싶었던 셔츠 뭐 있었지?"
@@ -43,8 +43,8 @@ export function Ask({ params }) {
         </div>
         ${result.groups.map((g) => html`<section class="section" key=${g.category}>
           <div class="section-head"><h2>${g.category === '정리 대기' ? '자동 분류' : categoryParts(g.category).join(' / ')}</h2>
-            ${g.category !== '정리 대기' && html`<a href=${folderHref(g.category)}>폴더 열기</a>`}</div>
-          <div class="rows">${g.items.map(({ note }) => html`<${NoteRow} key=${note.id} note=${note} showFolder=${false} hl=${hl} />`)}</div>
+            ${g.category !== '정리 대기' && html`<a href=${folderHref(g.category)}>서랍 열기</a>`}</div>
+          <div class="rows-list" style="padding:0">${g.items.map(({ note }) => html`<${NoteRow} key=${note.id} note=${note} showFolder=${false} hl=${hl} />`)}</div>
         </section>`)}`}
-    </div></div>`;
+    </div>`;
 }

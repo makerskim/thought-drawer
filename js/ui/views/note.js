@@ -1,9 +1,9 @@
 // 노트 화면: 제목, 속성(폴더·태그·출처·날짜), Claude 요약, 내 생각, 본문(바로 쓰는 편집기, 자동 저장),
 // 오른쪽 패널(연결, 비슷한 노트). /new 는 아무것도 적기 전까지 파일을 만들지 않는다.
 import { html, useState, useEffect, useLayoutEffect, useRef, useCallback, autosize } from '../h.js';
-import { Icon } from '../icons.js';
+import { Icon, TYPE_ICON } from '../icons.js';
 import { app, useLib, toast } from '../state.js';
-import { go, setUrl, noteHref } from '../router.js';
+import { go, setUrl, noteHref, folderHref } from '../router.js';
 import { SaveState } from '../parts/shell.js';
 import { Tag, MenuItem, Empty, SkeletonRows, KindIcon, FolderDot, titleOf } from '../parts/common.js';
 import { popover, modal } from '../parts/layers.js';
@@ -13,7 +13,7 @@ import { splitLinks, joinLinks } from '../../core/wiki.js';
 import { categoryParts, embeds } from '../../core/note.js';
 import { relTime, fullDate, KIND_LABEL } from '../format.js';
 import { TEMPLATES, rememberSeen } from '../notebook.js';
-import { categoryOf } from '../categories.js';
+import { categoryOf, categoryLook } from '../categories.js';
 
 const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
 const shortDate = (iso) => { const d = new Date(iso); return Number.isNaN(+d) ? '' : `${d.getFullYear() === new Date().getFullYear() ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월 ${d.getDate()}일`; };
@@ -53,18 +53,62 @@ function TagEditor({ tags, onChange }) {
 }
 
 // 옆 창 위쪽: 닫기, 이전·다음 노트(지금 서랍에 보이는 순서), 오른쪽 단추들
-export function SheetBar({ noteId = null, right = null }) {
-  const ids = app.visible ?? [];
+// 작업 공간 위 막대: 서랍 / 노트 이름 (옵시디언의 탭 머리), 이전·다음, 저장 상태, 오른쪽 단추들
+function WsBar({ noteId = null, crumb = null, right = null, siblings = [] }) {
+  // 목록에서 열었으면 그 목록 순서로, 바로 열었으면 같은 서랍 순서로
+  const ids = (app.visible ?? []).includes(noteId) ? app.visible : siblings;
   const i = noteId ? ids.indexOf(noteId) : -1;
   const prev = i > 0 ? ids[i - 1] : null;
   const next = i >= 0 && i < ids.length - 1 ? ids[i + 1] : null;
   app.sheetNav = (d) => { const id = d < 0 ? prev : next; if (id) go(noteHref(id), { replace: true }); };
-  return html`<div class="sheet-bar">
-    <button type="button" class="icon-btn" aria-label="닫기" title="닫기 (Esc)" onClick=${() => app.closeSheet()}><${Icon} name="x" /></button>
+  return html`<div class="ws-bar">
+    <button type="button" class="icon-btn" aria-label="닫기" title="닫기 (Esc)" onClick=${() => app.closeSheet()}><${Icon} name="back" /></button>
     ${noteId && html`<button type="button" class="icon-btn" aria-label="이전 노트" title="이전 노트 (K)" disabled=${!prev} onClick=${() => app.sheetNav(-1)}><${Icon} name="up" /></button>
       <button type="button" class="icon-btn" aria-label="다음 노트" title="다음 노트 (J)" disabled=${!next} onClick=${() => app.sheetNav(1)}><${Icon} name="down" /></button>`}
+    <div class="crumbs">${crumb}</div>
     ${right}
   </div>`;
+}
+
+// 왼쪽 칸: 같은 서랍의 노트들 (옵시디언의 파일 탐색기)
+function Explorer({ note, cat }) {
+  const lib = useLib();
+  const list = note ? lib.all.filter((n) => categoryOf(n, lib).name === cat.name).slice(0, 300) : lib.all.slice(0, 60);
+  return html`<aside class="ws-left" aria-label="같은 서랍의 노트">
+    <div class="ws-pane-head"><${Icon} name=${note ? categoryLook(cat.name).icon : 'clock'} /><b>${note ? cat.name : '최근 노트'}</b><span class="grow"></span><a href=${note ? folderHref(cat.name) : '#/all'} title="모두 보기">${list.length}</a></div>
+    <ul class="ex-list">${list.map((n) => html`<li key=${n.id}><a href=${noteHref(n.id)} aria-current=${note && n.id === note.id ? 'page' : undefined}><${Icon} name=${TYPE_ICON[n.meta.type] ?? 'memo'} /><span>${titleOf(n)}</span></a></li>`)}</ul>
+  </aside>`;
+}
+
+// 로컬 그래프: 이 노트를 가운데 두고 이어진 노트와 비슷한 노트를 둘레에
+function LocalGraph({ note }) {
+  const lib = useLib();
+  const linked = lib.connections(note).map((c) => c.note);
+  const near = lib.related(note, 6).map((r) => r.note).filter((n) => !linked.includes(n));
+  const nodes = [...linked.map((n) => ({ n, link: true })), ...near.map((n) => ({ n, link: false }))].slice(0, 10);
+  const W = 270; const H = 230; const cx = W / 2; const cy = H / 2;
+  const at = (i) => { const a = (i / Math.max(1, nodes.length)) * Math.PI * 2 - Math.PI / 2; const r = i % 2 ? 78 : 92; return [cx + Math.cos(a) * r * 1.15, cy + Math.sin(a) * r * .9]; };
+  const short = (t) => (t.length > 9 ? `${t.slice(0, 8)}…` : t);
+  if (!nodes.length) return html`<p class="rp-empty">아직 이어진 노트가 없어요. 「연결」에서 비슷한 노트를 이으면 여기에 그려져요.</p>`;
+  return html`<svg class="lgraph" viewBox=${`0 0 ${W} ${H}`} role="img" aria-label="이 노트 주변 그래프">
+    ${nodes.map((o, i) => { const [x, y] = at(i); return html`<line key=${`l${o.n.id}`} x1=${cx} y1=${cy} x2=${x} y2=${y} style=${o.link ? 'stroke: var(--accent-2)' : 'stroke-dasharray: 3 3'} />`; })}
+    ${nodes.map((o, i) => { const [x, y] = at(i); return html`<g key=${o.n.id} onClick=${() => go(noteHref(o.n.id))}><circle class=${o.link ? 'link' : ''} cx=${x} cy=${y} r=${o.link ? 6 : 4.5} /><text x=${x} y=${y + 16} text-anchor="middle">${short(titleOf(o.n))}</text></g>`; })}
+    <g><circle class="me" cx=${cx} cy=${cy} r="8" /><text x=${cx} y=${cy + 20} text-anchor="middle" style="font-weight:600;fill:var(--text)">${short(titleOf(note))}</text></g>
+  </svg>`;
+}
+
+// 오른쪽 칸: 연결 · 목차 · 그래프 (옵시디언의 오른쪽 사이드바)
+function Side({ note, md }) {
+  const [tab, setTab] = useState('links');
+  const tabs = [['links', '연결'], ['outline', '목차'], ['graph', '그래프']];
+  return html`<aside class="ws-right" aria-label="연결과 목차">
+    <div class="rp-tabs" role="tablist">${tabs.map(([k, label]) => html`<button type="button" key=${k} role="tab" aria-selected=${tab === k} onClick=${() => setTab(k)}>${label}</button>`)}</div>
+    <div class="rp-body note-links">
+      ${tab === 'links' && (note ? html`<${Links} note=${note} />` : html`<p class="rp-empty">노트를 적으면 이어진 노트와 비슷한 노트가 여기에 나와요.</p>`)}
+      ${tab === 'outline' && html`<${Outline} md=${md} />`}
+      ${tab === 'graph' && (note ? html`<${LocalGraph} note=${note} />` : html`<p class="rp-empty">저장한 뒤에 그려져요.</p>`)}
+    </div>
+  </aside>`;
 }
 
 function Links({ note }) {
@@ -108,15 +152,12 @@ function Links({ note }) {
     </div>`}`;
 }
 
-// 목차: 제목(#)이 셋 이상인 긴 노트에서 누르면 그 자리로
+// 목차: 본문의 제목(#)을 누르면 그 자리로
 function Outline({ md }) {
   const heads = [...String(md ?? '').matchAll(/^(#{1,3})\s+(.+)$/gm)].map((m) => ({ level: m[1].length, text: m[2].trim() }));
-  if (heads.length < 3) return null;
-  const jump = (i) => document.querySelectorAll('.sheet .ProseMirror :is(h1, h2, h3)')[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  return html`<details class="outline" open>
-    <summary><${Icon} name="list" />목차</summary>
-    <ol>${heads.map((h, i) => html`<li key=${i} class=${`l${h.level}`}><button type="button" onClick=${() => jump(i)}>${h.text}</button></li>`)}</ol>
-  </details>`;
+  if (!heads.length) return html`<p class="rp-empty">본문에 제목(# 제목)을 쓰면 목차가 생겨요.</p>`;
+  const jump = (i) => document.querySelectorAll('.ws-main .ProseMirror :is(h1, h2, h3)')[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return html`<nav class="outline" aria-label="목차"><ol>${heads.map((h, i) => html`<li key=${i} class=${`l${h.level}`}><button type="button" onClick=${() => jump(i)}>${h.text}</button></li>`)}</ol></nav>`;
 }
 
 export function NoteView({ id, params }) {
@@ -212,10 +253,10 @@ export function NoteView({ id, params }) {
   }, []);
 
   if (noteId && !note && !lib.state.synced && !lib.state.error) {
-    return html`<${SheetBar} /><div class="sheet-body"><article class="note-page"><${SkeletonRows} n=${4} /></article></div>`;
+    return html`<div class="ws"><aside class="ws-left"></aside><div class="ws-main"><${WsBar} /><article class="note-page"><${SkeletonRows} n=${4} /></article></div><aside class="ws-right"></aside></div>`;
   }
   if (noteId && !note) {
-    return html`<${SheetBar} /><div class="sheet-body"><article class="note-page"><${Empty} icon="alert" title="노트를 찾지 못했어요" text="지워졌거나 아직 불러오지 못했어요." /></article></div>`;
+    return html`<div class="ws"><aside class="ws-left"></aside><div class="ws-main"><${WsBar} /><article class="note-page"><${Empty} icon="alert" title="노트를 찾지 못했어요" text="지워졌거나 아직 불러오지 못했어요." /></article></div><aside class="ws-right"></aside></div>`;
   }
 
   const m = note?.meta ?? { type: 'memo', status: 'inbox' };
@@ -257,49 +298,52 @@ export function NoteView({ id, params }) {
     <div class="mi-sep"></div>
     <${MenuItem} icon="trash" label="지우기" danger onClick=${() => { close(); remove(); }} />`);
 
-  return html`
-    <${SheetBar} noteId=${noteId} right=${html`
-      <${SaveState} state=${saveState} />
-      <span class="grow"></span>
-      ${note && html`<button type="button" class=${`icon-btn${pinned ? ' starred' : ''}`} aria-pressed=${pinned} aria-label="즐겨찾기" title="즐겨찾기" onClick=${togglePin}><${Icon} name="star" /></button>`}
-      <button type="button" class="icon-btn" aria-label="더 보기" onClick=${(e) => more(e.currentTarget)}><${Icon} name="more" /></button>`} />
-    <div class=${`sheet-body k-${m.type ?? 'memo'}`}>
-      <article class="note-page">
-          <div class="stickers">
-            <span class="sticker-kind"><${KindIcon} type=${m.type} />${KIND_LABEL[m.type] ?? '메모'}${m.author ? ` @${m.author}` : ''}</span>
-            <span class="sticker-date" title=${note ? fullDate(m.created) : ''}>${note ? shortDate(m.created) : '지금'}</span>
-          </div>
-          <${Grow} class="note-title" value=${title} onInput=${change(setTitle)} placeholder=${note ? titleOf(note) : '제목을 지어 주세요'} label="제목" autofocus=${!noteId}
-            onKeyDown=${(e) => { if ((e.key === 'Enter' || e.key === 'ArrowDown') && !e.isComposing) { e.preventDefault(); focusBody(); } }} />
-          <div class="meta-row">
-            <button type="button" class=${`mpill${cat?.auto ? ' auto' : ''}`} title=${cat?.auto ? `자동 분류${cat.why ? `: ${cat.why}` : ''}. 눌러서 서랍을 바꿔요` : '서랍 바꾸기'} onClick=${(e) => pickFolder(e.currentTarget)}>
-              <${FolderDot} path=${cat?.path ?? ''} />${cat ? categoryParts(cat.path).join(' / ') : '자동 분류'}${cat?.auto && html`<span class="auto-badge">자동</span>`}<${Icon} name="down" />
-            </button>
-            <${TagEditor} tags=${m.tags ?? []} onChange=${(tags) => update({ tags })} />
-            ${m.source && html`<a class="mpill" href=${m.source} target="_blank" rel="noopener" title=${m.source}><${Icon} name="external" />${hostOf(m.source)}</a>`}
-          </div>
-          ${cat?.auto && html`<p class="auto-why"><${Icon} name="sparkle" /><span>${cat.why ? `${cat.why}라서 ` : ''}<b>${cat.name}</b> 서랍에 자동으로 넣었어요. 맞지 않으면 위 서랍을 눌러 바꿔 주세요.</span></p>`}
-          ${m.summary && html`<div class="bubble-ai"><span class="ai-face" aria-hidden="true"><${Icon} name="sparkle" /></span><div><small>Claude가 한 줄로 정리했어요</small><p>${m.summary}</p></div></div>`}
-          <div class="thought-note"><${Icon} name="thought" />
-            <${Grow} value=${thought} onInput=${change(setThought)} label="내 생각" placeholder="왜 저장했는지 한 줄 남겨 볼까요?" />
-          </div>
-          ${!noteId && !main.trim() && html`<div class="templates" role="group" aria-label="템플릿으로 시작">
-            <span>템플릿으로 시작</span>
-            ${TEMPLATES.filter((t) => !t.hidden).map((t) => html`<button type="button" key=${t.id} class="tpl" onClick=${() => {
-              if (!title.trim() && t.title) change(setTitle)(t.title);
-              change(setMain)(t.body);
-              setTimeout(() => editorRef.current?.commands.focus('end'), 60);
-            }}><${Icon} name=${t.icon} />${t.label}</button>`)}
-          </div>`}
-          <${Outline} md=${main} />
-          ${loaded
-            ? html`<${NoteEditor} noteId=${noteId} value=${main} onChange=${change(setMain)} editorRef=${editorRef}
-                onReady=${(ed) => { if (wantBody.current) { wantBody.current = false; ed.commands.focus('start'); } }}
-                placeholder="자유롭게 적어 보세요. / 를 누르면 제목·목록·사진, [[ 를 누르면 다른 노트를 이어요."
-                onImage=${(src) => modal((close) => html`<${Lightbox} src=${src} close=${close} />`)} />`
-            : html`<div class="sk" style="height:16px;width:80%;margin-bottom:10px"></div><div class="sk" style="height:16px;width:60%"></div>`}
-          ${note && html`<section class="note-links"><${Links} note=${note} /></section>
-            <p class="facts"><span>${fullDate(m.created)}에 넣음</span><span>${relTime(m.updated || m.created)} 고침</span>${m.organized && html`<span>${relTime(m.organized)} Claude가 정리</span>`}<span class="num">No.${note.id}</span></p>`}
-        </article>
-    </div>`;
+  const kindLabel = KIND_LABEL[m.type] ?? '메모';
+  return html`<div class="ws">
+    <${Explorer} note=${note} cat=${cat} />
+    <div class="ws-main">
+      <${WsBar} noteId=${noteId} siblings=${note && cat ? lib.all.filter((n) => categoryOf(n, lib).name === cat.name).map((n) => n.id) : []} crumb=${html`${cat ? html`<a href=${folderHref(cat.name)}>${cat.name}</a><${Icon} name="chevron" />` : html`<span>새 노트</span><${Icon} name="chevron" />`}<b>${title.trim() || (note ? titleOf(note) : '제목 없음')}</b>`} right=${html`
+        <${SaveState} state=${saveState} />
+        <span class="grow"></span>
+        ${note && html`<button type="button" class=${`icon-btn${pinned ? ' starred' : ''}`} aria-pressed=${pinned} aria-label="즐겨찾기" title="즐겨찾기" onClick=${togglePin}><${Icon} name="star" /></button>`}
+        <button type="button" class="icon-btn" aria-label="더 보기" onClick=${(e) => more(e.currentTarget)}><${Icon} name="more" /></button>`} />
+      <article class=${`note-page k-${m.type ?? 'memo'}`}>
+        <${Grow} class="note-title" value=${title} onInput=${change(setTitle)} placeholder=${note ? titleOf(note) : '제목'} label="제목" autofocus=${!noteId}
+          onKeyDown=${(e) => { if ((e.key === 'Enter' || e.key === 'ArrowDown') && !e.isComposing) { e.preventDefault(); focusBody(); } }} />
+        <dl class="props" aria-label="속성">
+          <dt><${Icon} name="drawer" />서랍</dt>
+          <dd><button type="button" class=${`mpill${cat?.auto ? ' auto' : ''}`} title=${cat?.auto ? `자동 분류${cat.why ? `: ${cat.why}` : ''}. 눌러서 서랍을 바꿔요` : '서랍 바꾸기'} onClick=${(e) => pickFolder(e.currentTarget)}>
+              <${FolderDot} path=${cat?.path ?? ''} />${cat ? categoryParts(cat.path).join(' / ') : '자동 분류'}${cat?.auto && html`<span class="auto-badge">자동</span>`}<${Icon} name="down" /></button>
+            ${cat?.auto && html`<p class="auto-why">${cat.why ? `${cat.why}라서 ` : ''}${cat.name} 서랍에 자동으로 넣었어요. 맞지 않으면 눌러서 바꿔 주세요.</p>`}</dd>
+          <dt><${Icon} name="tag" />태그</dt>
+          <dd><${TagEditor} tags=${m.tags ?? []} onChange=${(tags) => update({ tags })} /></dd>
+          <dt><${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} />종류</dt>
+          <dd>${kindLabel}${m.author ? ` · @${m.author}` : ''}</dd>
+          ${m.source && html`<dt><${Icon} name="external" />출처</dt><dd><a href=${m.source} target="_blank" rel="noopener" title=${m.source}>${hostOf(m.source)}</a></dd>`}
+          <dt><${Icon} name="calendar" />만든 날</dt>
+          <dd title=${note ? fullDate(m.created) : ''}>${note ? shortDate(m.created) : '지금'}</dd>
+        </dl>
+        ${m.summary && html`<div class="callout"><b><${Icon} name="sparkle" />Claude 요약</b><p>${m.summary}</p></div>`}
+        <div class="thought-note"><${Icon} name="thought" />
+          <${Grow} value=${thought} onInput=${change(setThought)} label="내 생각" placeholder="왜 저장했는지 한 줄 남겨 볼까요?" />
+        </div>
+        ${!noteId && !main.trim() && html`<div class="templates" role="group" aria-label="템플릿으로 시작">
+          <span>템플릿으로 시작</span>
+          ${TEMPLATES.filter((t) => !t.hidden).map((t) => html`<button type="button" key=${t.id} class="tpl" onClick=${() => {
+            if (!title.trim() && t.title) change(setTitle)(t.title);
+            change(setMain)(t.body);
+            setTimeout(() => editorRef.current?.commands.focus('end'), 60);
+          }}><${Icon} name=${t.icon} />${t.label}</button>`)}
+        </div>`}
+        ${loaded
+          ? html`<${NoteEditor} noteId=${noteId} value=${main} onChange=${change(setMain)} editorRef=${editorRef}
+              onReady=${(ed) => { if (wantBody.current) { wantBody.current = false; ed.commands.focus('start'); } }}
+              placeholder="자유롭게 적어 보세요. / 를 누르면 제목·목록·사진, [[ 를 누르면 다른 노트를 이어요."
+              onImage=${(src) => modal((close) => html`<${Lightbox} src=${src} close=${close} />`)} />`
+          : html`<div class="sk" style="height:16px;width:80%;margin-bottom:10px"></div><div class="sk" style="height:16px;width:60%"></div>`}
+        ${note && html`<p class="facts"><span>${fullDate(m.created)}에 넣음</span><span>${relTime(m.updated || m.created)} 고침</span>${m.organized && html`<span>${relTime(m.organized)} Claude가 정리</span>`}<span class="num">No.${note.id}</span></p>`}
+      </article>
+    </div>
+    <${Side} note=${note} md=${main} />
+  </div>`;
 }

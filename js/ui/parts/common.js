@@ -43,8 +43,8 @@ export function Empty({ icon, title, text, mood, children }) {
 }
 
 export function SkeletonRows({ n = 5 }) {
-  return html`<div class="rows" aria-hidden="true">${Array.from({ length: n }, (_, i) => html`
-    <div class="row" key=${i}><div class="sk" style="width:40px;height:40px;border-radius:14px"></div><div class="t" style="gap:6px"><div class="sk" style=${`height:13px;width:${45 + ((i * 17) % 40)}%`}></div><div class="sk" style="height:11px;width:30%"></div></div><div></div></div>`)}</div>`;
+  return html`<div class="rows-list" aria-hidden="true">${Array.from({ length: n }, (_, i) => html`
+    <div class="row-item" key=${i}><div class="sk" style="width:40px;height:40px"></div><div class="t" style="gap:6px"><div class="sk" style=${`height:13px;width:${45 + ((i * 17) % 40)}%`}></div><div class="sk" style="height:11px;width:30%"></div></div><div></div></div>`)}</div>`;
 }
 
 // 사진 미리보기는 화면에 보일 때 불러온다
@@ -75,7 +75,7 @@ export function NoteRow({ note, showFolder = true, right, hl, active = false, se
   const sub = m.summary || note.snippet || '';
   const t = titleOf(note);
   const [ref, url] = useThumb((m.attachments ?? [])[0]);
-  return html`<div ref=${ref} class=${`row${selectable ? ' selectable' : ''}${selected ? ' selected' : ''}${active ? ' active' : ''}`}>
+  return html`<div ref=${ref} class=${`row-item${selectable ? ' selectable' : ''}${selected ? ' selected' : ''}${active ? ' active' : ''}`}>
     ${selectable
       ? html`<label class="pick" title="고르기"><input type="checkbox" checked=${selected} onChange=${(e) => onSelect?.(e.target.checked)} aria-label=${`${t} 고르기`} /><${Lead} note=${note} url=${url} /></label>`
       : html`<${Lead} note=${note} url=${url} />`}
@@ -124,4 +124,29 @@ export function highlighter(terms) {
   if (!list.length) return null;
   const re = new RegExp(`(${list.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
   return (text) => String(text).split(re).map((part, i) => (i % 2 ? html`<mark>${part}</mark>` : part));
+}
+
+// 포스터 카드 (넷플릭스): 사진이 있으면 사진 위에 제목, 없으면 서랍 색 바탕에 큰 제목
+const KIND_NAME = { memo: '메모', capture: '사진', bookmark: '링크', instagram: '인스타' };
+export function Poster({ note, hl, active = false }) {
+  const m = note.meta;
+  const att = (m.attachments ?? [])[0];
+  const [ref, url] = useThumb(att);
+  const cat = categoryOf(note, app.lib);
+  const look = categoryLook(cat.name);
+  const t = titleOf(note);
+  const sub = m.summary || note.snippet || '';
+  const kind = m.type ?? 'memo';
+  const host = m.source ? hostOf(m.source) : '';
+  return html`<a class=${`poster c${look.tone}${att ? ' photo' : ''}${active ? ' active' : ''}`} href=${noteHref(note.id)} ref=${ref} aria-current=${active ? 'true' : undefined}>
+    ${att && (url ? html`<img class="p-img" src=${url} alt="" loading="lazy" />` : html`<div class="p-img sk"></div>`)}
+    ${att && html`<div class="p-shade"></div>`}
+    <div class="p-body">
+      ${!att && html`<span class="p-kind">${kind === 'bookmark' && host ? html`<img src=${`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`} alt="" loading="lazy" onError=${(e) => { e.currentTarget.style.display = 'none'; }} />` : html`<${Icon} name=${TYPE_ICON[kind] ?? 'memo'} />`}<span>${host || KIND_NAME[kind] || '메모'}</span></span>`}
+      <b class="p-title">${hl ? hl(t) : t}</b>
+      ${!att && sub && sub !== t && html`<p class="p-sub">${hl ? hl(sub) : sub}</p>`}
+      <span class="p-foot"><span>${cat.name}</span><span class="grow"></span><span>${relTime(m.updated || m.created)}</span></span>
+    </div>
+    ${m.pinned && html`<span class="p-pin" aria-label="즐겨찾기"><${Icon} name="star" /></span>`}
+  </a>`;
 }

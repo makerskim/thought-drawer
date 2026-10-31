@@ -30,14 +30,14 @@ export function Login({ onSignIn, busy, error }) {
   const configured = app.auth.configured;
   return html`<main class="login">
     <div class="login-card">
-      <${Logo} size=${104} mood="wave" />
-      <h1>Thought Drawer</h1>
-      <p class="lead">떠오른 생각, 캡처, 링크, 인스타 저장을 한 서랍에 넣어 두면<br />Claude가 정리해서 다시 찾기 쉽게 해 줘요.</p>
-      <ol class="login-feats">
-        <li><span class="gs-ic g1"><${Icon} name="plus" /></span><span>글, 링크, 사진, 북마크 무엇이든 넣어요</span></li>
-        <li><span class="gs-ic g2"><${Icon} name="sparkle" /></span><span>사이트와 내용을 보고 서랍에 알아서 나눠요</span></li>
-        <li><span class="gs-ic g3"><${Icon} name="search" /></span><span>찾거나 물어보면 바로 다시 꺼내 줘요</span></li>
-      </ol>
+      <${Logo} size=${88} mood="wave" />
+      <h1>넣기만 하세요.<br />정리는 서랍이.</h1>
+      <p class="lead">메모, 링크, 스크린샷, 북마크. 무엇이든 넣으면 알아서 나눠 둡니다.</p>
+      <ul class="login-feats">
+        <li><span class="gs-ic"><${Icon} name="plus" /></span><span>어디서든 넣기</span></li>
+        <li><span class="gs-ic"><${Icon} name="sparkle" /></span><span>알아서 나누기</span></li>
+        <li><span class="gs-ic"><${Icon} name="search" /></span><span>바로 다시 찾기</span></li>
+      </ul>
       ${configured
         ? html`<button type="button" class="gbtn" onClick=${onSignIn} disabled=${busy}><${GoogleG} />${busy ? '연결하는 중' : 'Google로 계속하기'}</button>`
         : html`<div class="banner warn"><${Icon} name="alert" /><p>구글 로그인 설정이 아직 없어요. docs/설정가이드.md의 2단계를 마쳐 주세요.</p></div>`}
@@ -48,7 +48,6 @@ export function Login({ onSignIn, busy, error }) {
   </main>`;
 }
 
-const PALETTES = [['', '초록'], ['blue', '파랑'], ['grape', '보라'], ['ink', '먹']];
 
 function Section({ title, desc, children }) {
   return html`<section class="set-sec"><div><h2>${title}</h2>${desc && html`<p class="desc">${desc}</p>`}</div><div class="ctl">${children}</div></section>`;
@@ -58,7 +57,6 @@ export function Settings({ offline }) {
   const lib = useLib();
   const [theme, setTheme] = usePref('theme', '');
   const [font, setFont] = usePref('font', '');
-  const [palette, setPalette] = usePref('palette', '');
   const [secret, setSecret] = useState('');
   const [zip, setZip] = useState(null);
   const [token, setToken] = useState(offline);
@@ -101,10 +99,8 @@ export function Settings({ offline }) {
         </div>
       </${Section}>
       <${Section} title="화면" desc="이 기기에만 적용돼요.">
-        <div class="row-ctl"><span class="muted" style="width:64px">색</span>
-          <div class="palettes" role="radiogroup" aria-label="색">${PALETTES.map(([v, label]) => html`<button type="button" key=${v} role="radio" aria-checked=${palette === v || (!v && !PALETTES.some(([x]) => x === palette))} class=${`swatch p-${v || 'green'}`} onClick=${() => { setPalette(v); applyAppearance(); }}><span class="dot"></span><span>${label}</span></button>`)}</div></div>
-        <div class="row-ctl"><span class="muted" style="width:64px">밝기</span>${seg(theme, setTheme, [['', '기기 따라'], ['light', '낮'], ['dark', '밤']])}</div>
-        <div class="row-ctl"><span class="muted" style="width:64px">노트 글꼴</span>${seg(font, setFont, [['', '기본'], ['round', '동글'], ['serif', '명조'], ['mono', '고정폭']])}</div>
+        <div class="row-ctl"><span class="muted" style="width:64px">밝기</span>${seg(theme, setTheme, [['', '밤'], ['light', '낮'], ['system', '기기 따라']])}</div>
+        <div class="row-ctl"><span class="muted" style="width:64px">노트 글꼴</span>${seg(font, setFont, [['', '기본'], ['serif', '명조'], ['mono', '고정폭']])}</div>
       </${Section}>
       <${Section} title="자동 분류" desc="넣는 즉시 앱이 사이트(쿠팡이면 쇼핑, 유튜브면 영상)와 낱말을 보고 서랍을 골라요. 노트에서 서랍을 바꾸면 그걸 배워서 다음부터 더 잘 나눠요. 기기 안에서 돌아서 비용도 설정도 없어요.">
         <div class="kv"><div><b>${lib.all.length}</b><span>모든 노트</span></div><div><b>${lib.organized().length}</b><span>내가·Claude가 정한 서랍</span></div><div><b>${lib.inbox().length}</b><span>자동으로 나눈 노트</span></div></div>
