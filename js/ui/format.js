@@ -40,8 +40,7 @@ export const GRAPH_COLORS = {
 
 export const KIND_LABEL = { memo: '메모', capture: '사진', bookmark: '링크', instagram: '인스타' };
 
-// 폴더와 태그 색 (여섯 가지 중 하나, 이름마다 늘 같다)
-export const folderTone = (name) => hash(name) % 6;
+// 태그 색 (여섯 가지 중 하나, 이름마다 늘 같다)
 export const tagTone = (name) => hash(name) % 6;
 
 export const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);

@@ -151,3 +151,8 @@ def test_same_format_as_web_app():
     assert meta == {'id': '20261027105230', 'title': '따옴표 "제목"', 'tags': ['a', '한글'], 'status': 'inbox', 'done': True}
     assert body == '본문\n\n[[x]]'
     assert serialize_note(meta, body) == text, 'python writes byte-identical files'
+
+
+def test_snippet_drops_checkbox_markers_like_the_web_app():
+    from td_note import snippet
+    assert snippet('- [ ] 우유\n- [x] 달걀') == '우유 달걀'

@@ -1,5 +1,5 @@
 // 가운데 입력창: 어디서든 Enter를 누르면 화면 가운데에 뜬다.
-// 적고 Enter면 인박스로, Shift+Enter는 줄바꿈. 주소로 시작하면 링크, 여러 줄이면 첫 줄이 제목.
+// 적고 Enter면 넣고(서랍은 자동으로), Shift+Enter는 줄바꿈. 주소로 시작하면 링크, 여러 줄이면 첫 줄이 제목.
 // 사진은 붙여 넣거나 끌어다 놓아도 된다.
 import { html, useState, useRef, useLayoutEffect, autosize, cx } from '../h.js';
 import { Icon, Mascot } from '../icons.js';

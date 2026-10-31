@@ -1,6 +1,7 @@
 // 글 한 덩어리를 노트로 넣기: 가운데 입력창, 공유 받기, 붙여넣기 화면이 함께 쓴다
 import { app, toast } from './state.js';
 import { go, noteHref } from './router.js';
+import { categoryOf } from './categories.js';
 
 const URL_RE = /^(https?:\/\/\S+)\s*([\s\S]*)$/i;
 
@@ -31,13 +32,13 @@ export async function saveQuick(text, extra = {}) {
   return app.lib.create({ type: 'memo', body: t, ...extra });
 }
 
-// 넣고 나서 실수였으면 바로 되돌린다
+// 넣고 나서 실수였으면 바로 되돌린다. 알림에는 자동으로 고른 서랍을 보여 준다
 export async function quickSave(text, { open = false } = {}) {
   const n = await saveQuick(text);
   if (!n) return null;
   if (open) go(noteHref(n.id));
   else {
-    toast('인박스에 넣었어요', {
+    toast(`${categoryOf(n, app.lib).name} 서랍에 넣었어요`, {
       action: '되돌리기', duration: 5000,
       onAction: async () => { try { await app.lib.remove(app.lib.get(n.id) ?? n); toast('방금 넣은 노트를 뺐어요'); } catch (e) { toast(e.message); } },
     });

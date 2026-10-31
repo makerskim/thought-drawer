@@ -3,8 +3,9 @@ import { html, useState, useEffect, useRef } from '../h.js';
 import { Icon, Mascot, TYPE_ICON } from '../icons.js';
 import { app } from '../state.js';
 import { noteHref, tagHref } from '../router.js';
-import { relTime, folderTone, tagTone } from '../format.js';
+import { relTime, tagTone } from '../format.js';
 import { displayTitle, categoryParts } from '../../core/note.js';
+import { categoryOf, categoryLook } from '../categories.js';
 
 export function Tag({ name, href = true, onRemove }) {
   const cls = `tag t${tagTone(name)}`;
@@ -13,13 +14,21 @@ export function Tag({ name, href = true, onRemove }) {
 }
 
 export const titleOf = (n) => displayTitle(n.meta, n.body ?? n.snippet);
-export const folderLabel = (n) => (n.meta.status === 'inbox' ? '인박스' : categoryParts(n.meta.category).join(' / '));
+export const folderLabel = (n) => categoryParts(categoryOf(n, app.lib).path).join(' / ');
 
-// 폴더 앞의 작은 색 점 (인박스는 속이 빈 점)
+// 서랍 앞의 작은 색 점 (서랍 타일과 같은 색)
 export function FolderDot({ path }) {
-  return path ? html`<i class=${`fdot f${folderTone(categoryParts(path)[0])}`} aria-hidden="true"></i>` : html`<i class="fdot inbox" aria-hidden="true"></i>`;
+  return html`<i class=${`fdot f${categoryLook(categoryParts(path)[0] ?? '').tone}`} aria-hidden="true"></i>`;
 }
-const folderOf = (n) => (n.meta.status === 'inbox' ? null : n.meta.category);
+const folderOf = (n) => categoryOf(n, app.lib).name;
+const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
+// 링크 카드의 사이트 아이콘 (못 받으면 링크 아이콘)
+function Favicon({ url }) {
+  const host = hostOf(url);
+  const [bad, setBad] = useState(!host);
+  return bad ? html`<${KindIcon} type="bookmark" />`
+    : html`<span class="kind-ic fav" aria-hidden="true"><img src=${`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`} alt="" loading="lazy" onError=${() => setBad(true)} /></span>`;
+}
 
 // 종류 표시: 색이 있는 동그라미 안의 선 아이콘
 export function KindIcon({ type, class: cls = '' }) {
@@ -94,11 +103,11 @@ export function MCard({ note, hl, active = false }) {
   return html`<a class=${`mcard k-${kind}${att ? ' photo' : ''}${active ? ' active' : ''}`} href=${noteHref(note.id)} ref=${ref} aria-current=${active ? 'true' : undefined}>
     ${att && html`<div class="img">${url ? html`<img src=${url} alt="" loading="lazy" />` : html`<div class="sk"></div>`}</div>`}
     <div class="tx">
-      ${!att && html`<${KindIcon} type=${kind} />`}
+      ${!att && (kind === 'bookmark' && m.source ? html`<${Favicon} url=${m.source} />` : html`<${KindIcon} type=${kind} />`)}
       <b>${m.pinned && html`<${Icon} name="star" class="pin" label="즐겨찾기" />`}${hl ? hl(t) : t}</b>
       ${sub && sub !== t && (!att || hl) && html`<p>${hl ? hl(sub) : sub}</p>`}
     </div>
-    <div class="ft"><span class="where"><${FolderDot} path=${folderOf(note)} />${folderLabel(note)}</span><span class="num">${relTime(m.updated || m.created)}</span></div>
+    <div class="ft"><span class="where"><${FolderDot} path=${folderOf(note)} />${folderLabel(note)}</span>${m.source && kind === 'bookmark' ? html`<span class="host">${hostOf(m.source)}</span>` : html`<span class="num">${relTime(m.updated || m.created)}</span>`}</div>
   </a>`;
 }
 

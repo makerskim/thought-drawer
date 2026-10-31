@@ -47,7 +47,7 @@ async function run(kind, data, { quiet = false } = {}) {
     await remember({ ...meta, title: meta.title || data.title || '' }, kind);
     badge('✓', '#2d855a');
     setTimeout(() => badge(''), 2500);
-    if (!quiet) notify(`td:${meta.id}`, `${data.quote ? '고른 글' : LABEL[kind]}${data.quote ? '을' : '를'} 인박스에 넣었어요`, data.title || data.url || '눌러서 앱에서 보기');
+    if (!quiet) notify(`td:${meta.id}`, `${data.quote ? '고른 글' : LABEL[kind]}${data.quote ? '을' : '를'} 넣었어요`, data.title || data.url || '눌러서 앱에서 보기');
     return { id: meta.id, url: noteUrl(meta.id) };
   } catch (e) {
     badge('!', '#cf3f36');

@@ -9,7 +9,9 @@ import { modal } from '../parts/layers.js';
 import { ConfirmDialog } from '../parts/dialogs.js';
 import { capturePhotos } from '../capture.js';
 import { saveQuick } from '../quick.js';
-import { parseInstagramFile, mergeSaved, isInstagramUrl } from '../../core/instagram.js';
+import { categoryOf, guessCategory } from '../categories.js';
+import { parseBookmarks, isBookmarksFile } from '../../core/bookmarks.js';
+import { parseInstagramFile, mergeSaved } from '../../core/instagram.js';
 import { convertForExport } from '../../core/export.js';
 import { ATTACH_DIR } from '../../config.js';
 import { relTime } from '../format.js';
@@ -32,8 +34,8 @@ export function Login({ onSignIn, busy, error }) {
       <h1>Thought Drawer</h1>
       <p class="lead">떠오른 생각, 캡처, 링크, 인스타 저장을 한 서랍에 넣어 두면<br />Claude가 정리해서 다시 찾기 쉽게 해 줘요.</p>
       <ol class="login-feats">
-        <li><span class="gs-ic g1"><${Icon} name="plus" /></span><span>무엇이든 넣으면 인박스에 모여요</span></li>
-        <li><span class="gs-ic g2"><${Icon} name="sparkle" /></span><span>Claude가 제목, 요약, 태그를 달아 폴더로 옮겨요</span></li>
+        <li><span class="gs-ic g1"><${Icon} name="plus" /></span><span>글, 링크, 사진, 북마크 무엇이든 넣어요</span></li>
+        <li><span class="gs-ic g2"><${Icon} name="sparkle" /></span><span>사이트와 내용을 보고 서랍에 알아서 나눠요</span></li>
         <li><span class="gs-ic g3"><${Icon} name="search" /></span><span>찾거나 물어보면 바로 다시 꺼내 줘요</span></li>
       </ol>
       ${configured
@@ -104,8 +106,11 @@ export function Settings({ offline }) {
         <div class="row-ctl"><span class="muted" style="width:64px">밝기</span>${seg(theme, setTheme, [['', '기기 따라'], ['light', '낮'], ['dark', '밤']])}</div>
         <div class="row-ctl"><span class="muted" style="width:64px">노트 글꼴</span>${seg(font, setFont, [['', '기본'], ['round', '동글'], ['serif', '명조'], ['mono', '고정폭']])}</div>
       </${Section}>
-      <${Section} title="자동 정리" desc="Claude Code 예약 작업이 하루 몇 번 인박스의 새 노트만 읽고 정리해요. 지금 쓰는 Claude 구독으로 돌아서 추가 비용이 없어요.">
-        <div class="kv"><div><b>${lib.inbox().length}</b><span>인박스</span></div><div><b>${lib.organized().length}</b><span>정리된 노트</span></div><div><b>${lib.index?.generatedAt ? relTime(lib.index.generatedAt) : '아직'}</b><span>마지막 정리</span></div></div>
+      <${Section} title="자동 분류" desc="넣는 즉시 앱이 사이트(쿠팡이면 쇼핑, 유튜브면 영상)와 낱말을 보고 서랍을 골라요. 노트에서 서랍을 바꾸면 그걸 배워서 다음부터 더 잘 나눠요. 기기 안에서 돌아서 비용도 설정도 없어요.">
+        <div class="kv"><div><b>${lib.all.length}</b><span>모든 노트</span></div><div><b>${lib.organized().length}</b><span>내가·Claude가 정한 서랍</span></div><div><b>${lib.inbox().length}</b><span>자동으로 나눈 노트</span></div></div>
+      </${Section}>
+      <${Section} title="Claude로 더 다듬기 (선택)" desc="Claude Code 예약 작업을 켜 두면 하루 몇 번 새 노트를 읽고 제목, 한 줄 요약, 태그, 노트 사이 연결까지 붙여 줘요. 지금 쓰는 Claude 구독으로 돌아서 추가 비용이 없어요. 켜지 않아도 자동 분류는 돼요.">
+        <div class="kv"><div><b>${lib.index?.generatedAt ? relTime(lib.index.generatedAt) : '아직 안 켬'}</b><span>마지막으로 다듬은 때</span></div></div>
         ${token?.refreshToken && html`<div class="banner"><${Icon} name="check" /><p><b>정리기용 토큰을 받았어요.</b> 복사해서 Claude Code 환경 설정의 TD_GOOGLE_REFRESH_TOKEN에 넣으세요. 이 화면을 벗어나면 다시 볼 수 없어요. 채팅창에는 붙여 넣지 마세요.</p></div>
           <div class="code-box"><input class="input mono" readonly value=${token.refreshToken} onFocus=${(e) => e.target.select()} aria-label="정리기용 토큰" /><button type="button" class="btn" onClick=${() => copy(token.refreshToken, '토큰')}><${Icon} name="copy" />복사</button></div>`}
         ${token?.error && html`<div class="banner warn"><${Icon} name="alert" /><p>${token.error}</p><button type="button" class="btn btn-ghost" onClick=${() => setToken(null)}>닫기</button></div>`}
@@ -115,7 +120,7 @@ export function Settings({ offline }) {
           <small>보안 비밀은 이 브라우저에서 구글로만 보내고 저장하지 않아요. 순서는 docs/설정가이드.md 4단계에 있어요.</small>
         </form>
       </${Section}>
-      <${Section} title="아이폰 공유" desc="단축어 「메모로 보내기」가 여는 주소예요. 공유한 내용을 이 주소 뒤에 붙여 열면 인박스에 저장돼요.">
+      <${Section} title="아이폰 공유" desc="단축어 「메모로 보내기」가 여는 주소예요. 공유한 내용을 이 주소 뒤에 붙여 열면 서랍에 저장돼요.">
         <div class="code-box"><input class="input mono" readonly value=${shareUrl} onFocus=${(e) => e.target.select()} aria-label="공유 주소" /><button type="button" class="btn" onClick=${() => copy(shareUrl, '주소')}><${Icon} name="copy" />복사</button></div>
         <small class="muted">홈 화면에 추가: 사파리에서 이 앱을 열고 공유 버튼, 홈 화면에 추가. 만드는 순서는 docs/단축어.md에 있어요.</small>
       </${Section}>
@@ -188,8 +193,80 @@ export function Import() {
           노트는 바로 만들어지고, Claude가 하루에 정해진 양씩 캡션을 읽어 정리해요.</p></div>
         ${prog !== null ? html`<div class="progress"><i style=${`width:${prog}%`}></i></div><p class="muted">${prog}% 만드는 중</p>`
           : html`<div class="row-ctl" style="display:flex;gap:8px"><button type="button" class="btn btn-primary btn-lg" onClick=${start}>노트 ${items.length}개 만들기</button><button type="button" class="btn btn-ghost btn-lg" onClick=${() => setItems(null)}>취소</button></div>`}`}
-      ${done && html`<${Empty} icon="check" title=${`${done.made}개를 인박스에 넣었어요`} text=${done.skipped ? `이미 있던 ${done.skipped}개는 건너뛰었어요.` : '다음 정리 때부터 폴더로 나뉘어요.'}>
-        <button type="button" class="btn" onClick=${() => go('#/inbox')}>인박스 보기</button></${Empty}>`}
+      ${done && html`<${Empty} icon="check" title=${`${done.made}개를 넣었어요`} text=${done.skipped ? `이미 있던 ${done.skipped}개는 건너뛰었어요.` : '캡션을 보고 서랍에 나눠 두었어요.'}>
+        <button type="button" class="btn" onClick=${() => go('#/')}>서랍 보기</button></${Empty}>`}
+    </div>`;
+}
+
+// 브라우저 북마크 가져오기: 크롬·사파리·엣지·파이어폭스의 bookmarks.html. 미리 어느 서랍으로 갈지 보여 주고 한 번에 넣는다
+const EXPORT_HOW = [
+  ['크롬', '북마크 관리자(Ctrl+Shift+O, 맥은 ⌘+Option+B) → 오른쪽 위 ⋮ → 북마크 내보내기'],
+  ['엣지', '즐겨찾기(Ctrl+Shift+O) → ⋯ → 즐겨찾기 내보내기'],
+  ['사파리 (맥)', '파일 → 내보내기 → 북마크'],
+  ['파이어폭스', '북마크 관리(Ctrl+Shift+O) → 가져오기 및 백업 → HTML로 내보내기'],
+];
+export function Bookmarks() {
+  const lib = useLib();
+  const [items, setItems] = useState(null);
+  const [prog, setProg] = useState(null);
+  const [done, setDone] = useState(null);
+  const [over, setOver] = useState(false);
+  const read = async (files) => {
+    const f = [...files][0];
+    if (!f) return;
+    const text = await f.text();
+    if (!isBookmarksFile(text)) { toast('북마크 내보내기 파일(.html)이 아니에요. 아래 방법으로 내보낸 파일을 골라 주세요.'); return; }
+    const list = parseBookmarks(text);
+    const have = new Set(lib.all.map((n) => n.meta.source).filter(Boolean));
+    const fresh = list.filter((b) => !have.has(b.url));
+    const groups = new Map();
+    for (const b of fresh) {
+      const tags = b.folder ? [b.folder.split('/').at(-1)] : [];
+      const c = guessCategory({ type: 'bookmark', source: b.url, title: b.title, tags }, '', lib).category;
+      groups.set(c, (groups.get(c) ?? 0) + 1);
+    }
+    setDone(null);
+    setItems({ fresh, skipped: list.length - fresh.length, groups: [...groups].sort((a, b) => b[1] - a[1]) });
+  };
+  const start = async () => {
+    const queue = [...items.fresh];
+    let made = 0;
+    setProg(0);
+    const work = async () => {
+      while (queue.length) {
+        const b = queue.shift();
+        try {
+          await lib.addLink(b.url, '', b.title, { via: 'bookmarks', ...(b.folder ? { tags: [b.folder.split('/').at(-1)] } : {}), ...(b.added ? { date: b.added } : {}) });
+          made++;
+        } catch { /* 하나 실패해도 나머지는 계속 */ }
+        setProg(Math.round(((items.fresh.length - queue.length) / items.fresh.length) * 100));
+      }
+    };
+    await Promise.all([work(), work(), work()]);
+    setProg(null);
+    setDone({ made, skipped: items.skipped, failed: items.fresh.length - made });
+    setItems(null);
+  };
+  return html`<${PageBar} title="북마크 가져오기" />
+    <div class="page narrow">
+      <div class="page-head"><h1>인터넷 북마크를 한 번에</h1>
+        <p>브라우저에서 북마크를 파일로 내보내 여기에 올리면, 링크마다 노트가 되고 사이트와 제목을 보고 서랍에 나눠요. 이미 넣은 링크는 건너뛰어요.</p></div>
+      ${!items && prog === null && html`<label class=${`dropzone${over ? ' over' : ''}`}
+          onDragOver=${(e) => { e.preventDefault(); setOver(true); }} onDragLeave=${() => setOver(false)}
+          onDrop=${(e) => { e.preventDefault(); setOver(false); read(e.dataTransfer.files); }}>
+        <${Icon} name="upload" /><b>bookmarks.html 파일을 고르거나 끌어다 놓기</b><span class="muted">파일은 이 브라우저 안에서만 읽어요</span>
+        <input class="sr" type="file" accept=".html,.htm,text/html" onChange=${(e) => read(e.target.files)} />
+      </label>
+      <section class="set-sec how"><div><h2>파일 내보내는 법</h2><p class="desc">아이폰 사파리는 내보내기가 없어서 맥이나 PC에서 해요.</p></div>
+        <div class="ctl"><ol class="steps">${EXPORT_HOW.map(([b, how]) => html`<li key=${b}><span><b>${b}</b>: ${how}</span></li>`)}</ol></div></section>`}
+      ${items && prog === null && html`<div class="banner"><${Icon} name="star" /><p><b>링크 ${items.fresh.length}개</b>를 찾았어요${items.skipped ? ` (이미 있는 ${items.skipped}개는 건너뜀)` : ''}. 이렇게 나눌게요:</p></div>
+        <div class="preview-groups">${items.groups.map(([c, n]) => html`<span class="chip" key=${c}>${c}<span class="n">${n}</span></span>`)}</div>
+        <div class="row-ctl" style="display:flex;gap:8px;margin-top:16px">
+          <button type="button" class="btn btn-primary btn-lg" disabled=${!items.fresh.length} onClick=${start}>링크 ${items.fresh.length}개 넣기</button>
+          <button type="button" class="btn btn-ghost btn-lg" onClick=${() => setItems(null)}>취소</button></div>`}
+      ${prog !== null && html`<div class="progress"><i style=${`width:${prog}%`}></i></div><p class="muted">${prog}% 넣는 중. 이 화면을 닫지 마세요.</p>`}
+      ${done && html`<${Empty} icon="check" mood="happy" title=${`링크 ${done.made}개를 넣었어요`} text=${[done.skipped && `이미 있던 ${done.skipped}개는 건너뛰었어요.`, done.failed && `${done.failed}개는 넣지 못했어요. 다시 올리면 빠진 것만 넣어요.`].filter(Boolean).join(' ') || '서랍에서 확인해 보세요.'}>
+        <button type="button" class="btn btn-primary" onClick=${() => go('#/')}>서랍 보기</button></${Empty}>`}
     </div>`;
 }
 
@@ -199,16 +276,19 @@ export function Share({ params }) {
   useEffect(() => {
     const text = (params.get('text') ?? '').trim();
     const url = (params.get('url') ?? '').trim();
+    const title = (params.get('title') ?? '').trim();
     const full = [url, text].filter(Boolean).join('\n').trim();
     if (!full) { go('#/paste', { replace: true }); return; }
-    saveQuick(full, { via: 'phone' })
-      .then((n) => { toast(isInstagramUrl(full) ? '인스타 게시물을 인박스에 넣었어요.' : '인박스에 저장했어요.'); go(noteHref(n.id), { replace: true }); })
+    // 브라우저 단추·공유는 주소, 제목, 고른 글을 따로 보낸다
+    const via = params.get('via') || 'phone';
+    (url ? app.lib.addLink(url, text, title, { via }) : saveQuick(full, { via }))
+      .then((n) => { toast(`${categoryOf(n, app.lib).name} 서랍에 넣었어요`); go(noteHref(n.id), { replace: true }); })
       .catch((e) => setError(e.message));
   }, []);
   return html`<${PageBar} title="받는 중" />
     <div class="page narrow">${error
       ? html`<${Empty} icon="alert" title="저장하지 못했어요" text=${error}><button type="button" class="btn" onClick=${() => go('#/')}>홈으로</button></${Empty}>`
-      : html`<${Empty} icon="inbox" title="인박스에 넣는 중" text="잠시만요." />`}</div>`;
+      : html`<${Empty} icon="inbox" title="넣는 중" text="잠시만요." />`}</div>`;
 }
 
 // 단축어가 사진을 복사해 두고 여는 화면
@@ -235,7 +315,7 @@ export function Paste() {
   };
   return html`<${PageBar} title="사진 붙여넣기" />
     <div class="page narrow">
-      <${Empty} icon="paste" title="복사한 사진을 붙여 넣어요" text="버튼을 누르고, 아이폰이 묻는 '붙여넣기'를 한 번 더 누르면 인박스에 저장돼요.">
+      <${Empty} icon="paste" title="복사한 사진을 붙여 넣어요" text="버튼을 누르고, 아이폰이 묻는 '붙여넣기'를 한 번 더 누르면 저장돼요.">
         <button type="button" class="btn btn-primary btn-lg" onClick=${fromClipboard}><${Icon} name="paste" />붙여넣기</button>
       </${Empty}>
     </div>`;

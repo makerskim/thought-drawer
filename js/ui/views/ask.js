@@ -42,7 +42,7 @@ export function Ask({ params }) {
           <button type="button" class="btn" onClick=${async () => { try { await navigator.clipboard.writeText(prompt); toast('질문과 관련 노트를 복사했어요.'); } catch { toast('복사하지 못했어요.'); } }}><${Icon} name="copy" />복사</button>
         </div>
         ${result.groups.map((g) => html`<section class="section" key=${g.category}>
-          <div class="section-head"><h2>${g.category === '정리 대기' ? '인박스' : categoryParts(g.category).join(' / ')}</h2>
+          <div class="section-head"><h2>${g.category === '정리 대기' ? '자동 분류' : categoryParts(g.category).join(' / ')}</h2>
             ${g.category !== '정리 대기' && html`<a href=${folderHref(g.category)}>폴더 열기</a>`}</div>
           <div class="rows">${g.items.map(({ note }) => html`<${NoteRow} key=${note.id} note=${note} showFolder=${false} hl=${hl} />`)}</div>
         </section>`)}`}

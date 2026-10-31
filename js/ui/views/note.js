@@ -13,6 +13,7 @@ import { splitLinks, joinLinks } from '../../core/wiki.js';
 import { categoryParts, embeds } from '../../core/note.js';
 import { relTime, fullDate, KIND_LABEL } from '../format.js';
 import { TEMPLATES, rememberSeen } from '../notebook.js';
+import { categoryOf } from '../categories.js';
 
 const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
 const shortDate = (iso) => { const d = new Date(iso); return Number.isNaN(+d) ? '' : `${d.getFullYear() === new Date().getFullYear() ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월 ${d.getDate()}일`; };
@@ -87,7 +88,7 @@ function Links({ note }) {
       ${links.length
         ? links.map(({ note: n, dir }) => html`<a class="rp-item" key=${n.id} href=${noteHref(n.id)}>
             <b>${dir === 'in' ? html`<span class="kind-ic k-in" aria-hidden="true"><${Icon} name="enter" /></span>` : html`<${KindIcon} type=${n.meta.type} />`}<span>${titleOf(n)}</span></b>
-            <small>${reasons.get(n.id) ?? (dir === 'in' ? '이 노트를 언급함' : (categoryParts(n.meta.category).join(' / ') || '인박스'))}</small>
+            <small>${reasons.get(n.id) ?? (dir === 'in' ? '이 노트를 언급함' : categoryParts(categoryOf(n, lib).path).join(' / '))}</small>
           </a>`)
         : html`<p class="rp-empty">아직 이어진 노트가 없어요. Claude가 정리할 때 이어 주고, 아래 비슷한 노트를 직접 이을 수도 있어요.</p>`}
     </div>
@@ -219,6 +220,7 @@ export function NoteView({ id, params }) {
 
   const m = note?.meta ?? { type: 'memo', status: 'inbox' };
   const folder = m.status === 'organized' ? m.category : null;
+  const cat = note ? categoryOf(note, lib) : null;
 
   const ensureSaved = async () => { await flush(); return lib.get(latest.current.noteId); };
   const update = async (meta) => {
@@ -233,7 +235,7 @@ export function NoteView({ id, params }) {
   const pickFolder = (anchor) => popover(anchor, (close) => html`<${FolderPicker} current=${folder} close=${close} onPick=${async (p) => {
     const n = await ensureSaved();
     if (!n) { toast('먼저 제목이나 내용을 적어 주세요.'); return; }
-    try { await lib.moveTo(n, p); toast(p ? `${categoryParts(p).join(' / ')}에 넣었어요` : '인박스로 옮겼어요'); } catch (e) { toast(e.message); }
+    try { await lib.moveTo(n, p); toast(p ? `${categoryParts(p).join(' / ')} 서랍으로 옮겼어요` : '자동 분류에 맡겼어요'); } catch (e) { toast(e.message); }
   }} />`, { width: 300 });
   const remove = () => modal((close) => html`<${ConfirmDialog} close=${close} title="이 노트를 지울까요?" text="구글 드라이브 휴지통으로 옮겨요. 30일 안에는 되살릴 수 있어요." yes="지우기" danger
     onYes=${async () => {
@@ -249,7 +251,7 @@ export function NoteView({ id, params }) {
   const togglePin = () => update({ pinned: pinned ? undefined : true }).then(() => toast(pinned ? '즐겨찾기에서 뺐어요' : '즐겨찾기에 넣었어요'));
   const more = (anchor) => popover(anchor, (close) => html`
     <${MenuItem} icon="star" label=${pinned ? '즐겨찾기에서 빼기' : '즐겨찾기에 넣기'} onClick=${() => { close(); togglePin(); }} />
-    <${MenuItem} icon="folder" label="폴더 옮기기" onClick=${() => { close(); pickFolder(anchor); }} />
+    <${MenuItem} icon="folder" label="서랍 바꾸기" onClick=${() => { close(); pickFolder(anchor); }} />
     ${m.source && html`<${MenuItem} icon="external" label="원문 열기" onClick=${() => { close(); window.open(m.source, '_blank', 'noopener'); }} />`}
     <${MenuItem} icon="copy" label="노트 링크 복사" onClick=${async () => { close(); try { await navigator.clipboard.writeText(location.href); toast('링크를 복사했어요'); } catch { toast('복사하지 못했어요.'); } }} />
     <div class="mi-sep"></div>
@@ -270,12 +272,13 @@ export function NoteView({ id, params }) {
           <${Grow} class="note-title" value=${title} onInput=${change(setTitle)} placeholder=${note ? titleOf(note) : '제목을 지어 주세요'} label="제목" autofocus=${!noteId}
             onKeyDown=${(e) => { if ((e.key === 'Enter' || e.key === 'ArrowDown') && !e.isComposing) { e.preventDefault(); focusBody(); } }} />
           <div class="meta-row">
-            <button type="button" class=${`mpill${folder ? '' : ' quiet'}`} title="폴더 옮기기" onClick=${(e) => pickFolder(e.currentTarget)}>
-              <${FolderDot} path=${folder} />${folder ? categoryParts(folder).join(' / ') : '인박스'}<${Icon} name="down" />
+            <button type="button" class=${`mpill${cat?.auto ? ' auto' : ''}`} title=${cat?.auto ? `자동 분류${cat.why ? `: ${cat.why}` : ''}. 눌러서 서랍을 바꿔요` : '서랍 바꾸기'} onClick=${(e) => pickFolder(e.currentTarget)}>
+              <${FolderDot} path=${cat?.path ?? ''} />${cat ? categoryParts(cat.path).join(' / ') : '자동 분류'}${cat?.auto && html`<span class="auto-badge">자동</span>`}<${Icon} name="down" />
             </button>
             <${TagEditor} tags=${m.tags ?? []} onChange=${(tags) => update({ tags })} />
             ${m.source && html`<a class="mpill" href=${m.source} target="_blank" rel="noopener" title=${m.source}><${Icon} name="external" />${hostOf(m.source)}</a>`}
           </div>
+          ${cat?.auto && html`<p class="auto-why"><${Icon} name="sparkle" /><span>${cat.why ? `${cat.why}라서 ` : ''}<b>${cat.name}</b> 서랍에 자동으로 넣었어요. 맞지 않으면 위 서랍을 눌러 바꿔 주세요.</span></p>`}
           ${m.summary && html`<div class="bubble-ai"><span class="ai-face" aria-hidden="true"><${Icon} name="sparkle" /></span><div><small>Claude가 한 줄로 정리했어요</small><p>${m.summary}</p></div></div>`}
           <div class="thought-note"><${Icon} name="thought" />
             <${Grow} value=${thought} onInput=${change(setThought)} label="내 생각" placeholder="왜 저장했는지 한 줄 남겨 볼까요?" />

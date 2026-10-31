@@ -1,4 +1,4 @@
-// 확장 프로그램 팝업: 보고 있는 페이지, 보이는 화면 캡처, 메모를 인박스에 넣는다.
+// 확장 프로그램 팝업: 보고 있는 페이지, 보이는 화면 캡처, 메모를 넣는다 (서랍은 앱이 자동으로 나눈다).
 // 저장과 구글 연결은 백그라운드가 한다 (팝업은 닫히면 멈추기 때문).
 
 import { APP_URL } from './app/config.js';
@@ -113,7 +113,7 @@ async function showConnect(message, code) {
   const { uri } = await send('redirect').catch(() => ({ uri: '' }));
   view.innerHTML = `<div class="connect">
     <h1>${welcome ? '설치했어요. 이제 연결해요' : '구글 드라이브에 연결해요'}</h1>
-    <p>보고 있는 페이지, 고른 글, 화면 캡처, 메모를 구글 드라이브 「메모」 폴더의 인박스에 넣어요. 웹사이트와 폰 앱에서 보는 것과 같은 곳이에요.</p>
+    <p>보고 있는 페이지, 고른 글, 화면 캡처, 메모를 구글 드라이브 「메모」 폴더에 넣어요. 앱이 사이트와 내용을 보고 서랍에 나눠요. 웹사이트와 폰 앱에서 보는 것과 같은 곳이에요.</p>
     ${message ? `<p class="err">${icon('alert')}<span>${esc(message)}</span></p>` : ''}
     <button type="button" class="btn google" id="signin">${GOOGLE}<span>구글로 연결</span></button>
     <p class="small muted">이 앱이 만든 파일만 볼 수 있는 권한(drive.file)만 받아요.</p>
@@ -318,7 +318,7 @@ function showDone(r, title) {
   s.busy = false;
   view.innerHTML = `<div class="done">
     <div class="tick">${icon('check', 22)}</div>
-    <h2>인박스에 넣었어요</h2>
+    <h2>넣었어요</h2>
     ${title ? `<p class="t">${esc(title)}</p>` : ''}
     <div class="row">
       <button type="button" class="btn primary" id="see">${icon('external')}앱에서 보기</button>

@@ -39,4 +39,3 @@ export function rememberSeen(id) {
   const list = prefs.get('recent', []).filter((x) => x !== id);
   prefs.set('recent', [id, ...list].slice(0, 12));
 }
-export const recentNotes = (lib, n = 8) => prefs.get('recent', []).map((id) => lib.get(id)).filter(Boolean).slice(0, n);

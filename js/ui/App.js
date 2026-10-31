@@ -12,7 +12,7 @@ import { NoteView } from './views/note.js';
 import { preloadEditor } from './editor.js';
 import { Ask } from './views/ask.js';
 import { Graph } from './views/graph.js';
-import { Login, Settings, Import, Share, Paste } from './views/more.js';
+import { Login, Settings, Import, Bookmarks, Share, Paste } from './views/more.js';
 import { Connect } from './views/connect.js';
 import { createLibrary } from '../store/library.js';
 import { createDriveAdapter } from '../store/drive.js';
@@ -25,7 +25,7 @@ const isTyping = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT
 // 서랍 위에 옆 창으로 여는 것: 노트, 새 노트, 묻기
 const SHEET = /^\/(n\/.+|new|ask)$/;
 // 서랍 대신 화면을 채우는 것
-const PAGES = new Set(['/settings', '/import', '/connect', '/graph', '/share', '/paste']);
+const PAGES = new Set(['/settings', '/import', '/bookmarks', '/connect', '/graph', '/share', '/paste']);
 let listHash = '#/'; // 옆 창을 닫으면 돌아갈 서랍 주소
 
 function Sheet({ route }) {
@@ -40,6 +40,7 @@ function Page({ route, offline }) {
   const { path, params } = route;
   if (path === '/graph') return html`<${Graph} />`;
   if (path === '/import') return html`<${Import} />`;
+  if (path === '/bookmarks') return html`<${Bookmarks} />`;
   if (path === '/connect') return html`<${Connect} />`;
   if (path === '/settings') return html`<${Settings} offline=${offline} />`;
   if (path === '/share') return html`<${Share} params=${params} />`;
@@ -147,7 +148,7 @@ export function App({ auth }) {
       if (isTyping(document.activeElement) || e.metaKey || e.ctrlKey || e.altKey) return;
       // Enter: 무엇에도 커서가 없으면 가운데 입력창 (단추나 카드에 있으면 그것을 누른 것)
       const idle = !document.activeElement || document.activeElement === document.body || document.activeElement.matches('.stage-main, .results, .sheet');
-      if (e.key === 'Enter' && !e.shiftKey && !isPage && idle) { e.preventDefault(); openComposer(); return; }
+      if (e.key === 'Enter' && !e.shiftKey && !isPage && idle) { e.preventDefault(); if (isSheet || !app.focusCapture?.()) openComposer(); return; }
       if (e.key === '/') { e.preventDefault(); app.find(); }
       else if (e.key === 'n') { e.preventDefault(); go('#/new'); }
       else if (e.key === 't') { e.preventDefault(); openToday(); }
@@ -209,6 +210,6 @@ export function App({ auth }) {
     </div>
     <${Layers} />
     <${Toasts} />
-    ${veil && html`<div class="drop-veil"><div><${Icon} name="capture" />놓으면 인박스에 저장돼요</div></div>`}`;
+    ${veil && html`<div class="drop-veil"><div><${Icon} name="capture" />놓으면 바로 넣어요</div></div>`}`;
 }
 

@@ -1,14 +1,14 @@
 // 그래프: 노트는 점, 연결은 선. 점에 올리면 이웃만 밝게 보인다 (옵시디언처럼).
 import { html, useEffect, useRef } from '../h.js';
 import { Icon } from '../icons.js';
-import { useLib } from '../state.js';
+import { app, useLib } from '../state.js';
 import { go, noteHref } from '../router.js';
 import { PageBar } from '../parts/shell.js';
 import { Empty, titleOf } from '../parts/common.js';
-import { categoryParts } from '../../core/note.js';
 import { folderColor, GRAPH_COLORS } from '../format.js';
+import { categoryOf } from '../categories.js';
 
-const topOf = (n) => (n.meta.status === 'inbox' ? '인박스' : categoryParts(n.meta.category)[0] ?? '인박스');
+const topOf = (n) => categoryOf(n, app.lib).name;
 
 export function Graph() {
   const lib = useLib();
@@ -17,7 +17,7 @@ export function Graph() {
   const api = useRef({});
   const notes = lib.all;
   const groups = [...new Set(notes.map(topOf))];
-  const colorFor = (g) => (g === '인박스' ? GRAPH_COLORS.gray : GRAPH_COLORS[folderColor(g)]);
+  const colorFor = (g) => (g === '기타' ? GRAPH_COLORS.gray : GRAPH_COLORS[folderColor(g)]);
 
   useEffect(() => {
     if (!notes.length) return undefined;

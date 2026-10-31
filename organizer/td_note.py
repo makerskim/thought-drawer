@@ -121,6 +121,7 @@ def iso_local(d: datetime | None = None) -> str:
 
 def snippet(body: str, limit: int = 140) -> str:
     s = body or ''
+    s = re.sub(r'(?m)^\s*[-*+]\s+\[[ xX]\]\s+', '', s)
     s = re.sub(r'!\[\[[^\]]*\]\]', ' ', s)
     s = re.sub(r'!\[[^\]]*\]\([^)]*\)', ' ', s)
     s = re.sub(r'\[\[([^\]|]+)(?:\|([^\]]*))?\]\]', lambda m: m.group(2) or re.sub(r'^\d{14}\s*', '', m.group(1)), s)

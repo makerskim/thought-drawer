@@ -21,24 +21,25 @@ export function Conn() {
   return conn && html`<${ConnBanner} conn=${conn} onRetry=${() => app.resync()} onReconnect=${(o) => app.reconnect(o)} clientId=${app.auth?.clientId} />`;
 }
 
-// 서랍 밖의 것들: 넣기, 오늘 노트, 새 노트, 할 일, 사진, 그래프, 폰과 크롬, 인스타 가져오기, 설정, 사용법
+// 메뉴: 넣기와 넣는 방법, 오늘·할 일, 보기, 설정
 export function openMenu(anchor) {
   const to = (close, hash) => () => { close(); go(hash); };
   // 사용법은 서랍 화면에서 보여 준다
-  const tour = (close) => () => { close(); if (!document.querySelector('.drawer')) go('#/'); setTimeout(openTutorial, 120); };
+  const tour = (close) => () => { close(); if (!document.querySelector('.drawer')) go('#/'); setTimeout(openTutorial, 160); };
   popover(anchor, (close) => html`
-    <${MenuItem} icon="plus" label="생각 넣기" sub="Enter" onClick=${() => { close(); openComposer(); }} />
+    <${MenuItem} icon="plus" label="넣기" sub="Enter" onClick=${() => { close(); if (!app.focusCapture?.()) openComposer(); }} />
+    <${MenuItem} icon="capture" label="사진·스크린샷 넣기" onClick=${() => { close(); app.pickPhotos(); }} />
+    <${MenuItem} icon="phone" label="다른 앱·사이트에서 넣는 법" onClick=${to(close, '#/connect')} />
+    <${MenuItem} icon="star" label="브라우저 북마크 가져오기" onClick=${to(close, '#/bookmarks')} />
+    <${MenuItem} icon="instagram" label="인스타 저장 가져오기" onClick=${to(close, '#/import')} />
+    <div class="mi-sep"></div>
     <${MenuItem} icon="calendar" label="오늘 노트" sub="T" onClick=${() => { close(); openToday(); }} />
-    <${MenuItem} icon="pen" label="새 노트 크게 쓰기" sub="N" onClick=${to(close, '#/new')} />
     <${MenuItem} icon="check" label="할 일 모아 보기" onClick=${to(close, '#/tasks')} />
-    <${MenuItem} icon="capture" label="사진 넣기" onClick=${() => { close(); app.pickPhotos(); }} />
-    <div class="mi-sep"></div>
+    <${MenuItem} icon="pen" label="새 노트 크게 쓰기" sub="N" onClick=${to(close, '#/new')} />
     <${MenuItem} icon="graph" label="생각 지도" onClick=${to(close, '#/graph')} />
-    <${MenuItem} icon="phone" label="폰과 크롬에서 쓰기" onClick=${to(close, '#/connect')} />
-    <${MenuItem} icon="instagram" label="인스타 가져오기" onClick=${to(close, '#/import')} />
-    <${MenuItem} icon="gear" label="설정" onClick=${to(close, '#/settings')} />
     <div class="mi-sep"></div>
-    <${MenuItem} icon="help" label="사용법 다시 보기" onClick=${tour(close)} />`, { width: 250 });
+    <${MenuItem} icon="gear" label="설정" onClick=${to(close, '#/settings')} />
+    <${MenuItem} icon="help" label="사용법 다시 보기" onClick=${tour(close)} />`, { width: 260 });
 }
 
 export function MenuButton() {

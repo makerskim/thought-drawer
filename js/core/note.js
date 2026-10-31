@@ -180,6 +180,7 @@ export function snippet(body, max = 140) {
   const plain = String(body ?? '')
     .replace(/^.*의 (릴스|게시물)(을|를) 저장했어요\.\s*$/gm, ' ')
     .replace(/^\[인스타그램에서 보기\]\([^)]*\)\s*$/gm, ' ')
+    .replace(/^\s*[-*+]\s+\[[ xX]\]\s+/gm, '')
     .replace(/!\[\[[^\]]*\]\]/g, ' ')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
     .replace(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g, (_, a, b) => b || a.replace(/^\d{14}\s*/, ''))

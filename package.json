@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "serve": "python3 -m http.server 8080"
+    "serve": "python3 -m http.server 8080",
+    "e2e": "node tests/e2e/app.e2e.cjs",
+    "screens": "node tests/e2e/screens.cjs"
   }
 }
