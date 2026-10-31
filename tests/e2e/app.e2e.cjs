@@ -306,6 +306,19 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.waitForTimeout(150);
   ok((await p.locator('.ws .ProseMirror').innerText()).includes('서울 마포구'), 'editor: my keyword works mid-line');
 
+  // ---- 내 계정 (오른쪽 위): 구글 계정에 관한 것만 ----
+  await p.click('.gnav .me');
+  await p.waitForSelector('.pop .acct');
+  const acct = await p.locator('.pop').innerText();
+  const acctItems = await p.$$eval('.pop .mi', (els) => els.map((e) => e.textContent.trim()));
+  ok(acct.includes('나') && acct.includes('me@example.com') && acct.includes('연결됨'), 'account menu: name, email, connection');
+  ok(JSON.stringify(acctItems) === JSON.stringify(['드라이브에서 「메모」 폴더 열기', '드라이브와 다시 맞추기', '구글 계정 관리', '로그아웃']), `account menu: Google items only (${acctItems.join(', ')})`);
+  await p.click('.pop .mi:has-text("로그아웃")');
+  await p.waitForSelector('.overlay :text("로그아웃할까요?")');
+  await p.keyboard.press('Escape');
+  await p.waitForTimeout(150);
+  ok(await p.locator('.overlay').count() === 0 && (await notes()).length > 0, 'logout asks first (cancel keeps everything)');
+
   // ---- 사용법 ----
   await p.evaluate(() => { location.hash = '#/help'; });
   await p.waitForSelector('.help-card');

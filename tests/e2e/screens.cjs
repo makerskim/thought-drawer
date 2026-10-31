@@ -16,6 +16,7 @@ const out = path.resolve(__dirname, '../../docs/screens');
   await shot('home', desk, async (p) => { await p.waitForSelector('.cm-bubble'); });
   await shot('typing', desk, async (p) => { await p.fill('.capbar textarea', 'https://www.coupang.com/vp/products/1 가습기 비교'); await p.waitForSelector('.cm-bubble:has-text("쇼핑")'); });
   await shot('plus', desk, async (p) => { await p.click('.capbar .cap-plus'); await p.waitForSelector('.pop .mi'); });
+  await shot('account', desk, async (p) => { await p.click('.gnav .me'); await p.waitForSelector('.pop .acct'); });
   await shot('slash', desk, async (p) => { await p.click('.capbar textarea'); await p.keyboard.type('/'); await p.waitForSelector('.in-slash .mi'); });
   await shot('filters', desk, async (p) => { await p.evaluate(() => { location.hash = '#/all?d=month'; }); await p.waitForSelector('.fbar'); await p.click('.fpill[data-f="dr"]'); await p.waitForSelector('.pop .mi'); });
   await shot('settings', desk, async (p) => { await p.evaluate(() => { location.hash = '#/settings?s=classify'; }); await p.waitForSelector('#s-classify'); await p.waitForTimeout(500); });

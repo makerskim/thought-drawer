@@ -136,6 +136,7 @@ export function createDriveAdapter(auth) {
 
   return {
     kind: 'drive',
+    get rootId() { return rootId; }, // 드라이브의 「메모」 폴더 (내 계정 메뉴에서 바로 열기)
     async init() {
       rootId = await findRoot();
       dirIds.set('', rootId);
