@@ -127,7 +127,8 @@ def snippet(body: str, limit: int = 140) -> str:
     s = re.sub(r'\[\[([^\]|]+)(?:\|([^\]]*))?\]\]', lambda m: m.group(2) or re.sub(r'^\d{14}\s*', '', m.group(1)), s)
     s = re.sub(r'\[([^\]]*)\]\([^)]*\)', r'\1', s)
     s = re.sub(r'(?m)^#+\s.*$', ' ', s)
-    s = re.sub(r'[*_`>~-]{1,3}', '', s)
+    s = re.sub(r'(?m)^\s*(?:[-*+]|\d+\.|>)\s+', '', s)
+    s = re.sub(r'\*\*|__|~~|`', '', s)
     s = re.sub(r'\s+', ' ', s).strip()
     return s if len(s) <= limit else s[:limit - 1] + '…'
 

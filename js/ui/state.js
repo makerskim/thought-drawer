@@ -40,8 +40,8 @@ export function applyAppearance() {
   const root = document.documentElement;
   const theme = prefs.get('theme', '');
   const font = prefs.get('font', '');
-  // 밤이 기본. 예전에 고른 「밤(dark)」도 기본과 같다
-  if (theme && theme !== 'dark') root.dataset.theme = theme; else delete root.dataset.theme;
+  // 기본은 기기 설정을 따른다. 낮(light)·밤(dark)을 고르면 그 화면으로 고정
+  if (theme === 'light' || theme === 'dark') root.dataset.theme = theme; else delete root.dataset.theme;
   if (font) root.dataset.font = font; else delete root.dataset.font;
   delete root.dataset.palette;
 }

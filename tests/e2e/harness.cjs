@@ -6,7 +6,7 @@ const ROOT = path.resolve(__dirname, '../..');
 const PORT = process.env.TD_PORT || 8080;
 let seedP = null;
 const seed = () => (seedP ??= import('./seed.mjs').then((m) => m.seed));
-const FONTS = { 'wanted-sans@1.0.3': 'wanted-sans', '@kfonts/nanum-square-round@0.2.0': '@kfonts/nanum-square-round' };
+const FONTS = { 'pretendard@1.3.9': 'pretendard', 'wanted-sans@1.0.3': 'wanted-sans', '@kfonts/nanum-square-round@0.2.0': '@kfonts/nanum-square-round' };
 
 exports.open = async (b, { viewport = { width: 1440, height: 900 }, dark = false, seedData, hash = '', tutorial = false } = {}) => {
   const ctx = await b.newContext({ viewport, deviceScaleFactor: 2, colorScheme: dark ? 'dark' : 'light' });

@@ -99,7 +99,7 @@ export function Settings({ offline }) {
         </div>
       </${Section}>
       <${Section} title="화면" desc="이 기기에만 적용돼요.">
-        <div class="row-ctl"><span class="muted" style="width:64px">밝기</span>${seg(theme, setTheme, [['', '밤'], ['light', '낮'], ['system', '기기 따라']])}</div>
+        <div class="row-ctl"><span class="muted" style="width:64px">밝기</span>${seg(theme, setTheme, [['', '기기 따라'], ['light', '낮'], ['dark', '밤']])}</div>
         <div class="row-ctl"><span class="muted" style="width:64px">노트 글꼴</span>${seg(font, setFont, [['', '기본'], ['serif', '명조'], ['mono', '고정폭']])}</div>
       </${Section}>
       <${Section} title="자동 분류" desc="넣는 즉시 앱이 사이트(쿠팡이면 쇼핑, 유튜브면 영상)와 낱말을 보고 서랍을 골라요. 노트에서 서랍을 바꾸면 그걸 배워서 다음부터 더 잘 나눠요. 기기 안에서 돌아서 비용도 설정도 없어요.">

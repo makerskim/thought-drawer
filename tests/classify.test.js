@@ -70,3 +70,8 @@ test('card snippets drop checkbox markers (same as the organizer)', async () => 
   const { snippet } = await import('../js/core/note.js');
   assert.equal(snippet('- [ ] 우유\n- [x] 달걀'), '우유 달걀');
 });
+
+test('snippets keep dates, ranges and hyphens', async () => {
+  const { snippet } = await import('../js/core/note.js');
+  assert.equal(snippet('10.28~11.03 최대 40%, 2026-10-30 **세일**\n- 목록\n> 인용'), '10.28~11.03 최대 40%, 2026-10-30 세일 목록 인용');
+});

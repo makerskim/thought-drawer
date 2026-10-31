@@ -186,7 +186,8 @@ export function snippet(body, max = 140) {
     .replace(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g, (_, a, b) => b || a.replace(/^\d{14}\s*/, ''))
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/^#+\s.*$/gm, ' ')
-    .replace(/[*_`>~-]{1,3}/g, '')
+    .replace(/^\s*(?:[-*+]|\d+\.|>)\s+/gm, '')
+    .replace(/\*\*|__|~~|`/g, '')
     .replace(/\s+/g, ' ')
     .trim();
   return plain.length > max ? `${plain.slice(0, max - 1)}…` : plain;

@@ -1,20 +1,29 @@
-/* Thought Drawer 확장 프로그램 팝업. 색과 모양은 웹앱(css/app.css)과 같은 값을 쓴다 (검은 바탕 + 보라). */
+/* Thought Drawer 확장 프로그램 팝업. 색과 모양은 웹앱(css/app.css)과 같은 값을 쓴다 (중립 회색 + 애플 파랑, 기기 밝기를 따름). */
 
 
 :root {
-  --bg: #141414; --paper: #1f1f1f; --bg-soft: #262626; --bg-soft-2: #303030; --hover: rgba(255, 255, 255, .06);
-  --text: #f5f5f7; --text-2: #a1a1a6; --text-3: #6e6e73; --border: rgba(255, 255, 255, .08); --border-2: rgba(255, 255, 255, .14);
-  --accent: #7a5af8; --accent-soft: rgba(122, 90, 248, .2); --hl: #a88bfa; --hl-soft: rgba(255, 216, 74, .35);
-  --btn: #7a5af8; --btn-text: #ffffff; --btn-hover: #8b6cff; --memo: #2a2618; --lemon: #ffd84a;
-  --m-body: #8b6cff; --m-deep: #6247d6; --m-ink: #16131f;
-  --danger: #ff5f6d; --ok: #30d158;
-  --shadow-pop: 0 0 0 1px rgba(255, 255, 255, .08), 0 24px 60px -12px rgba(0, 0, 0, .8);
-  --shadow-card: 0 8px 24px -12px rgba(0, 0, 0, .7);
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Apple SD Gothic Neo', 'Wanted Sans Variable', 'Malgun Gothic', system-ui, sans-serif;
+  --bg: #f5f5f7; --paper: #ffffff; --bg-soft: rgba(0, 0, 0, .04); --bg-soft-2: rgba(0, 0, 0, .07); --hover: rgba(0, 0, 0, .04);
+  --text: #1d1d1f; --text-2: #6e6e73; --text-3: #8e8e93; --border: rgba(0, 0, 0, .08); --border-2: rgba(0, 0, 0, .14);
+  --accent: #0071e3; --accent-soft: rgba(0, 113, 227, .09); --hl: #4da3ff; --hl-soft: rgba(255, 204, 0, .32);
+  --btn: #0071e3; --btn-text: #ffffff; --btn-hover: #0077ed; --memo: rgba(255, 204, 0, .08); --lemon: #ffcc00;
+  --m-body: #3a3a3c; --m-deep: #1d1d1f; --m-ink: #1d1d1f;
+  --danger: #ff3b30; --ok: #34c759;
+  --shadow-pop: 0 0 0 .5px rgba(0, 0, 0, .1), 0 14px 44px rgba(0, 0, 0, .16);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, .04), 0 2px 8px rgba(0, 0, 0, .04);
+  --font: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --font-display: var(--font);
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --ease: cubic-bezier(.25, .1, .25, 1);
-  color-scheme: dark;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000; --paper: #1c1c1e; --bg-soft: rgba(255, 255, 255, .06); --bg-soft-2: rgba(255, 255, 255, .1); --hover: rgba(255, 255, 255, .06);
+    --text: #f5f5f7; --text-2: #a1a1a6; --text-3: #6e6e73; --border: rgba(255, 255, 255, .1); --border-2: rgba(255, 255, 255, .16);
+    --accent: #0a84ff; --accent-soft: rgba(10, 132, 255, .16); --btn: #0a84ff; --btn-hover: #409cff; --m-body: #545458; --m-deep: #2c2c2e;
+    --shadow-pop: 0 0 0 .5px rgba(255, 255, 255, .12), 0 18px 50px rgba(0, 0, 0, .7); --shadow-card: 0 1px 2px rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
 }
 
 * { box-sizing: border-box; }

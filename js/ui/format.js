@@ -34,8 +34,8 @@ function hash(s) {
 // 그래프의 폴더 색 (회색은 인박스 몫이라 뺀다)
 export const folderColor = (s) => COLORS[hash(s) % (COLORS.length - 1)];
 export const GRAPH_COLORS = {
-  blue: '#4f7cff', green: '#22b38a', orange: '#ff9440', purple: '#8b6cff', teal: '#22a9c4',
-  yellow: '#f2be2a', red: '#ff6b6b', brown: '#b8916f', gray: '#9aa3b5',
+  blue: '#5b8def', green: '#4aa982', orange: '#d29d3a', purple: '#977ad8', teal: '#4a9fba',
+  yellow: '#c9a227', red: '#d97a5e', brown: '#a8896c', gray: '#8e8e93',
 };
 
 export const KIND_LABEL = { memo: '메모', capture: '사진', bookmark: '링크', instagram: '인스타' };

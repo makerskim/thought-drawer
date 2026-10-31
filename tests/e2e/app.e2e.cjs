@@ -18,8 +18,10 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   const rows = await rowTitles();
   ok(rows.includes('새로 넣은 것') && rows.includes('쇼핑') && rows.includes('일·업무') && rows.includes('요리'), `home: a poster row per drawer ${JSON.stringify(rows)}`);
   ok(await p.locator('.tiles .tile').count() === 4 && await p.locator('.foot').count() === 1, 'home: Apple-style tiles and footer');
-  const pb = await p.locator('.row .poster').first().boundingBox();
-  ok(pb && Math.abs(pb.width / pb.height - 16 / 9) < 0.05, 'posters are 16:9 like Netflix');
+  const heights = await p.$$eval('.rows.drawers .row:nth-child(2) .poster', (els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().height)))]);
+  ok(heights.length === 1, `cards in a row share one height ${JSON.stringify(heights)}`);
+  ok(await p.evaluate(() => getComputedStyle(document.body).fontFamily.includes('Pretendard')), 'type: Pretendard');
+  ok(await p.evaluate(() => !document.querySelector('.poster[style*="gradient"]') && getComputedStyle(document.querySelector('.poster')).backgroundImage === 'none'), 'cards are plain paper, no gradients');
 
   // ---- 1. 쉽게 넣기 ----
   await p.evaluate(() => document.activeElement?.blur());
@@ -132,7 +134,9 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.click('text=낮');
   ok((await p.evaluate(() => document.documentElement.dataset.theme)) === 'light', 'theme: switch to light');
   await p.click('text=밤');
-  ok(!(await p.evaluate(() => document.documentElement.dataset.theme)), 'theme: dark is the default');
+  ok((await p.evaluate(() => document.documentElement.dataset.theme)) === 'dark', 'theme: dark');
+  await p.click('text=기기 따라');
+  ok(!(await p.evaluate(() => document.documentElement.dataset.theme)), 'theme: follows the device by default');
   await p.evaluate(() => { location.hash = '#/search?q=' + encodeURIComponent('셔츠'); });
   await p.waitForSelector('.grid .poster');
   ok(await p.locator('.grid .poster').count() >= 2 && await p.locator('.grid .poster mark').count() >= 1, 'search page shows highlighted posters');

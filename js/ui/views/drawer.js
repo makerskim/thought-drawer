@@ -114,12 +114,12 @@ function TodayLine() {
 }
 
 // ---------- 포스터 줄 (넷플릭스) ----------
-function Row({ title, href, notes, activeId }) {
+function Row({ title, href, notes, activeId, count = 0 }) {
   const track = useRef();
   if (!notes.length) return null;
   const slide = (dir) => { const el = track.current; if (el) el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: 'smooth' }); };
   return html`<section class="row" aria-label=${title}>
-    <div class="row-head"><h2>${title}</h2>${href && html`<a class="more" href=${href}>모두 보기</a>`}</div>
+    <div class="row-head"><h2>${title}</h2>${count > notes.length && html`<span class="n">${count}</span>`}${href && html`<a class="more" href=${href}>모두 보기</a>`}</div>
     <button type="button" class="row-arrow l" aria-label=${`${title} 앞으로`} tabindex="-1" onClick=${() => slide(-1)}><${Icon} name="back" /></button>
     <div class="row-track" ref=${track}>${notes.map((n) => html`<${Poster} key=${n.id} note=${n} active=${n.id === activeId} />`)}</div>
     <button type="button" class="row-arrow r" aria-label=${`${title} 뒤로`} tabindex="-1" onClick=${() => slide(1)}><${Icon} name="chevron" /></button>
@@ -128,18 +128,18 @@ function Row({ title, href, notes, activeId }) {
 
 // ---------- 넣는 곳 소개 (애플 2단 타일) ----------
 const TILES = [
-  { h: '브라우저 단추.', p: '보던 페이지를, 클릭 한 번에.', icon: 'globe', links: [['설치하기', '#/connect']] },
-  { h: '휴대폰에서도.', p: '복사하고, 붙여 넣으면 끝.', icon: 'phone', links: [['방법 보기', '#/connect']] },
-  { h: '북마크, 한 번에.', p: '수백 개도 알아서 나눠서.', icon: 'star', links: [['가져오기', '#/bookmarks']] },
-  { h: '생각 지도.', p: '노트와 노트 사이가 보입니다.', icon: 'graph', links: [['지도 열기', '#/graph']] },
+  { h: '브라우저 단추', p: '보던 페이지를 클릭 한 번에 넣어요. 모든 브라우저에서.', icon: 'globe', links: [['설치하기', '#/connect']] },
+  { h: '휴대폰 앱에서', p: '공유에서 링크를 복사하고, 여기서 붙여 넣으면 끝.', icon: 'phone', links: [['방법 보기', '#/connect']] },
+  { h: '북마크 가져오기', p: '브라우저 북마크 수백 개도 한 번에, 알아서 나눠서.', icon: 'star', links: [['가져오기', '#/bookmarks']] },
+  { h: '생각 지도', p: '노트와 노트가 어떻게 이어지는지 한눈에.', icon: 'graph', links: [['지도 열기', '#/graph']] },
 ];
 function Tiles() {
   return html`<section aria-labelledby="tiles-title">
-    <div class="tiles-head"><h2 id="tiles-title">어디서든 넣으세요.</h2></div>
+    <div class="tiles-head"><h2 id="tiles-title">어디서든 넣으세요.</h2><p>휴대폰, 다른 브라우저, 북마크까지 한곳으로.</p></div>
     <div class="tiles">${TILES.map((t) => html`<div class="tile" key=${t.h}>
+      <span class="tile-ic"><${Icon} name=${t.icon} /></span>
       <h3>${t.h}</h3><p>${t.p}</p>
       <div class="tile-links">${t.links.map(([l, href]) => html`<a class="more" href=${href} key=${l}>${l}</a>`)}</div>
-      <span class="tile-ic"><${Icon} name=${t.icon} /></span>
     </div>`)}</div>
   </section>`;
 }
@@ -165,8 +165,8 @@ export function Home() {
       : lib.all.length
         ? html`<div class="rows drawers">
             <${Row} title="이어서 보기" notes=${recent} />
-            <${Row} title="새로 넣은 것" href="#/all" notes=${lib.all.slice(0, 20)} />
-            ${drawers.map((d) => html`<${Row} key=${d.name} title=${d.name} href=${folderHref(d.name)} notes=${byDrawer(d.name)} />`)}
+            <${Row} title="새로 넣은 것" href="#/all" notes=${lib.all.slice(0, 20)} count=${lib.all.length} />
+            ${drawers.map((d) => html`<${Row} key=${d.name} title=${d.name} href=${folderHref(d.name)} notes=${byDrawer(d.name)} count=${d.count} />`)}
           </div>`
         : html`<${Empty} mood="wave" title="서랍이 비어 있어요" text="위 칸에 첫 생각을 적거나, 아래 방법으로 넣어 보세요." />`}
     <${Tiles} />
@@ -182,9 +182,12 @@ export function Drawers() {
     <${Conn} />
     <div class="page-hero"><h1>서랍.</h1><p>넣은 것을 사이트와 내용을 보고 앱이 나눴어요. 노트에서 서랍을 바꾸면 다음부터 더 잘 나눠요.</p></div>
     <div class="dbig-grid drawers">
-      <a class="dbig c3" href="#/all"><${Icon} name="grid" /><b>전체</b><span>노트 ${lib.all.length}개</span></a>
-      ${list.map((d) => html`<a key=${d.name} class=${`dbig c${d.look.tone}`} href=${folderHref(d.name)}><${Icon} name=${d.look.icon} /><b>${d.name}</b><span>노트 ${d.count}개${d.auto ? `, 자동 분류 ${d.auto}개` : ''}</span></a>`)}
-      ${lib.pinned().length > 0 && html`<a class="dbig c2" href="#/star"><${Icon} name="star" /><b>즐겨찾기</b><span>노트 ${lib.pinned().length}개</span></a>`}
+      ${list.map((d) => html`<a key=${d.name} class=${`dbig c${d.look.tone}`} href=${folderHref(d.name)}>
+        <span class="dbig-ic"><${Icon} name=${d.look.icon} /></span><b>${d.name}</b><span>노트 ${d.count}개${d.auto ? `, 그중 ${d.auto}개는 자동 분류` : ''}</span>
+        <ul>${lib.all.filter((n) => categoryOf(n, lib).name === d.name).slice(0, 3).map((n) => html`<li key=${n.id}>${titleOf(n)}</li>`)}</ul>
+      </a>`)}
+      <a class="dbig c6" href="#/all"><span class="dbig-ic"><${Icon} name="grid" /></span><b>모든 노트</b><span>노트 ${lib.all.length}개</span></a>
+      ${lib.pinned().length > 0 && html`<a class="dbig c2" href="#/star"><span class="dbig-ic"><${Icon} name="star" /></span><b>즐겨찾기</b><span>노트 ${lib.pinned().length}개</span></a>`}
     </div>
     <${Footer} />
   </div>`;

@@ -126,27 +126,25 @@ export function highlighter(terms) {
   return (text) => String(text).split(re).map((part, i) => (i % 2 ? html`<mark>${part}</mark>` : part));
 }
 
-// 포스터 카드 (넷플릭스): 사진이 있으면 사진 위에 제목, 없으면 서랍 색 바탕에 큰 제목
+// 카드: 사진이 있으면 위에 사진, 없으면 출처(사이트·종류)부터. 서랍은 작은 색 점과 이름으로만
 const KIND_NAME = { memo: '메모', capture: '사진', bookmark: '링크', instagram: '인스타' };
 export function Poster({ note, hl, active = false }) {
   const m = note.meta;
   const att = (m.attachments ?? [])[0];
   const [ref, url] = useThumb(att);
   const cat = categoryOf(note, app.lib);
-  const look = categoryLook(cat.name);
   const t = titleOf(note);
   const sub = m.summary || note.snippet || '';
   const kind = m.type ?? 'memo';
   const host = m.source ? hostOf(m.source) : '';
-  return html`<a class=${`poster c${look.tone}${att ? ' photo' : ''}${active ? ' active' : ''}`} href=${noteHref(note.id)} ref=${ref} aria-current=${active ? 'true' : undefined}>
-    ${att && (url ? html`<img class="p-img" src=${url} alt="" loading="lazy" />` : html`<div class="p-img sk"></div>`)}
-    ${att && html`<div class="p-shade"></div>`}
+  return html`<a class=${`poster${att ? ' photo' : ''}${active ? ' active' : ''}`} href=${noteHref(note.id)} ref=${ref} aria-current=${active ? 'true' : undefined}>
+    ${att && html`<div class="p-media">${url ? html`<img src=${url} alt="" loading="lazy" />` : html`<div class="sk" style="height:100%;border-radius:0"></div>`}</div>`}
     <div class="p-body">
-      ${!att && html`<span class="p-kind">${kind === 'bookmark' && host ? html`<img src=${`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`} alt="" loading="lazy" onError=${(e) => { e.currentTarget.style.display = 'none'; }} />` : html`<${Icon} name=${TYPE_ICON[kind] ?? 'memo'} />`}<span>${host || KIND_NAME[kind] || '메모'}</span></span>`}
+      ${!att && html`<span class="p-src">${kind === 'bookmark' && host ? html`<img src=${`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`} alt="" loading="lazy" onError=${(e) => { e.currentTarget.style.display = 'none'; }} />` : html`<${Icon} name=${TYPE_ICON[kind] ?? 'memo'} />`}<span>${host || KIND_NAME[kind] || '메모'}</span></span>`}
       <b class="p-title">${hl ? hl(t) : t}</b>
-      ${!att && sub && sub !== t && html`<p class="p-sub">${hl ? hl(sub) : sub}</p>`}
-      <span class="p-foot"><span>${cat.name}</span><span class="grow"></span><span>${relTime(m.updated || m.created)}</span></span>
+      ${sub && sub !== t && html`<p class="p-sub">${hl ? hl(sub) : sub}</p>`}
     </div>
+    <span class="p-foot"><${FolderDot} path=${cat.name} /><span>${cat.name}</span><span class="grow"></span><span>${relTime(m.updated || m.created)}</span></span>
     ${m.pinned && html`<span class="p-pin" aria-label="즐겨찾기"><${Icon} name="star" /></span>`}
   </a>`;
 }

@@ -6,7 +6,7 @@ const R = path.resolve(__dirname, '..');
 const svg = fs.readFileSync(`${R}/icons/icon.svg`, 'utf8');
 // [파일, 크기, 여백, 바탕] 앱 아이콘은 꽉 채우고(홈 화면이 모서리를 깎음), 확장 아이콘은 투명 바탕
 const jobs = [
-  ['icons/icon-192.png', 192, 0, null], ['icons/icon-512.png', 512, 0, null], ['icons/apple-touch-icon.png', 180, 0, '#141414'],
+  ['icons/icon-192.png', 192, 0, null], ['icons/icon-512.png', 512, 0, null], ['icons/apple-touch-icon.png', 180, 0, '#f5f5f7'],
   ['extension/icons/16.png', 16, 0, null], ['extension/icons/32.png', 32, 0, null], ['extension/icons/48.png', 48, 2, null], ['extension/icons/128.png', 128, 8, null],
 ];
 (async () => {

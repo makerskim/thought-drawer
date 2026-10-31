@@ -156,3 +156,8 @@ def test_same_format_as_web_app():
 def test_snippet_drops_checkbox_markers_like_the_web_app():
     from td_note import snippet
     assert snippet('- [ ] 우유\n- [x] 달걀') == '우유 달걀'
+
+
+def test_snippet_keeps_dates_and_ranges_like_the_web_app():
+    from td_note import snippet
+    assert snippet('10.28~11.03 최대 40%, 2026-10-30 **세일**\n- 목록\n> 인용') == '10.28~11.03 최대 40%, 2026-10-30 세일 목록 인용'
