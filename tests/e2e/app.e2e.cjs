@@ -264,9 +264,14 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.click('.sb .sb-item:has-text("설정")');
   await p.waitForSelector('#s-classify');
   const setText = await p.locator('.set-page').innerText();
-  const groups = await p.$$eval('.sg-title', (els) => els.map((e) => e.textContent.trim()));
-  ok(JSON.stringify(groups) === JSON.stringify(['화면', '입력', '자동 분류', '분류 규칙', '내 명령어', '데이터', 'Claude 자동 정리 (선택)']), `settings: grouped like iPhone settings (${groups.join(', ')})`);
-  ok(await p.locator('.set-toc, #s-account, #s-keys, #s-help, .set-page .help-table, .set-page .help-keys').count() === 0 && !setText.includes('로그아웃') && !setText.includes('단축키') && !setText.includes('내가·Claude가') && setText.includes('기본 명령어는 사용법에'), 'settings: no top buttons, account, shortcuts, help or built-in command table (points to 사용법)');
+  const groups = await p.$$eval('.sg-title', (els) => els.map((e) => e.firstChild.textContent.trim()));
+  ok(JSON.stringify(groups) === JSON.stringify(['화면', '입력', '자동 분류', '분류 규칙', '내 명령어', '데이터', 'Claude 자동 정리']), `settings: grouped like iPhone settings (${groups.join(', ')})`);
+  ok(await p.locator('.set-toc, #s-account, #s-keys, #s-help, .set-page .help-table, .set-page .help-keys').count() === 0 && !setText.includes('로그아웃') && !setText.includes('단축키') && !setText.includes('내가·Claude가'), 'settings: no top buttons, account, shortcuts, help or built-in command table');
+  const labels0 = await p.$$eval('.sg-label b', (els) => els.map((e) => e.textContent.trim()));
+  const descs = await p.$$eval('.sg-label small', (els) => els.map((e) => e.textContent.trim()));
+  ok(labels0.every((l) => l.length <= 8) && descs.every((d) => d.length <= 12), `settings: short labels (${labels0.join('·')}) and tiny hints only`);
+  const kws = await p.$$eval('#s-keywords .item-row code', (els) => els.map((e) => e.textContent));
+  ok(['/할일', '/오늘', '/내일', '/어제', '/지금'].every((k) => kws.includes(k)) && await p.locator('#s-keywords .fixed-row code').count() === 5, 'settings: default commands are listed and editable, actions shown as fixed');
   // 내 명령어: 창에서 이름, 글, 끼워 넣기
   await p.click('#s-keywords .sg-add');
   await p.waitForSelector('.sdlg');
@@ -351,8 +356,8 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   const labels = await p.$$eval('.sb .sb-label', (els) => els.map((e) => e.textContent.trim()));
   const sbText = await p.locator('.sb').innerText();
   const y = async (sel) => (await p.locator(sel).first().boundingBox()).y;
-  ok(!labels.includes('넣는 곳') && labels.includes('가져오기') && labels.indexOf('서랍') < labels.indexOf('가져오기'), `sidebar: 서랍 then 가져오기 (${labels.join(', ')})`);
-  ok(['다른 앱·사이트', '북마크', '인스타 저장'].every((t) => sbText.includes(t)) && await y('.sb .sb-item:has-text("북마크")') > await y('.sb .sb-label:has-text("가져오기")') && await y('.sb .sb-item:has-text("설정")') > await y('.sb .sb-item:has-text("인스타 저장")'), 'sidebar: 가져오기 items sit low, above 설정');
+  ok(!labels.includes('넣는 곳') && !labels.includes('가져오기') && !sbText.includes('인스타') && !sbText.includes('북마크'), `sidebar: no import group (the + menu has it) (${labels.join(', ')})`);
+  ok(await y('.sb .sb-item:has-text("사용법")') > await y('.sb .sb-item:has-text("설정")'), 'sidebar: 설정 then 사용법 at the bottom');
   await p.click('.sb .sb-item:has-text("사용법")');
   await p.waitForSelector('.man-sec');
   const help = await p.locator('.help-page').innerText();

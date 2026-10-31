@@ -7,14 +7,15 @@ import { tokenize } from './search.js';
 export const OTHER = '기타';
 
 // 기본 서랍과 세부 서랍. aliases 는 이미 있는 폴더 이름과 맞출 때 쓴다 (예: 「패션」 폴더가 있으면 그 이름을 쓴다).
-// words 앞의 ~ 는 분류에만 쓰고 태그로는 달지 않는 말 (「사고 싶」처럼 낱말 조각).
+// words 앞 표시: ~ 분류에만 쓰고 태그로는 안 다는 말(「사고 싶」), - 흔한 말이라 약하게(「주문」「쿠폰」), + 그 글의 성격을 정하는 말이라 세게(「아이디어」「일기」).
+// 사이트의 한국어 이름(무신사, 배민…)은 글에 나와도 그 사이트 링크처럼 센 신호로 친다 (아래 BRANDS).
 export const CATEGORIES = [
   { name: '쇼핑', icon: 'bag', tone: 4, aliases: ['쇼핑', '위시', '위시리스트', '살 것', '구매'],
     hosts: ['coupang', '11st', 'gmarket', 'auction.co', 'ssg.com', 'lotteon', 'amazon', 'aliexpress', 'ebay', 'temu', 'smartstore.naver', 'shopping.naver', 'brand.naver', 'idus', 'enuri', 'tmon', 'wemakeprice', 'costco', 'emart'],
-    words: ['쇼핑', '구매', '~사고 싶', '살 것', '장바구니', '최저가', '할인', '세일', '쿠폰', '주문', '배송', '특가', '시즌오프', '가성비', '품절', '직구', '언박싱'],
+    words: ['쇼핑', '-구매', '~사고 싶', '살 것', '장바구니', '최저가', '-할인', '-세일', '-쿠폰', '-주문', '-배송', '택배', '반품', '환불', '교환 신청', '-특가', '시즌오프', '-가성비', '-품절', '직구', '언박싱'],
     subs: [
       { name: '가전', aliases: ['전자제품', '디지털', '가전제품'], hosts: ['danawa', 'apple.com', 'samsung.com', 'lge.co.kr', 'himart'],
-        words: ['가전', '노트북', '휴대폰', '아이폰', '갤럭시', '이어폰', '헤드폰', '에어팟', '모니터', '키보드', '마우스', '태블릿', '아이패드', '청소기', '가습기', '제습기', '공기청정기', '냉장고', '세탁기', '건조기', '에어컨', '선풍기', '카메라', '충전기', '스마트워치', '전기포트', '전기 포트', '밥솥', '전자레인지', '식기세척기', '드라이기', '정수기', '로봇청소기', '빔프로젝터'] },
+        words: ['가전', '노트북', '휴대폰', '아이폰', '갤럭시', '이어폰', '헤드폰', '에어팟', '모니터', '키보드', '마우스', '태블릿', '아이패드', '청소기', '가습기', '제습기', '공기청정기', '냉장고', '세탁기', '건조기', '에어컨', '선풍기', '카메라', '충전기', '스마트워치', '전기포트', '전기 포트', '밥솥', '전자레인지', '식기세척기', '드라이기', '정수기', '로봇청소기', '빔프로젝터', '커피머신', 'iphone', 'ipad', 'macbook', '맥북', 'galaxy', 'airpods', '에어팟 맥스', 'tv'] },
       { name: '생활용품', aliases: ['생필품', '생활'], hosts: ['daiso'], words: ['세제', '휴지', '물티슈', '생필품', '주방용품', '수건', '칫솔', '샴푸', '다이소'] },
       { name: '식품', aliases: ['먹거리', '장보기'], hosts: ['kurly'], words: ['식품', '간식', '과일', '고기', '쌀', '생수', '견과', '장보기', '마켓컬리', '컬리'] },
       { name: '선물', words: ['선물', '생일 선물', '기념일', '답례', '집들이 선물', '어버이날'] },
@@ -24,7 +25,7 @@ export const CATEGORIES = [
     hosts: ['musinsa', '29cm', 'wconcept', 'zigzag', 'a-bly', 'ably', 'kream', 'uniqlo', 'zara', 'cos.com', 'hm.com', 'nike', 'adidas'],
     words: ['패션', '코디', '스타일', '룩북', '사이즈'],
     subs: [
-      { name: '옷', aliases: ['의류', '상의', '하의'], words: ['셔츠', '바지', '청바지', '슬랙스', '니트', '가디건', '코트', '자켓', '재킷', '패딩', '원피스', '티셔츠', '맨투맨', '후드', '스커트', '코디'] },
+      { name: '옷', aliases: ['의류', '상의', '하의'], words: ['셔츠', '바지', '청바지', '슬랙스', '니트', '가디건', '코트', '자켓', '재킷', '패딩', '원피스', '티셔츠', '맨투맨', '후드', '스커트', '코디', '출근룩', '데일리룩'] },
       { name: '신발·가방', aliases: ['신발', '가방'], words: ['스니커즈', '신발', '운동화', '구두', '부츠', '샌들', '로퍼', '가방', '백팩', '토트백', '지갑'] },
       { name: '뷰티', aliases: ['화장품', '스킨케어'], hosts: ['oliveyoung', 'hwahae'], words: ['화장품', '스킨케어', '선크림', '립스틱', '쿠션', '파운데이션', '향수', '네일', '피부', '올리브영', '뷰티', '헤어스타일', '미용실'] },
       { name: '액세서리', aliases: ['잡화'], words: ['시계', '반지', '목걸이', '귀걸이', '팔찌', '안경', '선글라스', '볼캡', '비니'] },
@@ -45,7 +46,7 @@ export const CATEGORIES = [
       { name: '국내', aliases: ['국내여행'], words: ['제주', '부산', '강릉', '경주', '여수', '속초', '전주', '통영', '남해', '양양', '가평', '국내'] },
       { name: '해외', aliases: ['해외여행'], words: ['도쿄', '오사카', '교토', '후쿠오카', '삿포로', '방콕', '다낭', '나트랑', '타이베이', '대만', '싱가포르', '발리', '하와이', '괌', '파리', '런던', '뉴욕', '유럽', '해외', '환전'] },
       { name: '숙소', aliases: ['호텔'], hosts: ['airbnb', 'agoda', 'booking.com', 'yanolja', 'goodchoice', 'yeogi', 'hotels.com'], words: ['숙소', '호텔', '리조트', '펜션', '게스트하우스', '에어비앤비', '료칸'] },
-      { name: '교통', aliases: ['항공', '항공·교통'], hosts: ['skyscanner', 'koreanair', 'flyasiana', 'jejuair', 'letskorail', 'srt'], words: ['항공', '항공권', '비행기', '기차', 'ktx', '렌터카', '공항', '고속버스'] },
+      { name: '교통', aliases: ['항공', '항공·교통'], hosts: ['skyscanner', 'koreanair', 'flyasiana', 'jejuair', 'letskorail', 'srt'], words: ['항공', '항공권', '비행기', '기차', '기차표', '+ktx', '+srt', '렌터카', '공항', '고속버스', '기차 예매'] },
       { name: '캠핑', words: ['캠핑', '글램핑', '차박', '텐트'] },
     ] },
   { name: '공부·자료', icon: 'book', tone: 0, aliases: ['공부', '자료', '책', '독서', '메모법', '학습', '스터디'],
@@ -60,7 +61,7 @@ export const CATEGORIES = [
     ] },
   { name: '일·업무', icon: 'briefcase', tone: 1, aliases: ['일', '업무', '회사', '커리어', '프로젝트'],
     hosts: ['atlassian', 'jira'],
-    words: ['업무', '회사', '고객', '계약', '출장', '거래처', '발표', '팀장', '동료'],
+    words: ['업무', '회사', '고객', '-계약', '출장', '거래처', '발표', '팀장', '동료', '야근', '수당', '연차', '출근', '퇴근', '보고', '계약서', '검토', '결재', '품의', '인수인계'],
     subs: [
       { name: '회의', aliases: ['미팅'], words: ['회의', '미팅', '회의록', '안건', '논의', '결정 사항', '액션 아이템'] },
       { name: '프로젝트', aliases: ['기획'], words: ['프로젝트', '기획안', '제안서', '보고서', '마감', '일정표', '로드맵', '킥오프', '런칭'] },
@@ -73,26 +74,26 @@ export const CATEGORIES = [
     subs: [
       { name: '영상', aliases: ['유튜브'], hosts: ['youtube.com', 'youtu.be', 'vimeo', 'chzzk', 'twitch', 'tiktok'], words: ['영상', '유튜브', '브이로그', '쇼츠', '릴스', '라이브'] },
       { name: '영화·드라마', aliases: ['영화', '드라마'], hosts: ['netflix', 'tving', 'wavve', 'coupangplay', 'disneyplus', 'watcha'], words: ['영화', '드라마', '예능', '다큐', '시즌', '넷플릭스', '애니'] },
-      { name: '음악', aliases: ['노래'], hosts: ['spotify', 'melon', 'genie.co', 'vibe.naver', 'soundcloud', 'music.apple'], words: ['음악', '노래', '플레이리스트', '앨범', '뮤직비디오', '가사', '피아노'] },
+      { name: '음악', aliases: ['노래'], hosts: ['spotify', 'melon', 'genie.co', 'vibe.naver', 'soundcloud', 'music.apple'], words: ['음악', '노래', '플레이리스트', '앨범', '뮤직비디오', '가사', '피아노', '음원', 'top100', '멜론 차트'] },
       { name: '공연·전시', aliases: ['공연', '전시'], hosts: ['ticket.interpark', 'ticketlink', 'yes24.com/ticket'], words: ['공연', '콘서트', '뮤지컬', '연극', '전시', '페스티벌', '티켓팅'] },
     ] },
   { name: '건강·운동', icon: 'heart', tone: 1, aliases: ['건강', '운동', '헬스', '다이어트'],
     hosts: [],
     words: ['건강', '컨디션'],
     subs: [
-      { name: '운동', aliases: ['헬스'], words: ['운동', '헬스', '러닝', '마라톤', '요가', '필라테스', '스트레칭', '근력', '홈트', '등산', '수영', '자전거', '스쿼트'] },
-      { name: '식단', aliases: ['다이어트'], words: ['식단', '다이어트', '칼로리', '단백질', '닭가슴살', '간헐적 단식', '영양제'] },
+      { name: '운동', aliases: ['헬스'], words: ['운동', '헬스', '러닝', '마라톤', '요가', '필라테스', '스트레칭', '근력', '홈트', '등산', '수영', '자전거', '스쿼트', '테니스', '테니스 코트', '골프', '배드민턴', '클라이밍', '볼링', '축구', '농구', '크로스핏', 'pt'] },
+      { name: '식단', aliases: ['다이어트'], words: ['식단', '다이어트', '칼로리', '단백질', '닭가슴살', '간헐적 단식', '영양제', '카페인', '금주', '야식'] },
       { name: '병원', aliases: ['병원·약', '의료'], hosts: ['hidoc', 'goodoc'], words: ['병원', '약국', '처방', '검진', '진료', '치과', '피부과', '예방접종'] },
       { name: '마음', aliases: ['멘탈', '수면'], words: ['수면', '명상', '스트레스', '불면', '상담', '마음 챙김', '감사 일기'] },
     ] },
   { name: '돈·재테크', icon: 'coin', tone: 2, aliases: ['돈', '재테크', '투자', '가계부', '경제'],
     hosts: [],
-    words: ['재테크', '경제', '환율', '금리'],
+    words: ['재테크', '경제', '환율', '금리', '송금', '이체', '입출금', '잔액'],
     subs: [
       { name: '투자', aliases: ['주식'], hosts: ['upbit', 'bithumb', 'finance.naver', 'investing.com', 'tradingview'], words: ['주식', '투자', 'etf', '배당', '코인', '펀드', '채권', '나스닥', '코스피'] },
       { name: '저축·대출', aliases: ['저축', '대출', '은행'], hosts: ['kakaobank', 'toss.im'], words: ['적금', '예금', '대출', '통장', '파킹통장', '청년도약'] },
       { name: '세금·보험', aliases: ['세금', '보험'], words: ['세금', '연말정산', '보험', '연금', '공제', '종합소득세', '실손'] },
-      { name: '부동산', aliases: ['집'], words: ['부동산', '청약', '전세', '월세', '아파트', '매매', '임장'] },
+      { name: '부동산', aliases: ['집'], words: ['부동산', '청약', '전세', '월세', '아파트', '매매', '임장', '확정일자', '등기', '잔금', '중개수수료', '전세 계약', '월세 계약'] },
       { name: '가계부', aliases: ['지출'], hosts: ['banksalad'], words: ['가계부', '지출', '월급', '고정비', '카드값', '용돈', '정산'] },
     ] },
   { name: '집·생활', icon: 'home', tone: 5, aliases: ['집', '생활', '살림', '인테리어', '반려동물', '육아'],
@@ -100,12 +101,25 @@ export const CATEGORIES = [
     words: ['동네', '자취'],
     subs: [
       { name: '인테리어', aliases: ['가구'], hosts: ['ohou.se', 'todayhouse', 'ikea'], words: ['인테리어', '가구', '조명', '수납', '커튼', '러그', '오늘의집', '이케아'] },
-      { name: '살림', aliases: ['청소'], words: ['청소', '세탁', '살림', '분리수거', '관리비', '수리', '곰팡이', '정리정돈'] },
+      { name: '살림', aliases: ['청소'], words: ['청소', '세탁', '살림', '분리수거', '관리비', '수리', '곰팡이', '정리정돈', '냉장고 정리', '옷장 정리', '대청소', '빨래'] },
       { name: '반려동물', aliases: ['반려', '강아지', '고양이'], words: ['반려', '강아지', '고양이', '사료', '산책', '동물병원', '츄르'] },
       { name: '육아', aliases: ['아이'], words: ['육아', '아기', '어린이집', '유치원', '이유식', '기저귀'] },
       { name: '이사', words: ['이사 준비', '포장이사', '집들이', '전입신고', '이삿짐'] },
+      { name: '자동차', aliases: ['차', '차량'], words: ['자동차', '차량', '엔진오일', '타이어', '세차', '주유', '정비소', '블랙박스', '하이패스', '자동차보험', '주차', '중고차'] },
+    ] },
+  { name: '생각·기록', icon: 'thought', tone: 3, aliases: ['생각', '기록', '아이디어', '일기', '메모'],
+    hosts: [],
+    words: ['-생각', '-기록', '메모해 두기', '느낀 점', '생각이 든다', '생각해 보니', '깨달은'],
+    subs: [
+      { name: '아이디어', aliases: ['영감'], words: ['+아이디어', '글감', '영감', '떠오른'] },
+      { name: '일기', aliases: ['회고', '하루'], words: ['+일기', '+회고', '오늘 하루', '하루 정리', '감정', '기분'] },
+      { name: '목표', aliases: ['계획', '다짐'], words: ['목표', '다짐', '버킷리스트', '올해 계획', '습관 만들기', '새해'] },
+      { name: '글귀', aliases: ['명언', '인용'], words: ['+명언', '글귀', '좋아하는 문장', '인용', '구절', '문장'] },
     ] },
 ];
+
+// 다른 낱말 속에 들어 있어 잘못 걸리는 말: 먼저 차지해서 짧은 말(카페, 시계, 고기, 회의, 주식)이 걸리지 않게 한다
+const BLOCKERS = ['토스트', '시계열', '고기압', '저기압', '회의적', '회의감', '주식회사', '네이버 카페', '다음 카페', '여행사 직원', '책임', '책상'];
 
 // 사이트 → 태그로 다는 이름
 export const SITES = {
@@ -140,13 +154,56 @@ function has(text, word) {
   }
   return m(text);
 }
-const tagWord = (w) => !w.startsWith('~') && !/\s/.test(w);
+const tagWord = (w) => !/^[~-]/.test(w) && !/\s/.test(w);
+const norm = (w) => lc(w.replace(/^[~+\-!]/, ''));
+const weight = (w) => (w[0] === '!' ? 4 : w[0] === '+' ? 3 : w[0] === '-' ? 0.8 : 1.2);
+const plain = (w) => w.replace(/^[~+\-!]/, '');
+
+// 글을 한 번 훑어 사전 낱말을 찾는다. 긴 낱말이 먼저 자리를 차지해서 「운동화」 속 「운동」, 「카페인」 속 「카페」는 세지 않는다.
+let VOCAB = null;
+const finders = new Map();
+function finder(w) {
+  let f = finders.get(w);
+  if (!f) {
+    const re = ASCII.test(w) ? new RegExp(`(^|[^a-z0-9])(${esc(w)})(?=[^a-z0-9]|$)`, 'g')
+      : /^[가-힣]$/.test(w) ? new RegExp(`(^|[^가-힣])(${w})(?=$|[^가-힣]|[은는이가을를에도과와만으])`, 'g')
+        : new RegExp(`()(${esc(w)})`, 'g');
+    f = (t) => [...t.matchAll(re)].map((m) => m.index + m[1].length);
+    finders.set(w, f);
+  }
+  return f;
+}
+export function scan(text) {
+  VOCAB ??= [...new Set([...CATEGORIES.flatMap((d) => [...d.words, ...d.subs.flatMap((x) => x.words)]), ...BLOCKERS].map(norm))]
+    .sort((a, b) => b.length - a.length);
+  const used = new Uint8Array(text.length);
+  const found = new Map(); // 낱말 → 처음 나온 자리
+  for (const w of VOCAB) {
+    for (const at of finder(w)(text)) {
+      let free = true;
+      for (let i = at; i < at + w.length; i++) if (used[i]) { free = false; break; }
+      if (!free) continue;
+      used.fill(1, at, at + w.length);
+      if (!found.has(w)) found.set(w, at);
+    }
+  }
+  return found;
+}
 const siteHit = (host, list = []) => list.find((h) => host.includes(h));
 
 export function siteName(host) {
   if (!host) return '';
   const k = Object.keys(SITES).find((s) => host.includes(s));
   return k ? SITES[k] : '';
+}
+
+// 사이트의 한국어 이름을 그 서랍·세부 서랍의 센 낱말로 (뜻이 여럿인 이름은 뺀다: 멜론=과일, 크림, 웨이브…)
+const BRAND_SKIP = new Set(['멜론', '크림', '웨이브', '알리', '토스', '오늘의집', '여기어때', 'SSG']);
+const brandsOf = (hosts = []) => [...new Set(hosts.flatMap((h) => Object.keys(SITES).filter((k) => h.includes(k) || k.includes(h)).map((k) => SITES[k])))]
+  .filter((n) => !BRAND_SKIP.has(n)).map((n) => `!${n}`);
+for (const d of CATEGORIES) {
+  d.words = [...d.words, ...brandsOf(d.hosts)];
+  for (const x of d.subs) x.words = [...x.words, ...brandsOf(x.hosts)];
 }
 
 // 서랍마다 세부 서랍의 사이트·낱말까지 합친 것 (점수를 매길 때 쓴다)
@@ -214,12 +271,14 @@ export function classify({ meta = {}, body = '' }, model = null, opts = {}) {
     if (why && !whys.has(name)) whys.set(name, why);
   };
 
+  const found = scan(text);
+  const hit = (w) => found.has(norm(w));
   // 1) 내 분류 규칙이 가장 세다
   for (const r of rules) {
-    const hit = ruleWords(r).find((w) => has(text, w) || (host && host.includes(w)));
-    if (!hit) continue;
+    const got = ruleWords(r).find((w) => has(text, w) || (host && host.includes(w)));
+    if (!got) continue;
     const [top, sub] = parts(r.drawer);
-    if (top) { add(top, 10, `내 규칙 “${hit}”`); if (sub && !forced.has(top)) forced.set(top, sub); }
+    if (top) { add(top, 10, `내 규칙 “${got}”`); if (sub && !forced.has(top)) forced.set(top, sub); }
     for (const t of r.tags ?? []) ruleTags.push(String(t));
   }
   // 2) 사이트 3) 낱말
@@ -227,11 +286,14 @@ export function classify({ meta = {}, body = '' }, model = null, opts = {}) {
     const name = resolveName(def, existing);
     const all = ALL.get(def);
     if (host && siteHit(host, all.hosts)) add(name, 4, `${host} 링크`);
-    let hits = 0;
+    let sum = 0;
+    let best = null;
     for (const w of all.words) {
-      if (has(text, w)) { hits++; if (hits === 1) add(name, 0, `“${w.replace(/^~/, '')}”`); }
+      if (!hit(w)) continue;
+      sum += weight(w);
+      if (!best || weight(w) > weight(best)) best = w;
     }
-    if (hits) add(name, Math.min(hits, 4) * 1.2);
+    if (sum) add(name, Math.min(sum, 6), `“${plain(best)}”`);
   }
   // 4) 내가 정리해 둔 노트에서 배운 것
   const words = model?.cats?.size || model?.subs?.size ? new Set(tokenize(textOf(meta, body))) : null;
@@ -254,15 +316,15 @@ export function classify({ meta = {}, body = '' }, model = null, opts = {}) {
   let best = null;
   for (const [name, s] of scores) if (!best || s > best.score) best = { category: name, score: s };
   if (!best || best.score < 1.2) {
-    return { category: OTHER, sub: '', path: OTHER, why: '', score: 0, tags: pickTags({ text, host, top: OTHER, sub: '', ruleTags, model, maxTags }) };
+    return { category: OTHER, sub: '', path: OTHER, why: '', score: 0, tags: pickTags({ text, found, host, top: OTHER, sub: '', ruleTags, model, maxTags }) };
   }
-  const sub = wantSubs ? pickSub(best.category, { text, host, model, words, forced, existing }) : '';
+  const sub = wantSubs ? pickSub(best.category, { hit, host, model, words, forced, existing }) : '';
   const path = sub ? `${best.category}/${sub}` : best.category;
-  return { ...best, sub, path, why: whys.get(best.category) ?? '', tags: pickTags({ text, host, top: best.category, sub, ruleTags, model, maxTags }) };
+  return { ...best, sub, path, why: whys.get(best.category) ?? '', tags: pickTags({ text, found, host, top: best.category, sub, ruleTags, model, maxTags }) };
 }
 
 // 서랍 안에서 세부 서랍 고르기: 규칙 → 사이트 → 낱말 → 배운 것. 1.2점이 안 되면 세부 서랍 없이 둔다.
-function pickSub(top, { text, host, model, words, forced, existing }) {
+function pickSub(top, { hit, host, model, words, forced, existing }) {
   if (forced.has(top)) return forced.get(top);
   const def = CATEGORIES.find((d) => resolveName(d, existing) === top || d.name === top);
   const known = (model?.subPaths ?? []).filter((p) => topOf(p) === top).map((p) => parts(p)[1]);
@@ -272,8 +334,8 @@ function pickSub(top, { text, host, model, words, forced, existing }) {
     // 이미 쓰는 세부 폴더 이름이 있으면 그 이름으로 (「가전」 대신 원래 쓰던 「전자제품」)
     const name = known.find((k) => k === s.name || (s.aliases ?? []).includes(k)) ?? s.name;
     if (host && siteHit(host, s.hosts)) add(name, 4);
-    const hits = s.words.filter((w) => has(text, w)).length;
-    if (hits) add(name, Math.min(hits, 4) * 1.2);
+    const sum = s.words.filter(hit).reduce((t, w) => t + weight(w), 0);
+    if (sum) add(name, Math.min(sum, 6));
   }
   if (words && model?.subs?.size) {
     const mine = [...model.subs].filter(([p]) => topOf(p) === top);
@@ -289,7 +351,7 @@ function pickSub(top, { text, host, model, words, forced, existing }) {
 }
 
 // 자동 태그: 규칙의 태그 → 이미 쓰는 태그 중 글에 나온 것 → 사이트 이름 → 세부 서랍 낱말 → 서랍 낱말 → 다른 서랍 낱말
-function pickTags({ text, host, top, sub, ruleTags, model, maxTags }) {
+function pickTags({ text, found, host, top, sub, ruleTags, model, maxTags }) {
   if (!maxTags) return [];
   const out = [];
   const seen = new Set([lc(top), lc(sub), lc(OTHER)]);
@@ -309,16 +371,16 @@ function pickTags({ text, host, top, sub, ruleTags, model, maxTags }) {
   const s = def?.subs.find((x) => x.name === sub || (x.aliases ?? []).includes(sub));
   const groups = [s?.words ?? [], def ? ALL.get(def).words : [], CATEGORIES.filter((d) => d !== def).flatMap((d) => d.subs.flatMap((x) => x.words))];
   // 고른 서랍의 낱말 먼저, 같은 무리 안에서는 글에 먼저 나온 것부터
-  const found = [];
   const taken = new Set();
-  groups.forEach((list, g) => list.forEach((w) => {
-    if (taken.has(w) || !tagWord(w) || !has(text, w)) return;
+  const list = [];
+  groups.forEach((ws, g) => ws.forEach((w) => {
+    if (taken.has(w) || !tagWord(w) || !found.has(norm(w))) return;
     taken.add(w);
-    found.push([w, g, text.indexOf(lc(w))]);
+    list.push([w, g, found.get(norm(w))]);
   }));
-  found.sort((a, b) => a[1] - b[1] || a[2] - b[2]);
+  list.sort((a, b) => a[1] - b[1] || a[2] - b[2]);
   // 「항공권」이 있으면 「항공」은 빼고, 「동물병원」이 있으면 「병원」은 뺀다
-  const words = found.map(([w]) => w.replace(/^~/, ''));
+  const words = list.map(([w]) => plain(w));
   for (const w of words) if (!words.some((o) => o !== w && o.includes(w))) push(w);
   return out;
 }

@@ -8,7 +8,7 @@ import { go, noteHref } from './router.js';
 import { toEditorMarkdown, fromEditorMarkdown, WIKI, ATT } from '../core/wiki.js';
 import { search } from '../core/search.js';
 import { displayTitle } from '../core/note.js';
-import { fillVars, takeTokens, matchSlash } from '../core/slash.js';
+import { fillVars, takeTokens, matchSlash, ALIASES, LABELS } from '../core/slash.js';
 import { settingsOf, drawerTargets } from './categories.js';
 
 let bundle;
@@ -30,16 +30,12 @@ const BLOCKS = [
   { key: 'link', icon: 'connect', label: '다른 노트 잇기', hint: '[[', special: 'link' },
 ];
 
-// 날짜·시각과 내 키워드 (설정 → / 명령어)도 같은 목록에
-const STAMPS = [
-  { key: '오늘', alias: ['today', '날짜'], icon: 'calendar', label: '오늘 날짜', text: '{오늘}' },
-  { key: '내일', alias: ['tomorrow'], icon: 'calendar', label: '내일 날짜', text: '{내일}' },
-  { key: '지금', alias: ['now', '시간'], icon: 'clock', label: '지금 시각', text: '{지금}' },
-];
+// 내 명령어(설정 → 내 명령어: 날짜·시각 등)도 같은 목록에. 할 일은 편집기의 블록이 맡는다.
 const KO = { h1: ['제목1', '큰제목'], h2: ['제목2'], h3: ['제목3'], ul: ['목록', '글머리'], ol: ['번호'], todo: ['할일', '체크'], quote: ['인용'], code: ['코드'], hr: ['구분선', '줄'], photo: ['사진', '이미지'], link: ['잇기', '연결'] };
 function matchBlocks(q) {
-  const mine = app.lib ? settingsOf(app.lib).keywords.map((k) => ({ key: k.key, icon: 'sparkle', label: k.key, hint: '내 키워드', text: k.text, mine: true })) : [];
-  const all = [...BLOCKS.map((b) => ({ ...b, alias: KO[b.key] ?? [] })), ...STAMPS, ...mine];
+  const mine = app.lib ? settingsOf(app.lib).keywords.filter((k) => k.key !== '할일')
+    .map((k) => ({ key: k.key, alias: ALIASES[k.key] ?? [], icon: LABELS[k.key] ? 'calendar' : 'sparkle', label: LABELS[k.key] ?? k.key, hint: `/${k.key}`, text: k.text, mine: !LABELS[k.key] })) : [];
+  const all = [...BLOCKS.map((b) => ({ ...b, alias: KO[b.key] ?? [] })), ...mine];
   return matchSlash(q, all).slice(0, 24);
 }
 

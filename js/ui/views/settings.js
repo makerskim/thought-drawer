@@ -9,7 +9,7 @@ import { modal } from '../parts/layers.js';
 import { ConfirmDialog } from '../parts/dialogs.js';
 import { settingsOf, drawerTargets } from '../categories.js';
 import { normalizeSettings } from '../../core/settings.js';
-import { keyOk, fillVars } from '../../core/slash.js';
+import { keyOk, fillVars, BUILTINS } from '../../core/slash.js';
 import { topOf } from '../../core/classify.js';
 import { SORTS } from '../../core/filter.js';
 import { preview, GuessLine } from '../parts/guess.js';
@@ -18,10 +18,12 @@ import { ATTACH_DIR } from '../../config.js';
 import { relTime } from '../format.js';
 import { loadScript, JSZIP } from './more.js';
 
+const GUIDE = 'https://github.com/makerskim/thought-drawer/blob/main/docs/%EC%84%A4%EC%A0%95%EA%B0%80%EC%9D%B4%EB%93%9C.md';
+
 // ---------- 부품 ----------
-function Group({ id, title, foot, children }) {
+function Group({ id, title, scope, foot, children }) {
   return html`<section class="sg-sec" id=${id ? `s-${id}` : undefined}>
-    <h2 class="sg-title">${title}</h2>
+    <h2 class="sg-title">${title}${scope && html`<span class="sg-scope">${scope}</span>`}</h2>
     <div class="sg">${children}</div>
     ${foot && html`<p class="sg-foot">${foot}</p>`}
   </section>`;
@@ -79,19 +81,19 @@ function RuleDialog({ rule, close, onSave }) {
   };
   return html`<form class="modal sdlg" role="dialog" aria-label=${rule ? '규칙 고치기' : '규칙 추가'} onSubmit=${(e) => { e.preventDefault(); save(); }}>
     <h2>${rule ? '규칙 고치기' : '규칙 추가'}</h2>
-    <label class="fld"><span>이 낱말이나 사이트가 나오면</span>
-      <input ref=${first} class="input" value=${match} onInput=${(e) => { setMatch(e.target.value); setErr(''); }} placeholder="예: 다이슨, 가습기, musinsa.com" aria-label="낱말 또는 사이트" />
+    <label class="fld"><span>이 낱말·사이트가 나오면</span>
+      <input ref=${first} class="input" value=${match} onInput=${(e) => { setMatch(e.target.value); setErr(''); }} placeholder="다이슨, 가습기, musinsa.com" aria-label="낱말 또는 사이트" />
       <small>쉼표로 여러 개</small></label>
-    <label class="fld"><span>이 서랍에 넣고</span>
+    <label class="fld"><span>넣을 서랍</span>
       <select class="input" value=${known || drawer === '__new' || !drawer ? drawer : '__new'} onChange=${(e) => { setDrawer(e.target.value); setErr(''); }} aria-label="서랍">
-        <option value="">서랍은 자동 분류대로</option>
+        <option value="">자동 (그대로)</option>
         ${opts.map(([top, subs]) => html`<optgroup key=${top} label=${top}><option value=${top}>${top}</option>${subs.map((p) => html`<option key=${p} value=${p}>${top} › ${p.split('/')[1]}</option>`)}</optgroup>`)}
         <option value="__new">새 서랍 직접 적기…</option>
       </select></label>
     ${(drawer === '__new' || (drawer && !known)) && html`<label class="fld"><span>새 서랍 이름</span>
       <input class="input" value=${drawer === '__new' ? fresh : drawer} onInput=${(e) => { setDrawer('__new'); setFresh(e.target.value); }} placeholder="예: 쇼핑/가전 또는 캠핑" aria-label="새 서랍 이름" /><small>세부 서랍은 빗금(/)으로</small></label>`}
-    <label class="fld"><span>이 태그를 단다 <em>선택</em></span>
-      <input class="input" value=${tags} onInput=${(e) => { setTags(e.target.value); setErr(''); }} placeholder="예: 가전, 계절" aria-label="태그" /></label>
+    <label class="fld"><span>달 태그 <em>선택</em></span>
+      <input class="input" value=${tags} onInput=${(e) => { setTags(e.target.value); setErr(''); }} placeholder="가전, 계절" aria-label="태그" /></label>
     <p class="sdlg-prev">${word
       ? html`<span>예</span>「${word} …」 → <b>${to ? to.replace('/', ' › ') : '자동 분류'}</b>${tagList.map((t) => html` <span class="cap-tag" key=${t}>#${t}</span>`)}`
       : html`<span>예</span>낱말을 적으면 미리 보여 줘요.`}</p>
@@ -136,10 +138,10 @@ function KeywordDialog({ kw, taken, close, onSave }) {
   };
   return html`<form class="modal sdlg" role="dialog" aria-label=${kw ? '명령어 고치기' : '명령어 추가'} onSubmit=${(e) => { e.preventDefault(); save(); }}>
     <h2>${kw ? '명령어 고치기' : '명령어 추가'}</h2>
-    <label class="fld"><span>입력창에 이렇게 치면</span>
+    <label class="fld"><span>이름</span>
       <div class="kw-key"><span>/</span><input ref=${keyRef} class="input" value=${key} onInput=${(e) => { setKey(e.target.value); setErr(''); }} placeholder="회의" aria-label="명령어 이름" /></div></label>
-    <label class="fld"><span>이 글이 들어가요</span>
-      <textarea ref=${area} class="input" rows="4" value=${text} onInput=${(e) => { setText(e.target.value); setErr(''); }} placeholder="예: 회의 {오늘}" aria-label="들어갈 글"></textarea></label>
+    <label class="fld"><span>넣을 글</span>
+      <textarea ref=${area} class="input" rows="4" value=${text} onInput=${(e) => { setText(e.target.value); setErr(''); }} placeholder="회의 {오늘}" aria-label="들어갈 글"></textarea></label>
     <div class="kw-chips" role="group" aria-label="끼워 넣기"><span>끼워 넣기</span>${CHIPS.map(([l, v]) => html`<button type="button" key=${l} class="chip" onMouseDown=${(e) => e.preventDefault()} onClick=${() => put(v)}>${l}</button>`)}</div>
     ${text.trim() && html`<div class="sdlg-prev col"><span>미리 보기</span><pre>${fillVars(text)}</pre></div>`}
     ${err && html`<p class="sdlg-err" role="alert">${err}</p>`}
@@ -159,7 +161,7 @@ function Rules() {
           <button type="button" class="icon-btn" aria-label=${`${r.match} 규칙 고치기`} onClick=${() => edit(r, i)}><${Icon} name="pen" /></button>
           <button type="button" class="icon-btn" aria-label=${`${r.match} 규칙 지우기`} onClick=${() => save({ rules: s.rules.filter((_, j) => j !== i) })}><${Icon} name="trash" /></button>
         </div>`)
-      : html`<div class="sg-row empty-row">아직 규칙이 없어요.</div>`}
+      : html`<div class="sg-row empty-row">없음</div>`}
     <button type="button" class="sg-add" onClick=${() => edit(null)}><${Icon} name="plus" />규칙 추가</button>`;
 }
 
@@ -171,12 +173,13 @@ function Keywords() {
   return html`
     ${s.keywords.length
       ? s.keywords.map((k) => html`<div class="sg-row item-row" key=${k.key}>
-          <div class="item-main"><code class="rl-key">/${k.key}</code><span class="rl-text">${fillVars(k.text).replace(/\n/g, ' ⏎ ')}</span></div>
+          <div class="item-main"><code class="rl-key">/${k.key}</code><span class="rl-text">${k.text.trim() === '- [ ]' ? '체크 상자' : fillVars(k.text).replace(/\n/g, ' ⏎ ')}</span></div>
           <button type="button" class="icon-btn" aria-label=${`/${k.key} 고치기`} onClick=${() => edit(k)}><${Icon} name="pen" /></button>
           <button type="button" class="icon-btn" aria-label=${`/${k.key} 지우기`} onClick=${() => save({ keywords: s.keywords.filter((x) => x.key !== k.key) })}><${Icon} name="trash" /></button>
         </div>`)
-      : html`<div class="sg-row empty-row">아직 명령어가 없어요.</div>`}
-    <button type="button" class="sg-add" onClick=${() => edit(null)}><${Icon} name="plus" />명령어 추가</button>`;
+      : html`<div class="sg-row empty-row">없음</div>`}
+    <button type="button" class="sg-add" onClick=${() => edit(null)}><${Icon} name="plus" />명령어 추가</button>
+    <div class="sg-row fixed-row"><span>바꿀 수 없음</span>${BUILTINS.map((c) => html`<code key=${c.key}>/${c.key}</code>`)}</div>`;
 }
 
 function TryIt() {
@@ -184,8 +187,8 @@ function TryIt() {
   const [t, setT] = useState('');
   const pre = t.trim() ? preview(t, lib) : null;
   return html`<div class="sg-row stack try-row">
-    <div class="sg-label"><b>해 보기</b><small>아무 글이나 적으면 어디로 갈지 보여 줘요.</small></div>
-    <div class="sg-ctl"><input class="input" value=${t} onInput=${(e) => setT(e.target.value)} placeholder="예: 다이슨 청소기 최저가 https://www.coupang.com/…" aria-label="분류 해 보기" />
+    <div class="sg-label"><b>해 보기</b></div>
+    <div class="sg-ctl"><input class="input" value=${t} onInput=${(e) => setT(e.target.value)} placeholder="글을 적으면 서랍과 태그가 나와요" aria-label="분류 해 보기" />
       ${pre && html`<${GuessLine} pre=${pre} />`}</div>
   </div>`;
 }
@@ -242,57 +245,56 @@ export function Settings({ offline, params }) {
     <div class="page narrow set-page">
       <div class="page-head"><h1>설정</h1></div>
 
-      <${Group} id="screen" title="화면" foot="이 기기에만 적용돼요.">
+      <${Group} id="screen" title="화면" scope="이 기기">
         <${Row} label="밝기"><${Seg} label="밝기" value=${theme} set=${setTheme} opts=${[['', '자동'], ['light', '밝게'], ['dark', '어둡게']]} /></${Row}>
-        <${Row} label="노트 글꼴"><${Seg} label="노트 글꼴" value=${font} set=${setFont} opts=${[['', '기본'], ['serif', '명조'], ['mono', '고정폭']]} /></${Row}>
-        <${Row} label="카드 보기"><${Seg} label="카드 보기" value=${view} set=${setView} opts=${[['wall', '카드'], ['list', '목록']]} /></${Row}>
+        <${Row} label="글꼴"><${Seg} label="글꼴" value=${font} set=${setFont} opts=${[['', '기본'], ['serif', '명조'], ['mono', '고정폭']]} /></${Row}>
+        <${Row} label="보기"><${Seg} label="보기" value=${view} set=${setView} opts=${[['wall', '카드'], ['list', '목록']]} /></${Row}>
         <${Row} label="정렬"><${Select} label="정렬" value=${sort} set=${setSort} opts=${SORTS} /></${Row}>
-        <${Row} label="옆 메뉴 고정" desc="넓은 화면에서 메뉴를 늘 펼쳐 둬요."><${Toggle} label="옆 메뉴 고정" checked=${navPinned} onChange=${setNavPinned} /></${Row}>
-        ${navPinned && html`<${Row} label="옆 메뉴 위치"><${Seg} label="옆 메뉴 위치" value=${navSide} set=${setNavSide} opts=${[['left', '왼쪽'], ['right', '오른쪽']]} /></${Row}>`}
-        <${Row} label="서랍이 말풍선"><${Seg} label="서랍이 말풍선" value=${talk} set=${setTalk} opts=${[['on', '자주'], ['quiet', '가끔'], ['off', '끔']]} /></${Row}>
+        <${Row} label="메뉴 고정"><${Toggle} label="메뉴 고정" checked=${navPinned} onChange=${setNavPinned} /></${Row}>
+        ${navPinned && html`<${Row} label="메뉴 위치"><${Seg} label="메뉴 위치" value=${navSide} set=${setNavSide} opts=${[['left', '왼쪽'], ['right', '오른쪽']]} /></${Row}>`}
+        <${Row} label="서랍이 말"><${Seg} label="서랍이 말" value=${talk} set=${setTalk} opts=${[['on', '자주'], ['quiet', '가끔'], ['off', '끔']]} /></${Row}>
       </${Group}>
 
-      <${Group} id="input" title="입력" foot="이 기기에만 적용돼요.">
-        <${Row} label="넣은 뒤 노트 열기" desc="켜면 넣자마자 그 노트로 가요. 끄면 첫 화면에 그대로 있어요."><${Toggle} label="넣은 뒤 노트 열기" checked=${openAfter} onChange=${setOpenAfter} /></${Row}>
-        <${Row} label="첫 줄을 제목으로" desc="여러 줄로 넣으면 첫 줄이 노트 제목이 돼요."><${Toggle} label="첫 줄을 제목으로" checked=${firstTitle} onChange=${setFirstTitle} /></${Row}>
+      <${Group} id="input" title="입력" scope="이 기기">
+        <${Row} label="넣고 바로 열기"><${Toggle} label="넣고 바로 열기" checked=${openAfter} onChange=${setOpenAfter} /></${Row}>
+        <${Row} label="첫 줄은 제목"><${Toggle} label="첫 줄은 제목" checked=${firstTitle} onChange=${setFirstTitle} /></${Row}>
       </${Group}>
 
-      <${Group} id="classify" title="자동 분류" foot="넣는 순간 사이트와 낱말을 보고 서랍과 태그를 정해요. 기기 안에서 계산해 비용이 없어요. 모든 기기에 함께 적용돼요.">
+      <${Group} id="classify" title="자동 분류" scope="모든 기기">
         <${TryIt} />
-        <${Row} label="세부 서랍까지 나누기" desc="쇼핑 › 가전처럼 한 단계 더 나눠요."><${Toggle} label="세부 서랍까지 나누기" checked=${cls.subs} onChange=${(v) => save({ classify: { ...cls, subs: v } })} /></${Row}>
-        <${Row} label="자동 태그" desc="한 노트에 다는 태그 수"><${Seg} label="자동 태그 수" value=${cls.tags} set=${(v) => save({ classify: { ...cls, tags: v } })} opts=${[[0, '끔'], [2, '2'], [3, '3'], [4, '4'], [6, '6']]} /></${Row}>
-        <${Row} label="내가 옮긴 노트에서 배우기" desc="노트의 서랍을 바꿀수록 더 잘 맞아요."><${Toggle} label="내가 옮긴 노트에서 배우기" checked=${cls.learn} onChange=${(v) => save({ classify: { ...cls, learn: v } })} /></${Row}>
+        <${Row} label="세부 서랍" desc="쇼핑 › 가전"><${Toggle} label="세부 서랍" checked=${cls.subs} onChange=${(v) => save({ classify: { ...cls, subs: v } })} /></${Row}>
+        <${Row} label="태그 개수"><${Seg} label="태그 개수" value=${cls.tags} set=${(v) => save({ classify: { ...cls, tags: v } })} opts=${[[0, '끔'], [2, '2'], [3, '3'], [4, '4'], [6, '6']]} /></${Row}>
+        <${Row} label="내 정리 배우기" desc="서랍을 바꾸면 기억"><${Toggle} label="내 정리 배우기" checked=${cls.learn} onChange=${(v) => save({ classify: { ...cls, learn: v } })} /></${Row}>
       </${Group}>
 
-      <${Group} id="rules" title="분류 규칙" foot="「이 낱말이 나오면 이 서랍」처럼 정해요. 자동 분류보다 먼저 적용돼요.">
+      <${Group} id="rules" title="분류 규칙" scope="모든 기기" foot="자동 분류보다 먼저 적용">
         <${Rules} />
       </${Group}>
 
-      <${Group} id="keywords" title="내 명령어" foot="입력창이나 노트에서 / 다음에 이름을 치면 정해 둔 글이 들어가요. 기본 명령어는 사용법에 있어요.">
+      <${Group} id="keywords" title="내 명령어" scope="모든 기기" foot="입력창에서 /이름">
         <${Keywords} />
       </${Group}>
 
-      <${Group} id="data" title="데이터" foot="옵시디언은 드라이브의 「메모」 폴더를 보관함으로 열면 돼요.">
-        <${Row} label="노션으로 내보내기" desc="모든 노트와 사진을 zip 하나로 받아요."><button type="button" class="btn btn-sm" onClick=${exportZip} disabled=${zip !== null}><${Icon} name="download" />${zip !== null ? `${zip}%` : 'zip 받기'}</button></${Row}>
-        <${Row} label="처음부터 다시 받기" desc="화면이 이상할 때. 드라이브의 노트는 그대로예요."><button type="button" class="btn btn-sm" onClick=${refetch}><${Icon} name="refresh" />다시 받기</button></${Row}>
+      <${Group} id="data" title="데이터">
+        <${Row} label="노션 내보내기"><button type="button" class="btn btn-sm" onClick=${exportZip} disabled=${zip !== null}><${Icon} name="download" />${zip !== null ? `${zip}%` : 'zip 받기'}</button></${Row}>
+        <${Row} label="다시 받기" desc="드라이브에서 새로"><button type="button" class="btn btn-sm" onClick=${refetch}><${Icon} name="refresh" />다시 받기</button></${Row}>
       </${Group}>
 
-      <${Group} id="claude" title="Claude 자동 정리 (선택)" foot="안 켜도 앱은 그대로 돼요. 쓰는 Claude 구독 안에서 돌아서 추가 비용은 없어요.">
-        <${Row} label="하는 일" desc="정해 둔 시간마다 Claude가 정리 안 된 노트를 읽고 제목·한 줄 요약·태그·노트 연결을 붙여 서랍 폴더로 옮겨요." />
-        <${Row} label="마지막 정리"><span class="muted">${lib.index?.generatedAt ? relTime(lib.index.generatedAt) : '아직 안 함'}</span></${Row}>
+      <${Group} id="claude" title="Claude 자동 정리" scope="선택" foot="Claude가 노트에 제목·요약·태그·연결을 붙여 서랍 폴더로 옮겨요. 추가 비용 없음.">
+        <${Row} label="상태"><span class=${`cl-state ${lib.index?.generatedAt ? 'on' : ''}`}><i></i>${lib.index?.generatedAt ? `켜짐 · ${relTime(lib.index.generatedAt)} 정리` : '꺼짐'}</span></${Row}>
         <details class="sg-details" open=${!!(token?.refreshToken || token?.error)}>
-          <summary>켜는 방법</summary>
+          <summary>켜는 법</summary>
           <ol class="sg-steps">
-            <li>docs/설정가이드.md 4단계대로 Claude Code 예약 작업을 만들어요.</li>
-            <li>아래에 구글 클라우드의 클라이언트 보안 비밀을 넣고 「토큰 받기」. 보안 비밀은 이 브라우저에서 구글로만 보내고 저장하지 않아요.</li>
-            <li>받은 토큰을 Claude Code 환경 설정의 TD_GOOGLE_REFRESH_TOKEN에 넣어요. 채팅창에는 붙여 넣지 마세요.</li>
+            <li><a href=${GUIDE} target="_blank" rel="noopener">설정 가이드 4단계</a>대로 Claude Code 예약 작업을 만들어요.</li>
+            <li>구글 클라우드의 <b>클라이언트 보안 비밀</b>을 아래에 넣고 <b>토큰 받기</b>.</li>
+            <li>받은 토큰을 예약 작업 환경 설정의 <code>TD_GOOGLE_REFRESH_TOKEN</code>에 넣으면 끝.</li>
           </ol>
-          ${token?.refreshToken && html`<div class="code-box"><input class="input mono" readonly value=${token.refreshToken} onFocus=${(e) => e.target.select()} aria-label="정리기용 토큰" /><button type="button" class="btn" onClick=${() => copy(token.refreshToken)}><${Icon} name="copy" />복사</button></div>
-            <small class="muted">이 화면을 벗어나면 다시 볼 수 없어요.</small>`}
-          ${token?.error && html`<div class="banner warn"><${Icon} name="alert" /><p>${token.error}</p><button type="button" class="btn btn-ghost" onClick=${() => setToken(null)}>닫기</button></div>`}
           <form class="code-box" onSubmit=${(e) => { e.preventDefault(); if (!secret.trim()) { toast('클라이언트 보안 비밀을 넣어 주세요.'); return; } app.auth.requestOfflineCode(secret.trim()); }}>
             <input class="input" type="password" autocomplete="off" value=${secret} onInput=${(e) => setSecret(e.target.value)} placeholder="클라이언트 보안 비밀" aria-label="클라이언트 보안 비밀" /><button class="btn">토큰 받기</button>
           </form>
+          ${token?.refreshToken && html`<div class="code-box"><input class="input mono" readonly value=${token.refreshToken} onFocus=${(e) => e.target.select()} aria-label="정리기용 토큰" /><button type="button" class="btn" onClick=${() => copy(token.refreshToken)}><${Icon} name="copy" />복사</button></div>`}
+          ${token?.error && html`<div class="banner warn"><${Icon} name="alert" /><p>${token.error}</p><button type="button" class="btn btn-ghost" onClick=${() => setToken(null)}>닫기</button></div>`}
+          <small class="muted">보안 비밀은 저장하지 않아요. 토큰은 채팅창에 붙여 넣지 마세요.</small>
         </details>
       </${Group}>
     </div>

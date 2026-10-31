@@ -1,5 +1,6 @@
 // 옆 메뉴: 위 막대의 ☰ 로 열고, 핀을 누르면 왼쪽이나 오른쪽에 고정된다 (옵시디언의 옆 막대처럼).
-// 넣기 · 홈 · 모든 서랍 · 모든 노트(필터) · 할 일 · 오늘 노트 · 생각 지도 · 즐겨찾기, 서랍 목록, (아래) 가져오기, 설정 · 사용법.
+// 넣기 · 홈 · 모든 서랍 · 모든 노트(필터) · 할 일 · 오늘 노트 · 생각 지도 · 즐겨찾기, 서랍 목록, (아래) 설정 · 사용법.
+// 사진·붙여넣기·북마크·인스타·다른 앱에서 넣기는 넣는 칸의 + 에 있다.
 // 찾기는 위 막대의 돋보기(/, ⌘K)로 한다.
 import { html, useEffect } from '../h.js';
 import { Icon, Mascot } from '../icons.js';
@@ -48,12 +49,6 @@ export function Sidebar({ path, pinned, side, docked, open, setOpen, setPinned, 
       ${drawers.length > 0 && html`<p class="sb-label">서랍</p>
         <nav class="sb-nav" aria-label="서랍">${drawers.map((d) => html`<a key=${d.name} class="sb-item" href=${folderHref(d.name)} aria-current=${on(decodeURIComponent(path) === `/f/${d.name}`)}><i class=${`fdot f${d.look.tone}`}></i><span>${d.name}</span><span class="n">${d.count}</span></a>`)}</nav>`}
       <span class="grow"></span>
-      <p class="sb-label">가져오기</p>
-      <nav class="sb-nav" aria-label="가져오기">
-        ${item('#/connect', 'phone', '다른 앱·사이트', path === '/connect')}
-        ${item('#/bookmarks', 'star', '북마크', path === '/bookmarks')}
-        ${item('#/import', 'instagram', '인스타 저장', path === '/import')}
-      </nav>
       <nav class="sb-nav sb-foot" aria-label="설정">
         ${item('#/settings', 'gear', '설정', path === '/settings')}
         ${item('#/help', 'help', '사용법', path === '/help' || path === '/manual')}

@@ -3,15 +3,22 @@
 import { html, useState, useRef, useLayoutEffect } from '../h.js';
 import { Icon } from '../icons.js';
 import { app } from '../state.js';
-import { BUILTINS, matchSlash, triggerAt, applyInsert, fillVars } from '../../core/slash.js';
+import { BUILTINS, ALIASES, LABELS, isLine, matchSlash, triggerAt, applyInsert, fillVars } from '../../core/slash.js';
 import { settingsOf, drawerTargets, tagCounts, categoryLook } from '../categories.js';
+import { BASE_KEYWORDS } from '../../core/settings.js';
 
 const LIMIT = 8;
 const firstLine = (t) => String(t).split('\n').find((l) => l.trim())?.trim().slice(0, 40) ?? '';
 
 // 내 키워드 + 기본 명령어 (설정·사용법 화면도 같은 목록을 쓴다)
 export function slashCommands(lib) {
-  const mine = settingsOf(lib).keywords.map((k) => ({ key: k.key, label: k.key, icon: 'sparkle', insert: k.text, desc: firstLine(fillVars(k.text)), mine: true }));
+  const base = Object.fromEntries(BASE_KEYWORDS.map((k) => [k.key, k.text]));
+  const ICON = { 할일: 'check', 지금: 'clock' };
+  const mine = settingsOf(lib).keywords.map((k) => {
+    const builtin = base[k.key] === k.text; // 처음 그대로인 기본 명령어 (할일, 오늘 …)
+    return { key: k.key, alias: ALIASES[k.key] ?? [], label: k.key, icon: builtin ? ICON[k.key] ?? 'calendar' : 'sparkle',
+      insert: k.text, line: isLine(k.text), desc: builtin ? LABELS[k.key] : firstLine(fillVars(k.text)) || '줄바꿈', mine: !builtin };
+  });
   const taken = new Set(mine.map((k) => k.key));
   return [...mine, ...BUILTINS.filter((b) => !taken.has(b.key))];
 }

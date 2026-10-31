@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { classify, learn } from '../js/core/classify.js';
 import { readFilter, writeFilter, applyFilter, dateRange, facets, noteDate } from '../js/core/filter.js';
-import { triggerAt, applyInsert, takeTokens, fillVars, matchSlash, BUILTINS, keyOk } from '../js/core/slash.js';
-import { normalizeSettings, DEFAULT_SETTINGS } from '../js/core/settings.js';
+import { triggerAt, applyInsert, takeTokens, fillVars, matchSlash, BUILTINS, ALIASES, isLine, keyOk } from '../js/core/slash.js';
+import { normalizeSettings, DEFAULT_SETTINGS, BASE_KEYWORDS } from '../js/core/settings.js';
 
 const note = (meta, body = '') => ({ meta: { type: 'memo', ...meta }, body });
 
@@ -120,8 +120,11 @@ test('slash: trigger, insert, keyword values', () => {
   assert.deepEqual([t.text, t.caret], ['우유\n- [ ] ', 9]);
   assert.equal(applyInsert('/할', triggerAt('/할', 2), '- [ ] ', { line: true }).text, '- [ ] ');
   assert.equal(applyInsert('회의록 /오늘', triggerAt('회의록 /오늘', 7), '{오늘}', { now }).text, '회의록 2026-10-31');
-  assert.equal(matchSlash('할', BUILTINS)[0].key, '할일');
-  assert.equal(matchSlash('todo', BUILTINS)[0].key, '할일');
+  const items = [...DEFAULT_SETTINGS.keywords.map((k) => ({ key: k.key, alias: ALIASES[k.key] ?? [] })), ...BUILTINS];
+  assert.equal(matchSlash('할', items)[0].key, '할일');
+  assert.equal(matchSlash('todo', items)[0].key, '할일');
+  assert.equal(matchSlash('사', items)[0].key, '사진');
+  assert.ok(isLine('- [ ] ') && isLine('\n- [ ] ') && !isLine('{오늘}') && !isLine('#읽을거리 '));
   assert.ok(keyOk('회의') && !keyOk('회 의') && !keyOk('') && !keyOk('a/b'));
 });
 
@@ -139,10 +142,29 @@ test('tokens: #태그 and known @서랍 leave the text, others stay', () => {
 });
 
 test('shared settings are cleaned up', () => {
-  const s = normalizeSettings({ classify: { subs: false, tags: '99' }, rules: [{ match: ' 가습기 ', drawer: '쇼핑 / 가전 / 더', tags: '#가전, 계절' }, { match: '', drawer: 'x' }], keywords: [{ key: '/회의', text: 'a' }, { key: '회의', text: 'b' }, { key: '띄 어', text: 'c' }] });
+  const s = normalizeSettings({ v: 2, classify: { subs: false, tags: '99' }, rules: [{ match: ' 가습기 ', drawer: '쇼핑 / 가전 / 더', tags: '#가전, 계절' }, { match: '', drawer: 'x' }], keywords: [{ key: '/회의', text: 'a' }, { key: '회의', text: 'b' }, { key: '띄 어', text: 'c' }] });
   assert.deepEqual(s.classify, { subs: false, tags: 8, learn: true });
   assert.deepEqual(s.rules, [{ match: '가습기', drawer: '쇼핑/가전', tags: ['가전', '계절'] }]);
   assert.deepEqual(s.keywords, [{ key: '회의', text: 'a' }]);
   assert.equal(normalizeSettings(null).keywords.length, DEFAULT_SETTINGS.keywords.length);
-  assert.deepEqual(normalizeSettings({ keywords: [] }).keywords, []);
+  assert.deepEqual(normalizeSettings({ v: 2, keywords: [] }).keywords, []);
+  // 예전(v1) 파일에는 고칠 수 있게 된 기본 명령어를 채워 준다 (이미 있는 이름은 그대로)
+  const old = normalizeSettings({ v: 1, keywords: [{ key: '오늘', text: '{요일}' }, { key: '회의', text: 'a' }] }).keywords;
+  assert.deepEqual(old.map((k) => k.key), [...BASE_KEYWORDS.filter((b) => b.key !== '오늘').map((b) => b.key), '오늘', '회의']);
+  assert.equal(old.find((k) => k.key === '오늘').text, '{요일}');
+});
+
+test('realistic notes land in the right drawer (longest word wins, brands, weak shop words)', () => {
+  const cases = [
+    ['운동화 270 사이즈 나이키', '패션·뷰티/신발·가방'], ['러닝 30분 했다', '건강·운동/운동'], ['카페인 줄이기', '건강·운동/식단'],
+    ['시계열 데이터 분석 공부', '공부·자료'], ['고기압 영향으로 맑음', '기타'], ['회의적인 생각이 든다', '생각·기록'],
+    ['주식회사 계약서 검토', '일·업무'], ['삼성전자 주식 10주 매수', '돈·재테크/투자'], ['세탁기 고장 AS 접수', '쇼핑/가전'],
+    ['냉장고 정리 팁', '집·생활/살림'], ['전세 계약 확정일자', '돈·재테크/부동산'], ['자동차 엔진오일 교체 주기', '집·생활/자동차'],
+    ['무신사 겨울 패딩 세일 알림', '패션·뷰티'], ['배민 쿠폰 오늘까지', '요리·맛집/배달'], ['디즈니플러스 신작', '영상·음악/영화·드라마'],
+    ['영양제 비타민D 주문', '건강·운동'], ['고양이 모래 주문', '집·생활/반려동물'], ['KTX 예매 부산', '여행/교통'],
+    ['아이유 콘서트 예매', '영상·음악/공연·전시'], ['블로그 글감 아이디어', '생각·기록/아이디어'], ['오늘 하루 회고: 일찍 일어남', '생각·기록/일기'],
+    ['새해 다짐: 매일 30분 독서', '생각·기록/목표'], ['토스트 만들기', '기타'], ['테니스 코트 예약', '건강·운동/운동'],
+  ];
+  const wrong = cases.map(([t, want]) => [t, want, classify(note({}, t))]).filter(([, want, r]) => (want.includes('/') ? r.path !== want : r.category !== want));
+  assert.deepEqual(wrong.map(([t, want, r]) => `${t} → ${r.path} (기대 ${want})`), []);
 });

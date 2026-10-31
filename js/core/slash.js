@@ -3,18 +3,19 @@
 // - 내 키워드(설정 → / 명령어)는 「/회의」 → 정해 둔 글처럼 글을 통째로 넣는다. {오늘} {지금} 같은 값은 그때 날짜로 바뀐다.
 // - 넣을 때 글 속 #태그 는 태그로, @서랍 은 그 서랍으로 보낸다(글에서는 뺀다).
 
+// 바꿀 수 없는 기본 동작 (글을 넣는 게 아니라 무언가를 한다)
 export const BUILTINS = [
-  { key: '할일', alias: ['todo', '체크', '할 일', 'ㅎㅇ'], label: '할 일', icon: 'check', insert: '- [ ] ', line: true, desc: '체크 상자 한 줄' },
-  { key: '오늘', alias: ['today', '날짜'], label: '오늘 날짜', icon: 'calendar', insert: '{오늘}', desc: '예: 2026-10-31' },
-  { key: '내일', alias: ['tomorrow'], label: '내일 날짜', icon: 'calendar', insert: '{내일}' },
-  { key: '어제', alias: ['yesterday'], label: '어제 날짜', icon: 'calendar', insert: '{어제}' },
-  { key: '지금', alias: ['now', '시간', '시각'], label: '지금 시각', icon: 'clock', insert: '{지금}', desc: '예: 14:05' },
   { key: '태그', alias: ['tag', '#'], label: '태그 달기', icon: 'tag', insert: '#', desc: '# 다음에 태그 이름' },
   { key: '서랍', alias: ['drawer', '폴더', '@'], label: '서랍 정하기', icon: 'folder', insert: '@', desc: '@ 다음에 서랍 이름' },
   { key: '사진', alias: ['photo', '캡처', '스크린샷'], label: '사진·스크린샷', icon: 'capture', action: 'photo' },
   { key: '붙여넣기', alias: ['paste'], label: '붙여넣기', icon: 'paste', action: 'paste' },
   { key: '크게', alias: ['편집기', '길게', '새노트'], label: '크게 쓰기', icon: 'pen', action: 'big', desc: '편집기에서 이어 쓰기' },
 ];
+// 처음부터 들어 있는 명령어(설정 → 내 명령어에서 고치거나 지울 수 있다)의 다른 이름과 설명
+export const ALIASES = { 할일: ['todo', '체크', '할 일', 'ㅎㅇ'], 오늘: ['today', '날짜'], 내일: ['tomorrow'], 어제: ['yesterday'], 지금: ['now', '시간', '시각'] };
+export const LABELS = { 할일: '체크 상자', 오늘: '오늘 날짜', 내일: '내일 날짜', 어제: '어제 날짜', 지금: '지금 시각' };
+// 줄 맨 앞에 와야 하는 글(할 일, 목록, 제목)은 줄 중간에서 부르면 새 줄로
+export const isLine = (text) => /^(\n|- \[[ xX]\] |[-*] |\d+\. |#{1,3} )/.test(String(text ?? ''));
 
 export const VARS = [['{오늘}', '오늘 날짜'], ['{내일}', '내일 날짜'], ['{어제}', '어제 날짜'], ['{지금}', '지금 시각'], ['{요일}', '오늘 요일']];
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
