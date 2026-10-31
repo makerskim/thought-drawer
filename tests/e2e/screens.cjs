@@ -20,7 +20,7 @@ const out = path.resolve(__dirname, '../../docs/screens');
   await shot('slash', desk, async (p) => { await p.click('.capbar textarea'); await p.keyboard.type('/'); await p.waitForSelector('.in-slash .mi'); });
   await shot('filters', desk, async (p) => { await p.evaluate(() => { location.hash = '#/all?d=month'; }); await p.waitForSelector('.fbar'); await p.click('.fpill[data-f="dr"]'); await p.waitForSelector('.pop .mi'); });
   await shot('settings', desk, async (p) => { await p.evaluate(() => { location.hash = '#/settings?s=classify'; }); await p.waitForSelector('#s-classify'); await p.waitForTimeout(500); });
-  await shot('help', desk, async (p) => { await p.evaluate(() => { location.hash = '#/help'; }); await p.waitForSelector('.help-card'); });
+  await shot('help', desk, async (p) => { await p.evaluate(() => { location.hash = '#/help'; }); await p.waitForSelector('.man-sec'); });
   await shot('rows', desk, async (p) => { await p.evaluate(() => window.scrollTo(0, document.querySelector('.below').offsetTop)); await p.waitForTimeout(900); });
   await shot('sidebar', desk, async (p) => { await p.click('.nav-toggle'); await p.click('.sb [aria-label="고정하기"]'); await p.evaluate(() => { location.hash = '#/drawers'; }); await p.waitForSelector('.dbig'); });
   await shot('note', desk, async (p) => { await p.evaluate(() => { location.hash = '#/n/20261020093000'; }); await p.waitForSelector('.ws .props'); await p.click('.rp-tabs button:has-text("그래프")'); await p.evaluate(() => document.activeElement?.blur()); });

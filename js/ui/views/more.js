@@ -49,7 +49,7 @@ export function Login({ onSignIn, busy, error }) {
       ${error && html`<p class="fine" style="color:var(--danger)">${error}</p>`}
       <p class="fine">노트는 내 구글 드라이브의 「메모」 폴더에 저장돼요.<br />앱은 자기가 만든 파일에만 접근하고, 다른 파일은 볼 수 없어요.</p>
       <nav class="login-links" aria-label="약관"><a href="privacy.html">개인정보처리방침</a><a href="terms.html">서비스 약관</a></nav>
-      <p class="fine">만든 사람 <a href="https://github.com/makerskim" target="_blank" rel="noopener">makerskim</a></p>
+      <p class="fine">© ${new Date().getFullYear()} makerskim. All rights reserved.</p>
     </div>
   </main>`;
 }
@@ -265,8 +265,8 @@ export function Settings({ offline, params }) {
       <${Section} id="keys" title="단축키">
         <dl class="help-keys">${SHORTCUTS.map(([k, l]) => html`<div key=${k}><dt><${Keys} keys=${k} /></dt><dd>${l}</dd></div>`)}</dl>
       </${Section}>
-      <${Section} title="도움말">
-        <div class="row-ctl"><a class="btn" href="#/help"><${Icon} name="help" />사용법</a><a class="btn btn-ghost" href="privacy.html">개인정보처리방침</a><a class="btn btn-ghost" href="terms.html">서비스 약관</a></div>
+      <${Section} id="help" title="도움말" desc="쓰는 법은 매뉴얼에 순서대로 있습니다.">
+        <div class="row-ctl"><a class="btn" href="#/help"><${Icon} name="book" />매뉴얼</a><a class="btn btn-ghost" href="privacy.html">개인정보처리방침</a><a class="btn btn-ghost" href="terms.html">서비스 약관</a></div>
       </${Section}>
     </div>`;
 }

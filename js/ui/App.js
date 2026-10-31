@@ -51,7 +51,7 @@ function Screen({ route, offline }) {
   if (path === '/bookmarks') return html`<${Bookmarks} />`;
   if (path === '/connect') return html`<${Connect} />`;
   if (path === '/settings') return html`<${Settings} offline=${offline} params=${params} />`;
-  if (path === '/help') return html`<${Help} />`;
+  if (path === '/help' || path === '/manual') return html`<${Help} params=${params} />`;
   if (path === '/share') return html`<${Share} params=${params} />`;
   if (path === '/paste') return html`<${Paste} />`;
   return html`<${Home} />`;
@@ -201,7 +201,7 @@ export function App({ auth }) {
       if (isTyping(document.activeElement) || e.metaKey || e.ctrlKey || e.altKey) return;
       // Enter: 무엇에도 커서가 없으면 가운데 입력창 (단추나 카드에 있으면 그것을 누른 것)
       const idle = !document.activeElement || document.activeElement === document.body || document.activeElement.matches('.ws-main, main');
-      if (e.key === 'Enter' && !e.shiftKey && idle && !/^\/(settings|import|bookmarks|connect|share|paste|help)$/.test(route.path)) { e.preventDefault(); if (isSheet || !app.focusCapture?.()) openComposer(); return; }
+      if (e.key === 'Enter' && !e.shiftKey && idle && !/^\/(settings|import|bookmarks|connect|share|paste|help|manual)$/.test(route.path)) { e.preventDefault(); if (isSheet || !app.focusCapture?.()) openComposer(); return; }
       if (e.key === '/') { e.preventDefault(); app.find(); }
       else if (e.key === 'n') { e.preventDefault(); go('#/new'); }
       else if (e.key === 't') { e.preventDefault(); openToday(); }

@@ -116,23 +116,7 @@ export function PageBar({ title, right = null, back = '#/' }) {
   <${Conn} />`;
 }
 
-// 바닥: 만든 사람과 저작권 (개인정보처리방침·약관 링크는 구글 로그인 심사에 필요해서 남긴다)
-export const MAKER = { name: 'makerskim', url: 'https://github.com/makerskim', repo: 'https://github.com/makerskim/thought-drawer' };
+// 바닥: 저작권 한 줄만
 export function Footer() {
-  const year = new Date().getFullYear();
-  return html`<footer class="foot">
-    <div class="foot-top">
-      <div class="foot-brand"><${Logo} size=${28} /><div><b>Thought Drawer</b><span>넣기만 하세요. 정리는 서랍이.</span></div></div>
-      <dl class="foot-credits">
-        <div><dt>만든 사람</dt><dd><a href=${MAKER.url} target="_blank" rel="noopener">${MAKER.name}</a></dd></div>
-        <div><dt>기획 · 디자인 · 개발</dt><dd>${MAKER.name}</dd></div>
-        <div><dt>소스 코드</dt><dd><a href=${MAKER.repo} target="_blank" rel="noopener">GitHub</a></dd></div>
-        <div><dt>문의</dt><dd><a href=${`${MAKER.repo}/issues`} target="_blank" rel="noopener">GitHub 이슈</a></dd></div>
-      </dl>
-    </div>
-    <div class="foot-bottom">
-      <span>© ${year} ${MAKER.name}. All rights reserved.</span>
-      <nav aria-label="약관"><a href="privacy.html">개인정보처리방침</a><a href="terms.html">서비스 약관</a></nav>
-    </div>
-  </footer>`;
+  return html`<footer class="foot"><p>© ${new Date().getFullYear()} makerskim. All rights reserved.</p></footer>`;
 }

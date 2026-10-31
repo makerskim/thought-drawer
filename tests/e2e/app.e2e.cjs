@@ -45,10 +45,8 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   ok(await p.locator('.sb').count() === 0 && await p.locator('.nav-toggle').count() === 1, 'unpinning hides it again');
   const rows = await rowTitles();
   ok(rows.includes('새로 넣은 것') && rows.includes('쇼핑') && rows.includes('일·업무') && rows.includes('요리'), `home: a poster row per drawer ${JSON.stringify(rows)}`);
-  ok(await p.locator('.tiles .tile').count() === 4 && await p.locator('.foot').count() === 1, 'home: Apple-style tiles and footer');
-  const foot = await p.locator('.foot').innerText();
-  ok(foot.includes('만든 사람') && foot.includes('makerskim') && /© \d{4} makerskim/.test(foot) && foot.includes('개인정보처리방침') && !foot.includes('넣는 법') && !foot.includes('마크다운으로 저장'), 'footer: maker credits and copyright, no menu links');
-  ok(await p.locator('.foot a[href="https://github.com/makerskim"]').count() === 1 && await p.locator('.foot a[href="https://github.com/makerskim/thought-drawer"]').count() === 1, 'footer: links to makerskim and the source');
+  ok(await p.locator('.tiles, .tile').count() === 0 && !(await p.locator('.home').innerText()).includes('어디서든 넣으세요'), 'home: no 「어디서든 넣으세요」 tiles');
+  ok(/^© \d{4} makerskim\. All rights reserved\.$/.test((await p.locator('.foot').innerText()).trim()), 'footer: just the copyright line');
   const heights = await p.$$eval('.rows.drawers .row .poster', (els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().height)))]);
   ok(heights.length === 1, `cards share one height ${JSON.stringify(heights)}`);
   ok(await p.evaluate(() => getComputedStyle(document.body).fontFamily.includes('Pretendard')), 'type: Pretendard');
@@ -329,11 +327,23 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.waitForTimeout(150);
   ok(await p.locator('.overlay').count() === 0 && (await notes()).length > 0, 'logout asks first (cancel keeps everything)');
 
-  // ---- 사용법 ----
-  await p.evaluate(() => { location.hash = '#/help'; });
-  await p.waitForSelector('.help-card');
+  // ---- 옆 메뉴: 가져오기는 아래쪽, 매뉴얼은 설정 옆 ----
+  await p.evaluate(() => { location.hash = '#/'; });
+  await p.click('.nav-toggle');
+  await p.waitForSelector('.sb');
+  const labels = await p.$$eval('.sb .sb-label', (els) => els.map((e) => e.textContent.trim()));
+  const sbText = await p.locator('.sb').innerText();
+  const y = async (sel) => (await p.locator(sel).first().boundingBox()).y;
+  ok(!labels.includes('넣는 곳') && labels.includes('가져오기') && labels.indexOf('서랍') < labels.indexOf('가져오기'), `sidebar: 서랍 then 가져오기 (${labels.join(', ')})`);
+  ok(['다른 앱·사이트', '북마크', '인스타 저장'].every((t) => sbText.includes(t)) && await y('.sb .sb-item:has-text("북마크")') > await y('.sb .sb-label:has-text("가져오기")') && await y('.sb .sb-item:has-text("설정")') > await y('.sb .sb-item:has-text("인스타 저장")'), 'sidebar: 가져오기 items sit low, above 설정');
+  await p.click('.sb .sb-item:has-text("매뉴얼")');
+  await p.waitForSelector('.man-sec');
   const help = await p.locator('.help-page').innerText();
-  ok(['/ 명령어', '# 태그 · @ 서랍', '자동 분류', '필터', '단축키'].every((t) => help.includes(t)) && help.includes('/할일') && help.includes('/주소'), 'help page lists commands (with mine), tokens, classify, filters, keys');
+  ok(await p.locator('.man-toc button').count() === 12 && ['시작하기', '가져오기', '/ 명령어', '# 태그 · @ 서랍', '자동 분류', '찾기와 필터', '단축키', '자주 묻는 질문'].every((t) => help.includes(t)) && help.includes('/할일') && help.includes('/주소'), 'manual: 12 chapters with commands (mine too), import, classify, filters, keys, FAQ');
+  await p.click('.man-toc button:has-text("자동 분류")');
+  await p.waitForTimeout(800);
+  const at = (await p.locator('#m-classify').boundingBox()).y;
+  ok(Math.abs(at - 124) < 60, `manual: table of contents jumps to the chapter (${Math.round(at)})`);
   ok(p.errors.length === 0, 'no page errors ' + p.errors.join(' | '));
   await p.context().close();
 
@@ -377,7 +387,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.evaluate(() => { localStorage.setItem('td.theme', '"light"'); });
   await p.reload();
   await p.waitForSelector('.empty');
-  ok((await p.evaluate(() => document.documentElement.dataset.theme)) === 'light' && await p.locator('.tiles .tile').count() === 4, 'empty + light: headline, empty note, tiles');
+  ok((await p.evaluate(() => document.documentElement.dataset.theme)) === 'light' && await p.locator('.empty').count() === 1, 'empty + light: headline and empty note');
   await p.click('.gnav .me');
   await p.waitForSelector('.pop .quota-warn');
   ok((await p.locator('.pop .quota-warn').innerText()).includes('거의 찼어요'), 'storage: warns when 90% full');

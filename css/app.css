@@ -255,36 +255,11 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 .sh-note .i { width: 16px; height: 16px; margin-top: 3px; color: var(--accent-ink); }
 
 /* ---------- 넣는 곳 소개 타일 (애플 2단 타일) ---------- */
-.tiles-head { padding: 24px var(--gut) 16px; }
-.tiles-head h2 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -.03em; }
-.tiles-head p { margin: 4px 0 0; font-size: 15px; color: var(--text-2); }
-.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0 var(--gut) 12px; }
-.tile { display: flex; flex-direction: column; gap: 4px; padding: 20px; border-radius: 16px; background: var(--paper); box-shadow: 0 0 0 1px var(--border); }
-.tile .tile-ic { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 12px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-ink); }
-.tile .tile-ic .i { width: 20px; height: 20px; }
-.tile h3 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
-.tile p { margin: 0; font-size: 14px; color: var(--text-2); line-height: 1.5; }
-.tile .tile-links { display: flex; gap: 16px; margin-top: auto; padding-top: 12px; font-size: 14px; }
 
 /* ---------- 바닥 (애플) ---------- */
-.foot { margin-top: 32px; padding: 28px var(--gut) calc(30px + var(--safe-b)); border-top: 1px solid var(--border); font-size: 12.5px; line-height: 1.6; color: var(--text-3); }
-.foot a { color: var(--text-2); }
-.foot a:hover { color: var(--text); text-decoration: underline; }
-.foot-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px 48px; padding-bottom: 20px; }
-.foot-brand { display: flex; align-items: center; gap: 10px; }
-.foot-brand div { display: grid; }
-.foot-brand b { font-size: 14px; font-weight: 600; color: var(--text); }
-.foot-brand span { font-size: 12.5px; }
-.foot-credits { display: grid; grid-template-columns: repeat(4, auto); gap: 6px 36px; margin: 0; }
-.foot-credits div { display: grid; gap: 2px; }
-.foot-credits dt { font-size: 11.5px; color: var(--text-3); }
-.foot-credits dd { margin: 0; font-size: 13px; color: var(--text); font-weight: 500; }
-.foot-credits dd a { color: var(--text); }
-.foot-bottom { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 20px; padding-top: 14px; border-top: 1px solid var(--border); }
-.foot-bottom nav { display: flex; gap: 18px; }
-@media (max-width: 860px) {
-  .foot-credits { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; width: 100%; }
-}
+.foot { margin-top: 40px; padding: 22px var(--gut) calc(26px + var(--safe-b)); border-top: 1px solid var(--border); font-size: 12px; color: var(--text-3); text-align: center; }
+.foot p { margin: 0; }
+
 
 /* ---------- 노트 작업 공간 (옵시디언) ---------- */
 .ws { display: grid; grid-template-columns: 260px minmax(0, 1fr) 300px; height: calc(100dvh - var(--nav-h) - env(safe-area-inset-top, 0px)); }
@@ -706,7 +681,6 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 .doc-credit a { color: var(--text-2); }
 
 /* ---------- 좁은 화면 ---------- */
-@media (max-width: 1100px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1180px) {
   .ws { grid-template-columns: 0 minmax(0, 1fr) 280px; }
   .ws-left { visibility: hidden; }
@@ -736,7 +710,6 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
   .grid .p-body { padding: 12px 12px 0; }
   .grid .p-foot { padding: 8px 12px 12px; }
   .grid .p-sub { -webkit-line-clamp: 3; }
-  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ws { display: block; height: auto; }
   .ws-left { display: none; }
   .ws-right { border-left: 0; border-top: 1px solid var(--border); }
@@ -944,4 +917,27 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
   .fbar::-webkit-scrollbar { display: none; }
   .fpill-w { flex: none; }
   .rl-text { max-width: 100%; }
+}
+
+/* ---- 매뉴얼 ---- */
+.manual { display: grid; grid-template-columns: 200px minmax(0, 760px); gap: 40px; padding: 0 var(--gut) 40px; align-items: start; }
+.man-toc { position: sticky; top: 124px; display: grid; gap: 2px; }
+.man-toc button { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; font-size: 14px; color: var(--text-2); text-align: left; }
+.man-toc button:hover { background: var(--hover); color: var(--text); }
+.man-toc button span { width: 18px; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.man-body { display: grid; gap: 12px; min-width: 0; }
+.man-sec { scroll-margin-top: 124px; padding: 22px 24px; border-radius: 18px; background: var(--paper); box-shadow: 0 0 0 1px var(--border); }
+.man-sec h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+.man-n { font-size: 13px; font-weight: 600; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.man-links { margin-top: 12px; }
+.man-faq { display: grid; gap: 14px; margin: 0; }
+.man-faq dt { font-size: 14.5px; font-weight: 600; color: var(--text); }
+.man-faq dd { margin: 4px 0 0; font-size: 14px; line-height: 1.6; color: var(--text-2); }
+@media (max-width: 860px) {
+  .manual { grid-template-columns: 1fr; gap: 14px; }
+  .man-toc { position: static; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(var(--gut) * -1); padding: 0 var(--gut); }
+  .man-toc::-webkit-scrollbar { display: none; }
+  .man-toc button { flex: none; gap: 6px; height: 32px; min-height: 0; padding: 0 12px; border-radius: 999px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--border); }
+  .man-toc button span { width: auto; }
+  .man-sec { padding: 18px; }
 }

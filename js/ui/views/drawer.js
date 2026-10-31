@@ -1,5 +1,5 @@
 // 서랍 화면들.
-// 홈: 애플 홈페이지처럼 큰 제목과 넣는 칸 → 넷플릭스처럼 서랍마다 옆으로 넘기는 포스터 줄 → 넣는 곳 소개 타일 → 바닥.
+// 홈: 애플 홈페이지처럼 큰 제목과 넣는 칸 → 넷플릭스처럼 서랍마다 옆으로 넘기는 포스터 줄 → 바닥.
 // 서랍 모음, 서랍 하나(포스터 판 또는 목록), 찾은 노트, 할 일도 여기 있다.
 import { html, useState, useEffect, useRef, useLayoutEffect, autosize, cx } from '../h.js';
 import { Icon, Mascot, TYPE_ICON } from '../icons.js';
@@ -184,24 +184,6 @@ function Row({ title, href, notes, activeId, count = 0 }) {
   </section>`;
 }
 
-// ---------- 넣는 곳 소개 (애플 2단 타일) ----------
-const TILES = [
-  { h: '브라우저 단추', p: '보던 페이지를 클릭 한 번에.', icon: 'globe', links: [['설치', '#/connect']] },
-  { h: '휴대폰 앱', p: '링크 복사 후 붙여넣기.', icon: 'phone', links: [['방법', '#/connect']] },
-  { h: '북마크 가져오기', p: '수백 개도 한 번에 분류.', icon: 'star', links: [['가져오기', '#/bookmarks']] },
-  { h: '생각 지도', p: '노트 사이의 연결을 한눈에.', icon: 'graph', links: [['열기', '#/graph']] },
-];
-function Tiles() {
-  return html`<section aria-labelledby="tiles-title">
-    <div class="tiles-head"><h2 id="tiles-title">어디서든 넣으세요.</h2></div>
-    <div class="tiles">${TILES.map((t) => html`<div class="tile" key=${t.h}>
-      <span class="tile-ic"><${Icon} name=${t.icon} /></span>
-      <h3>${t.h}</h3><p>${t.p}</p>
-      <div class="tile-links">${t.links.map(([l, href]) => html`<a class="more" href=${href} key=${l}>${l}</a>`)}</div>
-    </div>`)}</div>
-  </section>`;
-}
-
 // 아래로 내리면 하나씩 떠오른다
 function useReveal(dep) {
   useEffect(() => {
@@ -244,7 +226,6 @@ export function Home() {
               ${drawers.map((d) => html`<div class="reveal" key=${d.name}><${Row} title=${d.name} href=${folderHref(d.name)} notes=${byDrawer(d.name)} count=${d.count} /></div>`)}
             </div>`
           : html`<${Empty} mood="wave" title="비어 있음" text="첫 메모를 넣어 보세요." />`}
-      <div class="reveal"><${Tiles} /></div>
       <${Footer} />
     </div>
   </div>`;
