@@ -15,6 +15,8 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
 
   // ---- 애플식 첫 화면, 넷플릭스식 줄 ----
   ok(await p.locator('.gnav .nav-toggle').count() === 1 && await p.locator('.gnav .add-btn, .gn-links').count() === 0 && (await p.locator('.hero h1').innerText()).includes('넣기만 하세요'), 'home: ☰ menu, no add button, headline');
+  ok((await p.locator('.hero-sub').innerText()) === '무엇이든 넣으면 알아서 분류해드립니다.' && (await p.locator('.hero-sub').boundingBox()).height < 40, 'subtitle is one line');
+  ok(await p.locator('.hero-links').count() === 0 && await p.locator('.capbar-box .cap-plus').count() === 1, 'extra ways sit behind + in the box');
   const cap = await p.locator('.capbar-box').boundingBox();
   ok(cap && Math.abs(cap.y + cap.height / 2 - (52 + (900 - 52) / 2)) < 130, `landing: input sits around the middle (y=${Math.round(cap?.y)})`);
   ok(await p.evaluate(() => document.querySelector('.below').getBoundingClientRect().top >= innerHeight - 2), 'landing: notes start below the first screen');
@@ -71,11 +73,13 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   // ---- 3. 무엇이든 담기 ----
   await p.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://localhost:8080' });
   await p.evaluate(() => navigator.clipboard.writeText('https://www.youtube.com/watch?v=abc 나중에 볼 영상'));
-  await p.click('.hero-links button:has-text("붙여넣기")');
+  await p.click('.cap-plus');
+  await p.click('.pop .mi:has-text("붙여넣기")');
   await p.waitForTimeout(200);
   ok((await p.inputValue(box)).startsWith('https://www.youtube.com/watch?v=abc') && (await p.locator('.cap-guess').innerText()).includes('영상'), 'paste link fills the box from the clipboard');
   await p.fill(box, '');
-  const [chooser] = await Promise.all([p.waitForEvent('filechooser'), p.click('.hero-links button:has-text("사진")')]);
+  await p.click('.cap-plus');
+  const [chooser] = await Promise.all([p.waitForEvent('filechooser'), p.click('.pop .mi:has-text("사진")')]);
   await chooser.setFiles([{ name: 'shot.png', mimeType: 'image/png', buffer: PNG }]);
   await p.waitForSelector('.toast:has-text("사진을 넣었어요")');
   ok((await notes()).some((x) => x.type === 'capture' && x.status === 'inbox'), 'photo link saves a screenshot');

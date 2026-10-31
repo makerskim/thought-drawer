@@ -11,11 +11,11 @@ import { quickSave, kindOfText } from '../quick.js';
 import { modKey } from '../format.js';
 
 const HINT = {
-  empty: ['memo', '생각, 할 일, 링크 주소, 무엇이든 적어 보세요'],
-  memo: ['memo', '메모로 넣어요'],
-  titled: ['memo', '첫 줄이 제목이 돼요'],
-  link: ['link', '링크로 넣어요. Claude가 제목과 요약을 달아요'],
-  instagram: ['instagram', '인스타 게시물로 넣어요'],
+  empty: ['memo', '메모, 링크, 할 일'],
+  memo: ['memo', '메모로 저장'],
+  titled: ['memo', '첫 줄이 제목'],
+  link: ['link', '링크로 저장'],
+  instagram: ['instagram', '인스타 게시물로 저장'],
 };
 
 let draft = ''; // 넣지 않고 닫으면 다음에 열 때 이어서 쓴다
@@ -46,7 +46,7 @@ function Composer({ close, initial = '' }) {
     draft = '';
     close();
     go(`#/new${first.trim() ? `?title=${encodeURIComponent(first.trim())}` : ''}`);
-    if (rest.join('\n').trim()) toast('나머지 줄은 본문에 붙여 넣어 주세요.');
+    if (rest.join('\n').trim()) toast('나머지는 본문에 붙여 넣으세요');
   };
   const onKeyDown = (e) => {
     if (e.isComposing || e.keyCode === 229) return;
@@ -60,11 +60,11 @@ function Composer({ close, initial = '' }) {
       onDrop=${(e) => { e.preventDefault(); e.stopPropagation(); setDrag(false); photos([...e.dataTransfer.files]); }}>
     <div class="peek" aria-hidden="true"><${Mascot} size=${76} mood=${mood} /></div>
     <div class="composer-head">
-      <h2 id="composer-title">무엇을 넣을까요?</h2>
+      <h2 id="composer-title">넣기</h2>
       <button type="button" class="icon-btn" aria-label="닫기" title="닫기 (Esc)" onClick=${close}><${Icon} name="x" /></button>
     </div>
     <textarea ref=${ref} rows="3" value=${text} aria-label="넣을 내용" enterkeyhint="send"
-      placeholder="예: 다음 주 제주 여행 숙소 알아보기"
+      placeholder="메모, 링크, 할 일"
       onInput=${(e) => { draft = e.target.value; setText(draft); }} onKeyDown=${onKeyDown}
       onPaste=${(e) => {
         const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));

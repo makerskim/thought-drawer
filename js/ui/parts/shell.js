@@ -77,6 +77,6 @@ export function PageBar({ title, right = null, back = '#/' }) {
 export function Footer() {
   return html`<footer class="foot">
     <nav aria-label="바닥 메뉴"><a href="#/connect">넣는 법</a><a href="#/drawers">모든 서랍</a><a href="#/bookmarks">북마크 가져오기</a><a href="#/settings">설정</a><a href="privacy.html">개인정보처리방침</a><a href="terms.html">서비스 약관</a></nav>
-    <p>노트는 내 구글 드라이브의 「메모」 폴더에 마크다운 파일로 저장됩니다. 앱은 자기가 만든 파일만 볼 수 있고, 옵시디언에서도 그대로 열립니다.</p>
+    <p>노트는 구글 드라이브 「메모」 폴더에 마크다운으로 저장됩니다.</p>
   </footer>`;
 }

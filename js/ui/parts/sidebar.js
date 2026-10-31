@@ -50,14 +50,14 @@ export function Sidebar({ path, pinned, side, docked, open, setOpen, setPinned, 
         <nav class="sb-nav" aria-label="서랍">${drawers.map((d) => html`<a key=${d.name} class="sb-item" href=${folderHref(d.name)} aria-current=${on(decodeURIComponent(path) === `/f/${d.name}`)}><i class=${`fdot f${d.look.tone}`}></i><span>${d.name}</span><span class="n">${d.count}</span></a>`)}</nav>`}
       <p class="sb-label">넣는 곳</p>
       <nav class="sb-nav" aria-label="넣는 곳">
-        ${item('#/connect', 'phone', '다른 앱·사이트에서', path === '/connect')}
+        ${item('#/connect', 'phone', '다른 앱에서', path === '/connect')}
         ${item('#/bookmarks', 'star', '북마크 가져오기', path === '/bookmarks')}
         ${item('#/import', 'instagram', '인스타 가져오기', path === '/import')}
       </nav>
       <span class="grow"></span>
       <nav class="sb-nav sb-foot" aria-label="설정">
         ${item('#/settings', 'gear', '설정', path === '/settings')}
-        <button type="button" class="sb-item" onClick=${act(() => { go('#/'); setTimeout(openTutorial, 160); })}><${Icon} name="help" /><span>사용법 다시 보기</span></button>
+        <button type="button" class="sb-item" onClick=${act(() => { go('#/'); setTimeout(openTutorial, 160); })}><${Icon} name="help" /><span>사용법</span></button>
       </nav>
     </aside>`;
 }

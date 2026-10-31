@@ -89,7 +89,7 @@ function LocalGraph({ note }) {
   const W = 270; const H = 230; const cx = W / 2; const cy = H / 2;
   const at = (i) => { const a = (i / Math.max(1, nodes.length)) * Math.PI * 2 - Math.PI / 2; const r = i % 2 ? 78 : 92; return [cx + Math.cos(a) * r * 1.15, cy + Math.sin(a) * r * .9]; };
   const short = (t) => (t.length > 9 ? `${t.slice(0, 8)}…` : t);
-  if (!nodes.length) return html`<p class="rp-empty">아직 이어진 노트가 없어요. 「연결」에서 비슷한 노트를 이으면 여기에 그려져요.</p>`;
+  if (!nodes.length) return html`<p class="rp-empty">연결된 노트 없음</p>`;
   return html`<svg class="lgraph" viewBox=${`0 0 ${W} ${H}`} role="img" aria-label="이 노트 주변 그래프">
     ${nodes.map((o, i) => { const [x, y] = at(i); return html`<line key=${`l${o.n.id}`} x1=${cx} y1=${cy} x2=${x} y2=${y} style=${o.link ? 'stroke: var(--accent-2)' : 'stroke-dasharray: 3 3'} />`; })}
     ${nodes.map((o, i) => { const [x, y] = at(i); return html`<g key=${o.n.id} onClick=${() => go(noteHref(o.n.id))}><circle class=${o.link ? 'link' : ''} cx=${x} cy=${y} r=${o.link ? 6 : 4.5} /><text x=${x} y=${y + 16} text-anchor="middle">${short(titleOf(o.n))}</text></g>`; })}
@@ -104,9 +104,9 @@ function Side({ note, md }) {
   return html`<aside class="ws-right" aria-label="연결과 목차">
     <div class="rp-tabs" role="tablist">${tabs.map(([k, label]) => html`<button type="button" key=${k} role="tab" aria-selected=${tab === k} onClick=${() => setTab(k)}>${label}</button>`)}</div>
     <div class="rp-body note-links">
-      ${tab === 'links' && (note ? html`<${Links} note=${note} />` : html`<p class="rp-empty">노트를 적으면 이어진 노트와 비슷한 노트가 여기에 나와요.</p>`)}
+      ${tab === 'links' && (note ? html`<${Links} note=${note} />` : html`<p class="rp-empty">저장 후 표시됩니다.</p>`)}
       ${tab === 'outline' && html`<${Outline} md=${md} />`}
-      ${tab === 'graph' && (note ? html`<${LocalGraph} note=${note} />` : html`<p class="rp-empty">저장한 뒤에 그려져요.</p>`)}
+      ${tab === 'graph' && (note ? html`<${LocalGraph} note=${note} />` : html`<p class="rp-empty">저장 후 표시됩니다.</p>`)}
     </div>
   </aside>`;
 }
@@ -134,12 +134,12 @@ function Links({ note }) {
             <b>${dir === 'in' ? html`<span class="kind-ic k-in" aria-hidden="true"><${Icon} name="enter" /></span>` : html`<${KindIcon} type=${n.meta.type} />`}<span>${titleOf(n)}</span></b>
             <small>${reasons.get(n.id) ?? (dir === 'in' ? '이 노트를 언급함' : categoryParts(categoryOf(n, lib).path).join(' / '))}</small>
           </a>`)
-        : html`<p class="rp-empty">아직 이어진 노트가 없어요. Claude가 정리할 때 이어 주고, 아래 비슷한 노트를 직접 이을 수도 있어요.</p>`}
+        : html`<p class="rp-empty">이어진 노트 없음</p>`}
     </div>
     ${mentions.length > 0 && html`<div class="rp-sec mentions">
       <h3><span><${Icon} name="at" />이 노트를 언급한 노트</span><span>${mentions.length}</span></h3>
       ${mentions.map((n) => html`<div class="rp-rel" key=${n.id}>
-        <a class="rp-item" href=${noteHref(n.id)}><b><${KindIcon} type=${n.meta.type} /><span>${titleOf(n)}</span></b><small>“${name}”라고 적었지만 아직 잇지 않았어요</small></a>
+        <a class="rp-item" href=${noteHref(n.id)}><b><${KindIcon} type=${n.meta.type} /><span>${titleOf(n)}</span></b><small>“${name}” 언급</small></a>
         <button type="button" class="link-btn" title="이 노트와 잇기" aria-label=${`${titleOf(n)}와 잇기`} onClick=${() => connect(n)}>잇기</button>
       </div>`)}
     </div>`}
@@ -155,7 +155,7 @@ function Links({ note }) {
 // 목차: 본문의 제목(#)을 누르면 그 자리로
 function Outline({ md }) {
   const heads = [...String(md ?? '').matchAll(/^(#{1,3})\s+(.+)$/gm)].map((m) => ({ level: m[1].length, text: m[2].trim() }));
-  if (!heads.length) return html`<p class="rp-empty">본문에 제목(# 제목)을 쓰면 목차가 생겨요.</p>`;
+  if (!heads.length) return html`<p class="rp-empty"># 제목을 쓰면 생깁니다.</p>`;
   const jump = (i) => document.querySelectorAll('.ws-main .ProseMirror :is(h1, h2, h3)')[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   return html`<nav class="outline" aria-label="목차"><ol>${heads.map((h, i) => html`<li key=${i} class=${`l${h.level}`}><button type="button" onClick=${() => jump(i)}>${h.text}</button></li>`)}</ol></nav>`;
 }
@@ -267,7 +267,7 @@ export function NoteView({ id, params }) {
   const update = async (meta) => {
     try {
       const n = await ensureSaved();
-      if (!n) { toast('먼저 제목이나 내용을 적어 주세요.'); return; }
+      if (!n) { toast('먼저 내용을 적어 주세요'); return; }
       setSaveState('saving');
       await lib.update(n, { meta });
       setSaveState('saved');
@@ -275,8 +275,8 @@ export function NoteView({ id, params }) {
   };
   const pickFolder = (anchor) => popover(anchor, (close) => html`<${FolderPicker} current=${folder} close=${close} onPick=${async (p) => {
     const n = await ensureSaved();
-    if (!n) { toast('먼저 제목이나 내용을 적어 주세요.'); return; }
-    try { await lib.moveTo(n, p); toast(p ? `${categoryParts(p).join(' / ')} 서랍으로 옮겼어요` : '자동 분류에 맡겼어요'); } catch (e) { toast(e.message); }
+    if (!n) { toast('먼저 내용을 적어 주세요'); return; }
+    try { await lib.moveTo(n, p); toast(p ? `${categoryParts(p).join(' / ')}(으)로 옮김` : '자동 분류로 변경'); } catch (e) { toast(e.message); }
   }} />`, { width: 300 });
   const remove = () => modal((close) => html`<${ConfirmDialog} close=${close} title="이 노트를 지울까요?" text="구글 드라이브 휴지통으로 옮겨요. 30일 안에는 되살릴 수 있어요." yes="지우기" danger
     onYes=${async () => {
@@ -314,7 +314,7 @@ export function NoteView({ id, params }) {
           <dt><${Icon} name="drawer" />서랍</dt>
           <dd><button type="button" class=${`mpill${cat?.auto ? ' auto' : ''}`} title=${cat?.auto ? `자동 분류${cat.why ? `: ${cat.why}` : ''}. 눌러서 서랍을 바꿔요` : '서랍 바꾸기'} onClick=${(e) => pickFolder(e.currentTarget)}>
               <${FolderDot} path=${cat?.path ?? ''} />${cat ? categoryParts(cat.path).join(' / ') : '자동 분류'}${cat?.auto && html`<span class="auto-badge">자동</span>`}<${Icon} name="down" /></button>
-            ${cat?.auto && html`<p class="auto-why"><${Mascot} size=${18} /><span>서랍이가 ${cat.why ? `${cat.why}라서 ` : ''}${cat.name} 서랍에 넣었어요. 맞지 않으면 눌러서 바꿔 주세요.</span></p>`}</dd>
+            ${cat?.auto && html`<p class="auto-why"><${Mascot} size=${18} /><span>자동 분류${cat.why ? `: ${cat.why}` : ''}</span></p>`}</dd>
           <dt><${Icon} name="tag" />태그</dt>
           <dd><${TagEditor} tags=${m.tags ?? []} onChange=${(tags) => update({ tags })} /></dd>
           <dt><${Icon} name=${TYPE_ICON[m.type] ?? 'memo'} />종류</dt>
@@ -323,12 +323,12 @@ export function NoteView({ id, params }) {
           <dt><${Icon} name="calendar" />만든 날</dt>
           <dd title=${note ? fullDate(m.created) : ''}>${note ? shortDate(m.created) : '지금'}</dd>
         </dl>
-        ${m.summary && html`<div class="callout"><b><${Icon} name="sparkle" />Claude 요약</b><p>${m.summary}</p></div>`}
+        ${m.summary && html`<div class="callout"><b><${Icon} name="sparkle" />요약</b><p>${m.summary}</p></div>`}
         <div class="thought-note"><${Icon} name="thought" />
-          <${Grow} value=${thought} onInput=${change(setThought)} label="내 생각" placeholder="왜 저장했는지 한 줄 남겨 볼까요?" />
+          <${Grow} value=${thought} onInput=${change(setThought)} label="내 생각" placeholder="저장한 이유" />
         </div>
         ${!noteId && !main.trim() && html`<div class="templates" role="group" aria-label="템플릿으로 시작">
-          <span>템플릿으로 시작</span>
+          <span>템플릿</span>
           ${TEMPLATES.filter((t) => !t.hidden).map((t) => html`<button type="button" key=${t.id} class="tpl" onClick=${() => {
             if (!title.trim() && t.title) change(setTitle)(t.title);
             change(setMain)(t.body);
@@ -338,7 +338,7 @@ export function NoteView({ id, params }) {
         ${loaded
           ? html`<${NoteEditor} noteId=${noteId} value=${main} onChange=${change(setMain)} editorRef=${editorRef}
               onReady=${(ed) => { if (wantBody.current) { wantBody.current = false; ed.commands.focus('start'); } }}
-              placeholder="자유롭게 적어 보세요. / 를 누르면 제목·목록·사진, [[ 를 누르면 다른 노트를 이어요."
+              placeholder="/ 블록, [[ 노트 연결"
               onImage=${(src) => modal((close) => html`<${Lightbox} src=${src} close=${close} />`)} />`
           : html`<div class="sk" style="height:16px;width:80%;margin-bottom:10px"></div><div class="sk" style="height:16px;width:60%"></div>`}
         ${note && html`<p class="facts"><span>${fullDate(m.created)}에 넣음</span><span>${relTime(m.updated || m.created)} 고침</span>${m.organized && html`<span>${relTime(m.organized)} Claude가 정리</span>`}<span class="num">No.${note.id}</span></p>`}

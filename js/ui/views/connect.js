@@ -12,7 +12,7 @@ const isAndroid = /Android/.test(ua);
 const appUrl = () => (location.protocol.startsWith('http') && !location.hostname.match(/^(localhost|127\.)/) ? location.origin + location.pathname : APP_URL);
 
 async function copy(text, what) {
-  try { await navigator.clipboard.writeText(text); toast(`${what}을 복사했어요.`); } catch { toast('복사하지 못했어요. 길게 눌러 복사해 주세요.'); }
+  try { await navigator.clipboard.writeText(text); toast(`${what}을 복사했어요.`); } catch { toast('복사 실패. 길게 눌러 복사하세요.'); }
 }
 
 function QR({ text }) {
@@ -60,10 +60,10 @@ export function Connect() {
   };
   const bm = bookmarklet(url);
   const installCard = html`<section class="connect-card">
-    <div class="cc-head"><${Icon} name="phone" /><div><h2>휴대폰에 설치하기</h2><p>홈 화면에 두면 앱처럼 열려요. PC와 같은 구글 드라이브에 저장돼서 어디서 봐도 같아요.</p></div></div>
-    ${isStandalone() ? html`<div class="banner"><${Icon} name="check" /><p>지금 설치된 앱으로 쓰고 있어요.</p></div>` : html`
+    <div class="cc-head"><${Icon} name="phone" /><div><h2>휴대폰에 설치하기</h2><p>홈 화면에 두면 앱처럼 열립니다.</p></div></div>
+    ${isStandalone() ? html`<div class="banner"><${Icon} name="check" /><p>설치된 앱으로 사용 중</p></div>` : html`
       ${canInstall && html`<button type="button" class="btn btn-primary btn-lg" onClick=${install}><${Icon} name="download" />이 기기에 설치</button>`}
-      ${!isIOS && !isAndroid && html`<div class="qr-row"><${QR} text=${url} /><div><b>폰 카메라로 찍어 열기</b><p class="muted">아이폰은 사파리, 안드로이드는 크롬에서 열려요.</p></div></div>`}`}
+      ${!isIOS && !isAndroid && html`<div class="qr-row"><${QR} text=${url} /><div><b>폰 카메라로 찍어 열기</b><p class="muted">아이폰은 사파리, 안드로이드는 크롬.</p></div></div>`}`}
     <div class="two-col">
       <div><h3>아이폰</h3><ol class="steps">
         <li><span><b>사파리</b>로 <a href=${url}>앱 주소</a>를 열어요.</span></li>
@@ -79,7 +79,7 @@ export function Connect() {
   const panels = {
     phone: html`
       <section class="connect-card">
-        <div class="cc-head"><${Icon} name="paste" /><div><h2>가장 쉬운 방법: 링크 복사 → 붙여넣기</h2><p>인스타, 유튜브, 쇼핑 앱, 네이버, 카카오톡 어디서든 돼요. 설정할 것이 없어요.</p></div></div>
+        <div class="cc-head"><${Icon} name="paste" /><div><h2>링크 복사 → 붙여넣기</h2><p>어느 앱이든, 설정 없이.</p></div></div>
         <ol class="steps">
           <li><span>앱에서 <b>공유</b> → <b>링크 복사</b>(또는 글을 길게 눌러 복사)를 눌러요.</span></li>
           <li><span>Thought Drawer를 열고 맨 위 칸 아래 <b>붙여넣기</b>를 눌러요. 아이폰이 물으면 「붙여넣기 허용」.</span></li>
@@ -87,7 +87,7 @@ export function Connect() {
         </ol>
       </section>
       <section class="connect-card">
-        <div class="cc-head"><${Icon} name="external" /><div><h2>공유 버튼에서 바로 넣기</h2><p>복사·붙여넣기 없이 공유 한 번으로 넣고 싶을 때.</p></div></div>
+        <div class="cc-head"><${Icon} name="external" /><div><h2>공유 버튼에서 바로 넣기</h2><p>공유 한 번으로.</p></div></div>
         <div class="two-col">
           <div><h3>안드로이드</h3><p class="small">위처럼 앱을 설치하면 공유 목록에 <b>Thought Drawer</b>가 바로 나와요. 고르면 끝.</p></div>
           <div><h3>아이폰</h3><p class="small">아이폰은 웹 앱이 공유 목록에 직접 들어가지 못해서, 단축어 「메모로 보내기」를 한 번 만들어 두면 공유 목록에서 바로 넣을 수 있어요. <a href="https://github.com/makerskim/thought-drawer/blob/main/docs/%EB%8B%A8%EC%B6%95%EC%96%B4.md" target="_blank" rel="noopener">만드는 순서 (3분)</a></p>
@@ -97,10 +97,10 @@ export function Connect() {
       ${installCard}`,
     web: html`
       <section class="connect-card">
-        <div class="cc-head"><${Icon} name="globe" /><div><h2>브라우저 단추 (모든 브라우저)</h2><p>크롬, 사파리, 엣지, 웨일, 파이어폭스 어디서든. 북마크바에 단추를 하나 두고, 보던 페이지에서 누르면 그 페이지(고른 글이 있으면 같이)가 들어가요.</p></div></div>
+        <div class="cc-head"><${Icon} name="globe" /><div><h2>브라우저 단추</h2><p>모든 브라우저. 보던 페이지를 클릭 한 번에.</p></div></div>
         <ol class="steps">
           <li><span>북마크바를 켜요 (크롬·엣지 Ctrl+Shift+B, 맥은 ⌘+Shift+B).</span></li>
-          <li><span>아래 단추를 <b>북마크바로 끌어다 놓아요</b>.<span class="bm-row"><a class="btn bm-btn" href=${bm} onClick=${(e) => { e.preventDefault(); toast('이 단추를 북마크바로 끌어다 놓아 주세요.'); }}><${Icon} name="plus" />Thought Drawer에 넣기</a></span></span></li>
+          <li><span>아래 단추를 <b>북마크바로 끌어다 놓아요</b>.<span class="bm-row"><a class="btn bm-btn" href=${bm} onClick=${(e) => { e.preventDefault(); toast('북마크바로 끌어다 놓으세요.'); }}><${Icon} name="plus" />Thought Drawer에 넣기</a></span></span></li>
           <li><span>넣고 싶은 페이지에서 북마크바의 <b>Thought Drawer에 넣기</b>를 누르면 끝.</span></li>
         </ol>
         <details class="small"><summary>끌어다 놓기가 안 될 때 (아이폰 사파리 포함)</summary>
@@ -108,7 +108,7 @@ export function Connect() {
           <${Copyable} value=${bm} label="브라우저 단추 코드" /></details>
       </section>
       <section class="connect-card">
-        <div class="cc-head"><${Icon} name="puzzle" /><div><h2>크롬 확장 프로그램 (PC 크롬)</h2><p>페이지, 고른 글, 화면 캡처, 이미지를 버튼이나 오른쪽 클릭으로 넣어요. 창을 바꾸지 않고 바로 저장돼요. 단축키 Ctrl+Shift+Y (맥은 ⌘+Shift+Y).</p></div></div>
+        <div class="cc-head"><${Icon} name="puzzle" /><div><h2>크롬 확장 프로그램</h2><p>페이지, 선택한 글, 화면 캡처를 바로 저장. 단축키 Ctrl+Shift+Y.</p></div></div>
         <ol class="steps">
           <li><span><a class="btn btn-primary" href=${EXTENSION_ZIP} download><${Icon} name="download" />확장 프로그램 받기 (zip)</a></span></li>
           <li><span>받은 zip의 <b>압축을 풀어요</b>. 풀린 폴더는 지우지 말고 둬요.</span></li>
@@ -125,7 +125,7 @@ export function Connect() {
       </section>`,
     photo: html`
       <section class="connect-card">
-        <div class="cc-head"><${Icon} name="capture" /><div><h2>스크린샷과 사진</h2><p>사진은 드라이브에 원본 그대로 저장되고, 사진 속 글자도 읽어 두어서 글자로 찾을 수 있어요.</p></div></div>
+        <div class="cc-head"><${Icon} name="capture" /><div><h2>스크린샷과 사진</h2><p>원본 저장, 사진 속 글자도 검색됩니다.</p></div></div>
         <div class="two-col">
           <div><h3>휴대폰</h3><ol class="steps">
             <li><span>맨 위 칸 아래 <b>사진·캡처</b>를 누르고 앨범에서 여러 장 골라요.</span></li>
@@ -138,11 +138,11 @@ export function Connect() {
       </section>`,
     import: html`
       <section class="connect-card">
-        <div class="cc-head"><${Icon} name="star" /><div><h2>인터넷 북마크</h2><p>크롬·사파리·엣지·파이어폭스에서 북마크를 파일로 내보내 올리면 링크마다 노트가 되고 서랍에 나뉘어요.</p></div></div>
+        <div class="cc-head"><${Icon} name="star" /><div><h2>인터넷 북마크</h2><p>북마크 파일을 올리면 자동 분류됩니다.</p></div></div>
         <a class="btn btn-primary" href="#/bookmarks"><${Icon} name="upload" />북마크 가져오기</a>
       </section>
       <section class="connect-card">
-        <div class="cc-head"><${Icon} name="instagram" /><div><h2>인스타 저장한 게시물</h2><p>인스타그램 「내 정보 다운로드」로 받은 파일을 올리면 저장한 게시물을 한 번에 가져와요.</p></div></div>
+        <div class="cc-head"><${Icon} name="instagram" /><div><h2>인스타 저장한 게시물</h2><p>「내 정보 다운로드」 파일로 한 번에.</p></div></div>
         <a class="btn btn-primary" href="#/import"><${Icon} name="upload" />인스타 가져오기</a>
       </section>`,
   };
@@ -150,7 +150,7 @@ export function Connect() {
     <${PageBar} title="넣는 방법" />
     <div class="page narrow">
       <div class="page-head"><h1>어디서든 넣기</h1>
-        <p>휴대폰 앱, 웹사이트, 스크린샷, 사진, 북마크까지. 무엇을 넣고 싶은지 골라 보세요. 모두 같은 구글 드라이브에 모여서 폰과 PC 어디서 봐도 같아요.</p></div>
+        <p>무엇을 넣을지 고르세요.</p></div>
       <div class="seg tabs-row" role="tablist" aria-label="넣을 것">${TABS.map(([k, label, icon]) => html`<button type="button" key=${k} role="tab" aria-selected=${tab === k} aria-pressed=${tab === k} onClick=${() => setTab(k)}><${Icon} name=${icon} />${label}</button>`)}</div>
       <div role="tabpanel">${panels[tab]}</div>
     </div>`;

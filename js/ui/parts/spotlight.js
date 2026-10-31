@@ -20,11 +20,11 @@ const COMMANDS = [
   ['graph', '생각 지도', '', '#/graph'],
   ['pen', '새 노트 크게 쓰기', 'N', '#/new'],
   ['capture', '사진·스크린샷 넣기', '', () => app.pickPhotos()],
-  ['star', '브라우저 북마크 가져오기', '', '#/bookmarks'],
+  ['star', '북마크 가져오기', '', '#/bookmarks'],
   ['instagram', '인스타 저장 가져오기', '', '#/import'],
-  ['phone', '다른 앱·사이트에서 넣는 법', '', '#/connect'],
+  ['phone', '다른 앱에서 넣기', '', '#/connect'],
   ['gear', '설정', '', '#/settings'],
-  ['help', '사용법 다시 보기', '', () => { go('#/'); setTimeout(openTutorial, 160); }],
+  ['help', '사용법', '', () => { go('#/'); setTimeout(openTutorial, 160); }],
 ];
 
 function Spot({ close }) {
@@ -57,15 +57,15 @@ function Spot({ close }) {
   const cmdBlock = () => cmdOpts.length > 0 && html`<p class="mi-label">빠른 실행</p>${cmdOpts.map((o) => item(o, html`<${Icon} name=${o.icon} /><span>${o.label}</span>${o.key && html`<span class="sub"><kbd>${o.key}</kbd></span>`}`))}`;
   return html`<div class="spot" role="dialog" aria-modal="true" aria-label="찾기와 빠른 실행">
     <div class="spot-in"><${Icon} name="search" /><input ref=${ref} value=${q} onInput=${(e) => setQ(e.target.value)} onKeyDown=${onKeyDown}
-      placeholder="노트 찾기, 또는 할 일 입력 (오늘 노트, 설정…)" aria-label="찾기" enterkeyhint="search" autocomplete="off" spellcheck="false" /></div>
+      placeholder="검색 또는 명령" aria-label="찾기" enterkeyhint="search" autocomplete="off" spellcheck="false" /></div>
     <div class="spot-list">
       ${cmdFirst && cmdBlock()}
       ${noteOpts.length > 0 && html`<p class="mi-label">${t ? '노트' : '최근에 넣은 것'}</p>`}
       ${noteOpts.map((o) => item(o, html`<${KindIcon} type=${o.n.meta.type} /><span class="mi-text"><span>${hl ? hl(titleOf(o.n)) : titleOf(o.n)}</span><small>${categoryOf(o.n, lib).name}</small></span>`))}
-      ${t && !noteOpts.length && html`<p class="mi-label">“${t}” 노트가 없어요</p>`}
+      ${t && !noteOpts.length && html`<p class="mi-label">결과 없음</p>`}
       ${moreOpts.map((o) => item(o, o.kind === 'all'
-        ? html`<${Icon} name="search" /><span>“${t}” 모두 찾아보기</span>`
-        : html`<${Icon} name="sparkle" /><span>Claude에게 “${t}” 물어보기</span>`))}
+        ? html`<${Icon} name="search" /><span>“${t}” 전체 검색</span>`
+        : html`<${Icon} name="sparkle" /><span>Claude에게 묻기</span>`))}
       ${!cmdFirst && cmdBlock()}
     </div>
     <div class="spot-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> 고르기</span><span><kbd>Enter</kbd> 열기</span><span><kbd>Esc</kbd> 닫기</span></div>

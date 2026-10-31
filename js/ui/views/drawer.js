@@ -131,30 +131,33 @@ function CaptureBar() {
   const photos = (files) => { capturePhotos(files, text); setText(''); };
   const paste = async () => {
     const got = await readClipboard();
-    if (!got) { toast('붙여넣기를 허용해 주세요. 또는 칸을 길게 눌러 붙여넣기를 골라요.'); return; }
+    if (!got) { toast('붙여넣기 권한이 필요합니다'); return; }
     if (got.files.length) { photos(got.files); return; }
     if (!got.text.trim()) { say('복사해 둔 글이나 사진이 없어요. 먼저 복사해 주세요.', { mood: 'think' }); return; }
     setText((t) => (t.trim() ? `${t.trim()}\n${got.text.trim()}` : got.text.trim()));
     ref.current?.focus();
   };
+  const more = (anchor) => popover(anchor, (close) => html`
+    <${MenuItem} icon="capture" label="사진·스크린샷" onClick=${() => { close(); app.pickPhotos(text); }} />
+    <${MenuItem} icon="paste" label="붙여넣기" onClick=${() => { close(); paste(); }} />
+    <div class="mi-sep"></div>
+    <${MenuItem} icon="star" label="북마크 가져오기" onClick=${() => { close(); go('#/bookmarks'); }} />
+    <${MenuItem} icon="instagram" label="인스타 가져오기" onClick=${() => { close(); go('#/import'); }} />
+    <${MenuItem} icon="phone" label="다른 앱에서 넣기" onClick=${() => { close(); go('#/connect'); }} />`, { width: 220 });
   return html`<div class=${cx('capbar', drag && 'drag')}
       onDragOver=${(e) => { if ([...(e.dataTransfer?.types ?? [])].includes('Files')) { e.preventDefault(); e.stopPropagation(); setDrag(true); } }}
       onDragLeave=${() => setDrag(false)}
       onDrop=${(e) => { if (!e.dataTransfer?.files?.length) return; e.preventDefault(); e.stopPropagation(); setDrag(false); photos([...e.dataTransfer.files]); }}>
     <${HeroMascot} text=${text} guess=${guess?.category} link=${k.kind === 'link' || k.kind === 'instagram'} drag=${drag} busy=${busy} />
     <div class="capbar-box">
-      <textarea ref=${ref} rows="1" value=${text} aria-label="넣을 내용" enterkeyhint="send" placeholder="메모, 할 일, 링크를 적거나 붙여 넣으세요"
+      <button type="button" class="cap-plus" aria-label="넣는 방법 더 보기" aria-haspopup="menu" aria-expanded="false" title="더 보기" onClick=${(e) => more(e.currentTarget)}><${Icon} name="plus" /></button>
+      <textarea ref=${ref} rows="1" value=${text} aria-label="넣을 내용" enterkeyhint="send" placeholder="메모, 링크, 할 일"
         onInput=${(e) => setText(e.target.value)}
         onKeyDown=${(e) => { if (e.isComposing || e.keyCode === 229) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(e.metaKey || e.ctrlKey); } else if (e.key === 'Escape' && text) { e.preventDefault(); e.stopPropagation(); setText(''); } }}
         onPaste=${(e) => { const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/')); if (files.length) { e.preventDefault(); e.stopPropagation(); photos(files); } }}></textarea>
       <button type="button" class="cap-save" disabled=${busy || !text.trim()} onClick=${() => save()}>넣기</button>
     </div>
     ${guess && html`<p class="cap-hint"><span class="cap-guess"><${Icon} name=${categoryLook(guess.category).icon} /><b>${guess.category}</b> 서랍으로</span></p>`}
-    <div class="hero-links">
-      <button type="button" onClick=${() => app.pickPhotos(text)}>사진·스크린샷 넣기</button>
-      <button type="button" onClick=${paste}>복사한 것 붙여넣기</button>
-      <button type="button" onClick=${() => go('#/connect')}>다른 앱·사이트에서 넣는 법</button>
-    </div>
   </div>`;
 }
 
@@ -165,8 +168,8 @@ function TodayLine() {
   const left = taskGroups(lib).reduce((s, g) => s + g.tasks.length, 0);
   return html`<div class="today-line today">
     <span>${d.getMonth() + 1}월 ${d.getDate()}일 ${DAYS[d.getDay()]}요일</span>
-    <a href="#/tasks">남은 할 일 <b>${left}개</b></a>
-    <button type="button" class="today-btn" onClick=${() => openToday()} title="오늘 노트 (T)">${daily ? '오늘 노트 이어 쓰기' : '오늘 노트 쓰기'}</button>
+    <a href="#/tasks">할 일 <b>${left}</b></a>
+    <button type="button" class="today-btn" onClick=${() => openToday()} title="오늘 노트 (T)">오늘 노트</button>
   </div>`;
 }
 
@@ -185,14 +188,14 @@ function Row({ title, href, notes, activeId, count = 0 }) {
 
 // ---------- 넣는 곳 소개 (애플 2단 타일) ----------
 const TILES = [
-  { h: '브라우저 단추', p: '보던 페이지를 클릭 한 번에 넣어요. 모든 브라우저에서.', icon: 'globe', links: [['설치하기', '#/connect']] },
-  { h: '휴대폰 앱에서', p: '공유에서 링크를 복사하고, 여기서 붙여 넣으면 끝.', icon: 'phone', links: [['방법 보기', '#/connect']] },
-  { h: '북마크 가져오기', p: '브라우저 북마크 수백 개도 한 번에, 알아서 나눠서.', icon: 'star', links: [['가져오기', '#/bookmarks']] },
-  { h: '생각 지도', p: '노트와 노트가 어떻게 이어지는지 한눈에.', icon: 'graph', links: [['지도 열기', '#/graph']] },
+  { h: '브라우저 단추', p: '보던 페이지를 클릭 한 번에.', icon: 'globe', links: [['설치', '#/connect']] },
+  { h: '휴대폰 앱', p: '링크 복사 후 붙여넣기.', icon: 'phone', links: [['방법', '#/connect']] },
+  { h: '북마크 가져오기', p: '수백 개도 한 번에 분류.', icon: 'star', links: [['가져오기', '#/bookmarks']] },
+  { h: '생각 지도', p: '노트 사이의 연결을 한눈에.', icon: 'graph', links: [['열기', '#/graph']] },
 ];
 function Tiles() {
   return html`<section aria-labelledby="tiles-title">
-    <div class="tiles-head"><h2 id="tiles-title">어디서든 넣으세요.</h2><p>휴대폰, 다른 브라우저, 북마크까지 한곳으로.</p></div>
+    <div class="tiles-head"><h2 id="tiles-title">어디서든 넣으세요.</h2></div>
     <div class="tiles">${TILES.map((t) => html`<div class="tile" key=${t.h}>
       <span class="tile-ic"><${Icon} name=${t.icon} /></span>
       <h3>${t.h}</h3><p>${t.p}</p>
@@ -227,10 +230,10 @@ export function Home() {
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-in">
         <h1 id="hero-title">넣기만 하세요.<br />정리는 서랍이.</h1>
-        <p class="hero-sub">메모, 링크, 스크린샷, 북마크. 무엇이든 넣으면 알아서 나눠 둡니다.</p>
+        <p class="hero-sub">무엇이든 넣으면 알아서 분류해드립니다.</p>
         <${CaptureBar} />
       </div>
-      ${lib.all.length > 0 && html`<button type="button" class="scroll-cue" onClick=${() => document.querySelector('.below')?.scrollIntoView({ behavior: 'smooth' })}>내 서랍 보기<${Icon} name="down" /></button>`}
+      ${lib.all.length > 0 && html`<button type="button" class="scroll-cue" onClick=${() => document.querySelector('.below')?.scrollIntoView({ behavior: 'smooth' })}>내 서랍<${Icon} name="down" /></button>`}
     </section>
     <div class="below">
       ${loading
@@ -242,7 +245,7 @@ export function Home() {
               <div class="reveal"><${Row} title="새로 넣은 것" href="#/all" notes=${lib.all.slice(0, 20)} count=${lib.all.length} /></div>
               ${drawers.map((d) => html`<div class="reveal" key=${d.name}><${Row} title=${d.name} href=${folderHref(d.name)} notes=${byDrawer(d.name)} count=${d.count} /></div>`)}
             </div>`
-          : html`<${Empty} mood="wave" title="서랍이 비어 있어요" text="위 칸에 첫 생각을 적거나, 아래 방법으로 넣어 보세요." />`}
+          : html`<${Empty} mood="wave" title="비어 있음" text="첫 메모를 넣어 보세요." />`}
       <div class="reveal"><${Tiles} /></div>
       <${Footer} />
     </div>
@@ -255,14 +258,14 @@ export function Drawers() {
   const list = drawerList(lib);
   return html`<div class="drawers-page">
     <${Conn} />
-    <div class="page-hero"><h1>서랍.</h1><p>넣은 것을 사이트와 내용을 보고 앱이 나눴어요. 노트에서 서랍을 바꾸면 다음부터 더 잘 나눠요.</p></div>
+    <div class="page-hero"><h1>서랍.</h1><p>자동으로 분류된 서랍입니다.</p></div>
     <div class="dbig-grid drawers">
       ${list.map((d) => html`<a key=${d.name} class=${`dbig c${d.look.tone}`} href=${folderHref(d.name)}>
-        <span class="dbig-ic"><${Icon} name=${d.look.icon} /></span><b>${d.name}</b><span>노트 ${d.count}개${d.auto ? `, 그중 ${d.auto}개는 자동 분류` : ''}</span>
+        <span class="dbig-ic"><${Icon} name=${d.look.icon} /></span><b>${d.name}</b><span>${d.count}개${d.auto ? ` · 자동 ${d.auto}` : ''}</span>
         <ul>${lib.all.filter((n) => categoryOf(n, lib).name === d.name).slice(0, 3).map((n) => html`<li key=${n.id}>${titleOf(n)}</li>`)}</ul>
       </a>`)}
-      <a class="dbig c6" href="#/all"><span class="dbig-ic"><${Icon} name="grid" /></span><b>모든 노트</b><span>노트 ${lib.all.length}개</span></a>
-      ${lib.pinned().length > 0 && html`<a class="dbig c2" href="#/star"><span class="dbig-ic"><${Icon} name="star" /></span><b>즐겨찾기</b><span>노트 ${lib.pinned().length}개</span></a>`}
+      <a class="dbig c6" href="#/all"><span class="dbig-ic"><${Icon} name="grid" /></span><b>모든 노트</b><span>${lib.all.length}개</span></a>
+      ${lib.pinned().length > 0 && html`<a class="dbig c2" href="#/star"><span class="dbig-ic"><${Icon} name="star" /></span><b>즐겨찾기</b><span>${lib.pinned().length}개</span></a>`}
     </div>
     <${Footer} />
   </div>`;
@@ -384,11 +387,11 @@ export function Shelf({ scope }) {
           <form class="ask-box" style="margin-top:18px;max-width:640px" onSubmit=${(e) => { e.preventDefault(); setUrl(`#/search?q=${encodeURIComponent(q)}`); }}>
             <${Icon} name="search" /><textarea rows="1" value=${q} aria-label="찾을 말" placeholder="찾을 말" onInput=${(e) => setQ(e.target.value)} onKeyDown=${(e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); setUrl(`#/search?q=${encodeURIComponent(q)}`); } }}></textarea>
             <a class="btn btn-primary" href=${`#/ask?q=${encodeURIComponent(q.trim())}`}><${Icon} name="sparkle" />물어보기</a></form>
-          <p>${q.trim() ? `찾은 노트 ${notes.length}개` : '모든 노트의 제목, 본문, 태그, 사진 속 글자에서 찾아요.'}</p></div>`
+          <p>${q.trim() ? `${notes.length}개` : '제목, 본문, 태그, 사진 속 글자에서 찾습니다.'}</p></div>`
       : html`<div class="page-hero">
           <h1>${title}.</h1>
-          <p>노트 ${base.length}개${scope.kind === 'folder' && top !== title ? '' : ''}</p>
-          ${autoN > 0 && html`<p class="sh-note"><${Icon} name="sparkle" /><span>${autoN}개는 앱이 자동으로 나눴어요. 잘못 들어갔으면 노트를 열어 서랍을 바꿔 주세요.</span></p>`}
+          <p>${base.length}개</p>
+          ${autoN > 0 && html`<p class="sh-note"><${Icon} name="sparkle" /><span>자동 분류 ${autoN}개. 노트에서 서랍을 바꿀 수 있습니다.</span></p>`}
           ${subs.length > 0 && html`<nav class="chip-row" style="margin-top:16px" aria-label="안쪽 서랍">
             <a class="chip" href=${folderHref(top)} aria-current=${scope.value === top ? 'page' : undefined}>${top} 전체</a>
             ${subs.map((f) => html`<a key=${f.path} class="chip" href=${folderHref(f.path)} aria-current=${scope.value === f.path ? 'page' : undefined}>${f.name}<span class="n">${f.count}</span></a>`)}
@@ -400,9 +403,9 @@ export function Shelf({ scope }) {
     </div>`}
     ${!notes.length
       ? (searching && q.trim()
-        ? html`<${Empty} mood="wow" title=${`“${q.trim()}” 노트는 없어요`} text="다른 낱말로 찾아보거나 Claude에게 물어보세요.">
-            <button type="button" class="btn" onClick=${() => openComposer(q)}><${Icon} name="plus" />이 글을 메모로 넣기</button></${Empty}>`
-        : !searching && html`<${Empty} mood="think" title="여기는 아직 비어 있어요" text=${type ? '종류 거르기를 끄면 다른 노트도 보여요.' : ''} />`)
+        ? html`<${Empty} mood="wow" title="결과 없음" text="다른 낱말로 찾아보세요.">
+            <button type="button" class="btn" onClick=${() => openComposer(q)}><${Icon} name="plus" />메모로 넣기</button></${Empty}>`
+        : !searching && html`<${Empty} mood="think" title="비어 있음" text="" />`)
       : view === 'list'
         ? html`<${List} notes=${notes} hl=${hl} more=${more} />`
         : html`<div class="grid">${notes.slice(0, more[0]).map((n) => html`<${Poster} key=${n.id} note=${n} hl=${hl} />`)}</div><div ref=${more[1]} class="sentinel"></div>`}
@@ -415,9 +418,9 @@ async function flipTask(lib, n, t, done) {
   try {
     const cur = await lib.ensureBody(lib.get(n.id) ?? n);
     const body = setTask(cur.body, t.line, done, t.text);
-    if (body == null) { toast('노트가 그새 바뀌었어요. 노트를 열어 확인해 주세요.'); return; }
+    if (body == null) { toast('노트가 바뀌었습니다. 다시 확인하세요'); return; }
     await lib.update(cur, { body });
-    if (done) toast(`“${t.text}” 했어요`, { action: '되돌리기', duration: 5000, onAction: () => flipTask(lib, n, t, false) });
+    if (done) toast(`완료: ${t.text}`, { action: '되돌리기', duration: 5000, onAction: () => flipTask(lib, n, t, false) });
   } catch (e) { toast(e.message); }
 }
 const taskGroups = (lib) => lib.all.map((n) => ({ n, tasks: n.body ? openTasks(n.body) : [] })).filter((g) => g.tasks.length)
@@ -447,11 +450,11 @@ export function Tasks() {
   const left = groups.reduce((s, g) => s + g.tasks.length, 0);
   return html`<div class="tasks-page">
     <${Conn} />
-    <div class="page-hero"><h1>할 일.</h1><p>${prog ? `노트에서 할 일을 모으는 중 ${prog[0]}/${prog[1]}` : left ? `노트 ${groups.length}개에 남은 할 일 ${left}개. 체크하면 노트에도 바로 표시돼요.` : '모든 노트의 체크 상자 중 아직 안 한 것이 여기에 모여요.'}</p></div>
+    <div class="page-hero"><h1>할 일.</h1><p>${prog ? `불러오는 중 ${prog[0]}/${prog[1]}` : left ? `남은 할 일 ${left}개` : '모든 노트의 체크 상자가 모입니다.'}</p></div>
     ${!groups.length && !prog
-      ? html`<${Empty} mood="happy" title="남은 할 일이 없어요" text="노트에 「- [ ] 할 일」처럼 적거나 / 메뉴의 체크 상자를 쓰면 여기에 모여요.">
-          <button type="button" class="btn btn-primary" onClick=${() => openToday()}><${Icon} name="calendar" />오늘 노트 열기</button>
-          <button type="button" class="btn" onClick=${() => go('#/new?template=todo')}><${Icon} name="check" />할 일 노트 만들기</button>
+      ? html`<${Empty} mood="happy" title="할 일 없음" text="노트에 - [ ] 로 적으면 모입니다.">
+          <button type="button" class="btn btn-primary" onClick=${() => openToday()}><${Icon} name="calendar" />오늘 노트</button>
+          <button type="button" class="btn" onClick=${() => go('#/new?template=todo')}><${Icon} name="check" />할 일 노트</button>
         </${Empty}>`
       : html`<div class="tasks">${groups.map(({ n, tasks }) => html`<section class="task-group" key=${n.id}>
           <a class="tg-head" href=${noteHref(n.id)}><${KindIcon} type=${n.meta.type} /><b>${titleOf(n)}</b><span>${categoryOf(n, lib).name}</span></a>

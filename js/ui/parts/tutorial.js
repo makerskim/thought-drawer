@@ -6,13 +6,12 @@ import { prefs } from '../state.js';
 import { openLayer } from './layers.js';
 
 const STEPS = [
-  { title: '안녕하세요, 서랍이예요.', mood: 'wave', text: '넣기만 하세요. 정리는 제가 할게요. 30초면 다 보여 드릴게요.' },
-  { target: '.capbar-box', title: '넣기는 여기 하나로.', text: '적고 Enter. 링크와 사진은 붙여 넣거나 끌어다 놓아도 돼요. 적는 동안 제가 어느 서랍이 어울리는지 말씀드릴게요.',
-    m: '적고 「넣기」. 다른 앱에서 복사한 링크는 「복사한 것 붙여넣기」, 사진은 「사진·스크린샷 넣기」.' },
-  { target: '.nav-toggle', title: '메뉴는 여기에.', text: '누르면 옆 메뉴가 열려요. 서랍 목록, 할 일, 생각 지도, 넣는 곳이 있고, 핀을 누르면 왼쪽이나 오른쪽에 고정돼요.' },
-  { target: '.gn-search', title: '찾기와 빠른 실행.', text: '/ 나 ⌘K로 노트를 찾고, 「오늘 노트」 「설정」 같은 일도 바로 해요.', m: '돋보기로 노트를 찾고, 「오늘 노트」 「설정」 같은 일도 바로 해요.' },
-  { target: '.rows.drawers', title: '아래로 내리면 내 서랍.', text: '넣은 것은 사이트와 내용을 보고 쇼핑, 요리, 여행 같은 서랍에 들어가요. 서랍마다 한 줄씩 옆으로 넘겨 봐요.' },
-  { title: '준비됐어요.', mood: 'happy', text: '첫 생각을 넣어 보세요. 저는 넣는 칸 위에 있을게요.' },
+  { title: '안녕하세요, 서랍이예요.', mood: 'wave', text: '넣기만 하세요. 정리는 제가 할게요.' },
+  { target: '.capbar-box', title: '넣기', text: '적고 Enter. 링크와 사진은 붙여 넣거나 끌어다 놓기. + 에서 사진, 붙여넣기, 가져오기.', m: '적고 「넣기」. + 에서 사진, 붙여넣기, 가져오기.' },
+  { target: '.nav-toggle', title: '메뉴', text: '서랍, 할 일, 생각 지도. 핀으로 왼쪽·오른쪽에 고정.' },
+  { target: '.gn-search', title: '찾기', text: '/ 또는 ⌘K. 노트 검색과 명령 실행.', m: '노트 검색과 명령 실행.' },
+  { target: '.rows.drawers', title: '내 서랍', text: '자동으로 분류된 서랍. 옆으로 넘겨 보세요.' },
+  { title: '준비됐어요.', mood: 'happy', text: '첫 메모를 넣어 보세요.' },
 ];
 const PAD = 8;
 const GAP = 16;

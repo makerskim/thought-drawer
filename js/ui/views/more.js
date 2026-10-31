@@ -62,7 +62,7 @@ export function Settings({ offline }) {
   const [token, setToken] = useState(offline);
   const p = app.profile ?? {};
   const shareUrl = `${location.origin}${location.pathname}?text=`;
-  const copy = async (text, what) => { try { await navigator.clipboard.writeText(text); toast(`${what}을 복사했어요.`); } catch { toast('복사하지 못했어요. 직접 선택해서 복사해 주세요.'); } };
+  const copy = async (text, what) => { try { await navigator.clipboard.writeText(text); toast(`${what}을 복사했어요.`); } catch { toast('복사 실패. 직접 선택해 복사하세요.'); } };
   const exportZip = async () => {
     setZip(0);
     try {
@@ -90,22 +90,22 @@ export function Settings({ offline }) {
     <${PageBar} title="설정" />
     <div class="page narrow">
       <div class="page-head"><h1>설정</h1></div>
-      <${Section} title="계정" desc="노트는 이 구글 계정의 드라이브 「메모」 폴더에 있어요.">
+      <${Section} title="계정" desc="구글 드라이브 「메모」 폴더">
         <div class="profile">${p.picture ? html`<img src=${p.picture} alt="" referrerpolicy="no-referrer" />` : html`<span class="avatar">${(p.name || p.email || '?')[0]}</span>`}
           <div><b>${p.name}</b><div class="muted">${p.email}</div></div></div>
         <div class="row-ctl">
           <button type="button" class="btn" onClick=${() => modal((close) => html`<${ConfirmDialog} close=${close} title="로그아웃할까요?" text="이 기기에 저장해 둔 노트 사본도 지워요. 드라이브의 노트는 그대로예요." yes="로그아웃" danger onYes=${() => app.signOut()} />`)}><${Icon} name="logout" />로그아웃</button>
-          <button type="button" class="btn btn-ghost" onClick=${async () => { await lib.clearCache(); toast('이 기기의 사본을 지웠어요. 다시 맞추는 중이에요.'); app.resync(); }}><${Icon} name="refresh" />드라이브와 다시 맞추기</button>
+          <button type="button" class="btn btn-ghost" onClick=${async () => { await lib.clearCache(); toast('기기 사본을 지우고 다시 맞추는 중'); app.resync(); }}><${Icon} name="refresh" />드라이브와 다시 맞추기</button>
         </div>
       </${Section}>
-      <${Section} title="화면" desc="이 기기에만 적용돼요.">
+      <${Section} title="화면" desc="이 기기에만 적용">
         <div class="row-ctl"><span class="muted" style="width:64px">밝기</span>${seg(theme, setTheme, [['', '기기 따라'], ['light', '낮'], ['dark', '밤']])}</div>
         <div class="row-ctl"><span class="muted" style="width:64px">노트 글꼴</span>${seg(font, setFont, [['', '기본'], ['serif', '명조'], ['mono', '고정폭']])}</div>
       </${Section}>
-      <${Section} title="자동 분류" desc="넣는 즉시 앱이 사이트(쿠팡이면 쇼핑, 유튜브면 영상)와 낱말을 보고 서랍을 골라요. 노트에서 서랍을 바꾸면 그걸 배워서 다음부터 더 잘 나눠요. 기기 안에서 돌아서 비용도 설정도 없어요.">
+      <${Section} title="자동 분류" desc="사이트와 낱말로 바로 분류. 바꾼 서랍은 학습합니다.">
         <div class="kv"><div><b>${lib.all.length}</b><span>모든 노트</span></div><div><b>${lib.organized().length}</b><span>내가·Claude가 정한 서랍</span></div><div><b>${lib.inbox().length}</b><span>자동으로 나눈 노트</span></div></div>
       </${Section}>
-      <${Section} title="Claude로 더 다듬기 (선택)" desc="Claude Code 예약 작업을 켜 두면 하루 몇 번 새 노트를 읽고 제목, 한 줄 요약, 태그, 노트 사이 연결까지 붙여 줘요. 지금 쓰는 Claude 구독으로 돌아서 추가 비용이 없어요. 켜지 않아도 자동 분류는 돼요.">
+      <${Section} title="Claude로 더 다듬기 (선택)" desc="예약 작업이 제목, 요약, 태그, 연결을 붙입니다. 추가 비용 없음.">
         <div class="kv"><div><b>${lib.index?.generatedAt ? relTime(lib.index.generatedAt) : '아직 안 켬'}</b><span>마지막으로 다듬은 때</span></div></div>
         ${token?.refreshToken && html`<div class="banner"><${Icon} name="check" /><p><b>정리기용 토큰을 받았어요.</b> 복사해서 Claude Code 환경 설정의 TD_GOOGLE_REFRESH_TOKEN에 넣으세요. 이 화면을 벗어나면 다시 볼 수 없어요. 채팅창에는 붙여 넣지 마세요.</p></div>
           <div class="code-box"><input class="input mono" readonly value=${token.refreshToken} onFocus=${(e) => e.target.select()} aria-label="정리기용 토큰" /><button type="button" class="btn" onClick=${() => copy(token.refreshToken, '토큰')}><${Icon} name="copy" />복사</button></div>`}
@@ -120,7 +120,7 @@ export function Settings({ offline }) {
         <div class="code-box"><input class="input mono" readonly value=${shareUrl} onFocus=${(e) => e.target.select()} aria-label="공유 주소" /><button type="button" class="btn" onClick=${() => copy(shareUrl, '주소')}><${Icon} name="copy" />복사</button></div>
         <small class="muted">홈 화면에 추가: 사파리에서 이 앱을 열고 공유 버튼, 홈 화면에 추가. 만드는 순서는 docs/단축어.md에 있어요.</small>
       </${Section}>
-      <${Section} title="내보내기" desc="옵시디언은 드라이브 「메모」 폴더를 PC에 동기화한 뒤 보관함으로 열면 그대로 보여요.">
+      <${Section} title="내보내기" desc="옵시디언은 「메모」 폴더를 보관함으로 열면 됩니다.">
         <div class="row-ctl"><button type="button" class="btn" onClick=${exportZip} disabled=${zip !== null}><${Icon} name="download" />노션용 zip 받기</button></div>
         ${zip !== null && html`<div class="progress"><i style=${`width:${zip}%`}></i></div>`}
         <small class="muted">노션의 가져오기, 텍스트와 마크다운에 zip을 올려요. 링크와 사진 경로를 노션이 읽는 형식으로 바꿔서 담아요.</small>
@@ -155,7 +155,7 @@ export function Import() {
     setDone(null);
     try {
       const list = await readExport([...files]);
-      if (!list.length) { toast('저장한 게시물을 찾지 못했어요. "저장됨"을 JSON 형식으로 받았는지 확인해 주세요.', { duration: 6000 }); return; }
+      if (!list.length) { toast('게시물 없음. 「저장됨」을 JSON으로 받았는지 확인하세요.', { duration: 6000 }); return; }
       setItems(list);
     } catch (e) { toast(e.message); }
   };
@@ -172,8 +172,8 @@ export function Import() {
   return html`
     <${PageBar} title="인스타 가져오기" />
     <div class="page narrow">
-      <div class="page-head"><h1>인스타 저장함 가져오기</h1>
-        <p>비밀번호는 필요 없어요. 인스타그램이 주는 내 정보 파일을 올리면 저장한 게시물과 릴스가 노트가 돼요.</p></div>
+      <div class="page-head"><h1>인스타 가져오기</h1>
+        <p>「내 정보 다운로드」 파일을 올리면 저장한 게시물이 노트가 됩니다.</p></div>
       <ol class="steps">
         <li><span>인스타그램 앱에서 <b>설정 및 활동, 계정 센터, 내 정보 및 권한, 내 정보 다운로드</b>로 가요.</span></li>
         <li><span><b>일부 정보</b>를 고르고 <b>저장됨</b>만 체크해요. 형식은 <b>JSON</b>, 기간은 <b>전체 기간</b>이에요.</span></li>
@@ -211,7 +211,7 @@ export function Bookmarks() {
     const f = [...files][0];
     if (!f) return;
     const text = await f.text();
-    if (!isBookmarksFile(text)) { toast('북마크 내보내기 파일(.html)이 아니에요. 아래 방법으로 내보낸 파일을 골라 주세요.'); return; }
+    if (!isBookmarksFile(text)) { toast('북마크 파일(.html)이 아닙니다.'); return; }
     const list = parseBookmarks(text);
     const have = new Set(lib.all.map((n) => n.meta.source).filter(Boolean));
     const fresh = list.filter((b) => !have.has(b.url));
@@ -245,15 +245,15 @@ export function Bookmarks() {
   };
   return html`<${PageBar} title="북마크 가져오기" />
     <div class="page narrow">
-      <div class="page-head"><h1>인터넷 북마크를 한 번에</h1>
-        <p>브라우저에서 북마크를 파일로 내보내 여기에 올리면, 링크마다 노트가 되고 사이트와 제목을 보고 서랍에 나눠요. 이미 넣은 링크는 건너뛰어요.</p></div>
+      <div class="page-head"><h1>북마크 가져오기</h1>
+        <p>브라우저에서 내보낸 bookmarks.html을 올리면 링크마다 분류해 넣습니다.</p></div>
       ${!items && prog === null && html`<label class=${`dropzone${over ? ' over' : ''}`}
           onDragOver=${(e) => { e.preventDefault(); setOver(true); }} onDragLeave=${() => setOver(false)}
           onDrop=${(e) => { e.preventDefault(); setOver(false); read(e.dataTransfer.files); }}>
-        <${Icon} name="upload" /><b>bookmarks.html 파일을 고르거나 끌어다 놓기</b><span class="muted">파일은 이 브라우저 안에서만 읽어요</span>
+        <${Icon} name="upload" /><b>bookmarks.html 올리기</b><span class="muted">파일은 이 기기에서만 읽습니다</span>
         <input class="sr" type="file" accept=".html,.htm,text/html" onChange=${(e) => read(e.target.files)} />
       </label>
-      <section class="set-sec how"><div><h2>파일 내보내는 법</h2><p class="desc">아이폰 사파리는 내보내기가 없어서 맥이나 PC에서 해요.</p></div>
+      <section class="set-sec how"><div><h2>내보내는 법</h2><p class="desc">아이폰은 맥·PC에서 내보내세요.</p></div>
         <div class="ctl"><ol class="steps">${EXPORT_HOW.map(([b, how]) => html`<li key=${b}><span><b>${b}</b>: ${how}</span></li>`)}</ol></div></section>`}
       ${items && prog === null && html`<div class="banner"><${Icon} name="star" /><p><b>링크 ${items.fresh.length}개</b>를 찾았어요${items.skipped ? ` (이미 있는 ${items.skipped}개는 건너뜀)` : ''}. 이렇게 나눌게요:</p></div>
         <div class="preview-groups">${items.groups.map(([c, n]) => html`<span class="chip" key=${c}>${c}<span class="n">${n}</span></span>`)}</div>
@@ -307,7 +307,7 @@ export function Paste() {
       if (!files.length) { toast('복사해 둔 사진이 없어요.'); return; }
       const made = await capturePhotos(files);
       if (made[0]) go(noteHref(made[0].id), { replace: true });
-    } catch { toast('붙여넣기를 허용해 주세요. 또는 길게 눌러 붙여넣기를 골라요.'); }
+    } catch { toast('붙여넣기를 허용하거나 길게 눌러 붙여 넣으세요.'); }
   };
   return html`<${PageBar} title="사진 붙여넣기" />
     <div class="page narrow">
