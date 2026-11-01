@@ -136,8 +136,27 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.locator('.rp-rel .link-btn').first().click();
   await p.waitForTimeout(500);
   ok((await notes()).find((x) => x.id === '20261020093000').body.includes('## 연결'), `link a similar note (${relTitle})`);
+  const relWhy = await p.locator('.rp-sec:has-text("비슷한 노트") .rp-item small').allInnerTexts();
+  ok(relWhy.length > 0 && relWhy.every((w) => w.trim().length > 0), `similar notes say why (${relWhy.join(' / ')})`);
   await p.click('.rp-tabs button:has-text("그래프")');
   ok(await p.locator('.lgraph circle').count() >= 2, 'local graph shows neighbours');
+  // 생각 지도: 이은 연결(실선)과 추천 연결(점선), 서랍끼리 모음
+  await p.evaluate(() => { location.hash = '#/graph'; });
+  await p.waitForSelector('.graph canvas');
+  const autoN = Number((await p.locator('.g-auto').innerText()).replace(/\D/g, ''));
+  const legend = await p.locator('.g-legend').innerText();
+  ok(autoN >= 2 && /이은 연결 \d+/.test(legend) && legend.includes(`추천 연결 ${autoN}`), `mind map: recommended links shown (${autoN}) next to real links`);
+  await p.click('.g-auto');
+  ok((await p.locator('.g-auto').getAttribute('aria-pressed')) === 'false' && !(await p.locator('.g-legend').innerText()).includes('추천 연결'), 'mind map: recommended links can be hidden');
+  await p.click('.g-auto');
+  await p.waitForTimeout(3500);
+  const dot = await p.evaluate(() => { const n = window.__TD_APP__.lib.all.find((x) => (x.meta.title ?? '').includes('옥스포드 셔츠')); return window.__TD_GRAPH__().find((d) => d.id === n.id); });
+  await p.mouse.move(dot.x, dot.y);
+  await p.waitForSelector('.g-info li');
+  const infoText = await p.locator('.g-info').innerText();
+  ok(infoText.includes('흰색 옥스포드 셔츠') && infoText.includes('가을 레이어드 코디') && infoText.includes('#셔츠'), 'mind map: hovering a note shows what it connects to and why');
+  await p.goBack();
+  await p.waitForSelector('.ws .props');
   await p.click('.rp-tabs button:has-text("목차")');
   ok(await p.locator('.outline button').count() >= 1, 'outline lists headings');
   await p.evaluate(() => document.activeElement?.blur());

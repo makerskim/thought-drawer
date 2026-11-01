@@ -14,6 +14,7 @@ import { categoryParts, embeds } from '../../core/note.js';
 import { relTime, fullDate, KIND_LABEL } from '../format.js';
 import { TEMPLATES, rememberSeen } from '../notebook.js';
 import { categoryOf, categoryLook, tagsOf } from '../categories.js';
+import { relatedNotes } from '../related.js';
 
 const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
 const shortDate = (iso) => { const d = new Date(iso); return Number.isNaN(+d) ? '' : `${d.getFullYear() === new Date().getFullYear() ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월 ${d.getDate()}일`; };
@@ -84,7 +85,7 @@ function Explorer({ note, cat }) {
 function LocalGraph({ note }) {
   const lib = useLib();
   const linked = lib.connections(note).map((c) => c.note);
-  const near = lib.related(note, 6).map((r) => r.note).filter((n) => !linked.includes(n));
+  const near = relatedNotes(note, lib, 6).map((r) => r.note).filter((n) => !linked.includes(n));
   const nodes = [...linked.map((n) => ({ n, link: true })), ...near.map((n) => ({ n, link: false }))].slice(0, 10);
   const W = 270; const H = 230; const cx = W / 2; const cy = H / 2;
   const at = (i) => { const a = (i / Math.max(1, nodes.length)) * Math.PI * 2 - Math.PI / 2; const r = i % 2 ? 78 : 92; return [cx + Math.cos(a) * r * 1.15, cy + Math.sin(a) * r * .9]; };
@@ -120,7 +121,7 @@ function Links({ note }) {
   const mentions = name.length >= 2
     ? lib.all.filter((n) => n.id !== note.id && !linked.has(n.id) && `${n.meta.title ?? ''}\n${n.body ?? n.snippet ?? ''}`.includes(name)).slice(0, 5)
     : [];
-  const related = lib.related(note, 5).filter(({ note: n }) => !mentions.includes(n));
+  const related = relatedNotes(note, lib, 5).filter(({ note: n }) => !mentions.includes(n));
   const reasons = new Map();
   for (const m of String(note.body ?? '').matchAll(/^- \[\[(\d{14})[^\]]*\]\]\s*\(([^)]+)\)/gm)) reasons.set(m[1], m[2]);
   const connect = async (other) => {
@@ -145,8 +146,8 @@ function Links({ note }) {
     </div>`}
     ${related.length > 0 && html`<div class="rp-sec">
       <h3><span><${Icon} name="sparkle" />비슷한 노트</span></h3>
-      ${related.map(({ note: n }) => html`<div class="rp-rel" key=${n.id}>
-        <a class="rp-item" href=${noteHref(n.id)}><b><${KindIcon} type=${n.meta.type} /><span>${titleOf(n)}</span></b><small>${categoryParts(n.meta.category).join(' / ') || '인박스'}</small></a>
+      ${related.map(({ note: n, why }) => html`<div class="rp-rel" key=${n.id}>
+        <a class="rp-item" href=${noteHref(n.id)}><b><${KindIcon} type=${n.meta.type} /><span>${titleOf(n)}</span></b><small>${why.join(' · ')}</small></a>
         <button type="button" class="link-btn" title="이 노트와 잇기" aria-label=${`${titleOf(n)}와 잇기`} onClick=${() => connect(n)}>잇기</button>
       </div>`)}
     </div>`}`;

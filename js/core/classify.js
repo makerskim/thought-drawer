@@ -12,7 +12,7 @@ export const OTHER = '기타';
 export const CATEGORIES = [
   { name: '쇼핑', icon: 'bag', tone: 4, aliases: ['쇼핑', '위시', '위시리스트', '살 것', '구매'],
     hosts: ['coupang', '11st', 'gmarket', 'auction.co', 'ssg.com', 'lotteon', 'amazon', 'aliexpress', 'ebay', 'temu', 'smartstore.naver', 'shopping.naver', 'brand.naver', 'idus', 'enuri', 'tmon', 'wemakeprice', 'costco', 'emart'],
-    words: ['쇼핑', '-구매', '~사고 싶', '살 것', '장바구니', '최저가', '-할인', '-세일', '-쿠폰', '-주문', '-배송', '택배', '반품', '환불', '교환 신청', '-특가', '시즌오프', '-가성비', '-품절', '직구', '언박싱'],
+    words: ['쇼핑', '-구매', '~사고 싶', '살 것', '장바구니', '최저가', '-할인', '-세일', '-쿠폰', '-주문', '-배송', '택배', '반품', '환불', '교환 신청', '-특가', '시즌오프', '-가성비', '-품절', '직구', '언박싱', '팝업스토어', '팝업'],
     subs: [
       { name: '가전', aliases: ['전자제품', '디지털', '가전제품'], hosts: ['danawa', 'apple.com', 'samsung.com', 'lge.co.kr', 'himart'],
         words: ['가전', '노트북', '휴대폰', '아이폰', '갤럭시', '이어폰', '헤드폰', '에어팟', '모니터', '키보드', '마우스', '태블릿', '아이패드', '청소기', '가습기', '제습기', '공기청정기', '냉장고', '세탁기', '건조기', '에어컨', '선풍기', '카메라', '충전기', '스마트워치', '전기포트', '전기 포트', '밥솥', '전자레인지', '식기세척기', '드라이기', '정수기', '로봇청소기', '빔프로젝터', '커피머신', 'iphone', 'ipad', 'macbook', '맥북', 'galaxy', 'airpods', '에어팟 맥스', 'tv'] },
@@ -41,7 +41,7 @@ export const CATEGORIES = [
     ] },
   { name: '여행', icon: 'plane', tone: 5, aliases: ['여행', '숙소', '캠핑', '나들이'],
     hosts: ['expedia', 'trip.com', 'myrealtrip', 'tripadvisor', 'klook', 'visitkorea'],
-    words: ['여행', '관광', '휴가', '투어', '여행 코스', '가볼 만한'],
+    words: ['여행', '관광', '휴가', '투어', '여행 코스', '가볼 만한', '가볼 곳', '가볼 것', '나들이', '데이트 코스'],
     subs: [
       { name: '국내', aliases: ['국내여행'], words: ['제주', '부산', '강릉', '경주', '여수', '속초', '전주', '통영', '남해', '양양', '가평', '국내'] },
       { name: '해외', aliases: ['해외여행'], words: ['도쿄', '오사카', '교토', '후쿠오카', '삿포로', '방콕', '다낭', '나트랑', '타이베이', '대만', '싱가포르', '발리', '하와이', '괌', '파리', '런던', '뉴욕', '유럽', '해외', '환전'] },
@@ -120,6 +120,9 @@ export const CATEGORIES = [
 
 // 다른 낱말 속에 들어 있어 잘못 걸리는 말: 먼저 차지해서 짧은 말(카페, 시계, 고기, 회의, 주식)이 걸리지 않게 한다
 const BLOCKERS = ['토스트', '시계열', '고기압', '저기압', '회의적', '회의감', '주식회사', '네이버 카페', '다음 카페', '여행사 직원', '책임', '책상'];
+
+// 무엇이든 올라오는 글 플랫폼: 사이트만으로는 약하게 친다
+const PLATFORMS = ['brunch.co.kr', 'medium.com', 'substack', 'velog', 'tistory', 'publy', 'careerly', 'wikipedia', 'namu.wiki'];
 
 // 사이트 → 태그로 다는 이름
 export const SITES = {
@@ -285,7 +288,8 @@ export function classify({ meta = {}, body = '' }, model = null, opts = {}) {
   for (const def of CATEGORIES) {
     const name = resolveName(def, existing);
     const all = ALL.get(def);
-    if (host && siteHit(host, all.hosts)) add(name, 4, `${host} 링크`);
+    // 블로그·글 플랫폼(브런치, 미디엄…)은 무엇이든 올라오니 약하게
+    if (host && siteHit(host, all.hosts)) add(name, PLATFORMS.some((h) => host.includes(h)) ? 1 : 4, `${host} 링크`);
     let sum = 0;
     let best = null;
     for (const w of all.words) {
@@ -333,7 +337,7 @@ function pickSub(top, { hit, host, model, words, forced, existing }) {
   for (const s of def?.subs ?? []) {
     // 이미 쓰는 세부 폴더 이름이 있으면 그 이름으로 (「가전」 대신 원래 쓰던 「전자제품」)
     const name = known.find((k) => k === s.name || (s.aliases ?? []).includes(k)) ?? s.name;
-    if (host && siteHit(host, s.hosts)) add(name, 4);
+    if (host && siteHit(host, s.hosts)) add(name, PLATFORMS.some((h) => host.includes(h)) ? 1 : 4);
     const sum = s.words.filter(hit).reduce((t, w) => t + weight(w), 0);
     if (sum) add(name, Math.min(sum, 6));
   }

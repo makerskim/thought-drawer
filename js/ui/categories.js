@@ -56,6 +56,11 @@ export function tagsOf(note, lib) {
 }
 export const tagsAuto = (note) => !(note.meta.tags ?? []).length;
 
+// 연관 노트를 찾을 때 쓰는 열쇠말: 달아 둔 태그 + 자동 태그(글 속 핵심 낱말)를 함께
+export function keyTags(note, lib) {
+  return [...new Set([...(note.meta.tags ?? []).map(String), ...(autoOf(note, lib).tags ?? [])])];
+}
+
 // 아직 저장하기 전의 글이 어느 서랍·세부 서랍·태그로 갈지 (입력창 아래 미리 보여 준다)
 export function guessCategory(meta, body, lib) {
   const { model, opts } = modelFor(lib);

@@ -665,6 +665,21 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 .graph .g-legend { position: absolute; left: 18px; bottom: calc(18px + var(--safe-b)); display: flex; flex-wrap: wrap; gap: 6px 14px; max-width: calc(100% - 36px); padding: 10px 16px; border-radius: 12px; background: var(--paper); font-size: 12.5px; color: var(--text-2); }
 .graph .g-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .graph .g-legend i { width: 9px; height: 9px; border-radius: 50%; }
+.graph .g-legend { max-width: min(560px, calc(100% - 36px)); }
+.g-ln b, .g-k { display: inline-block; width: 18px; height: 0; border-top: 1.5px solid var(--border-2); }
+.g-ln b.dash, .g-k.dash { border-top: 1.5px dashed var(--text-3); }
+.graph .g-info { position: absolute; right: 18px; bottom: calc(18px + var(--safe-b)); width: min(320px, calc(100% - 36px)); padding: 14px 16px; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow-2); font-size: 13px; pointer-events: none; }
+.g-info > b { display: block; font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-info > small { color: var(--text-3); }
+.g-info ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 7px; }
+.g-info li { display: grid; grid-template-columns: 20px 1fr; column-gap: 6px; align-items: center; }
+.g-info li .g-k { width: 14px; }
+.g-info .g-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.g-info li small { grid-column: 2; color: var(--text-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-info p { margin: 8px 0 0; color: var(--text-3); }
+.chip.g-auto .i { width: 14px; height: 14px; }
+.chip.g-auto.on { background: var(--accent-soft); color: var(--accent-ink); box-shadow: none; }
+@media (max-width: 860px) { .graph .g-info { display: none; } }
 
 /* ---------- 끌어다 놓기, 약관 ---------- */
 .drop-veil { position: fixed; inset: 0; z-index: 85; background: color-mix(in srgb, var(--accent) 22%, transparent); border: 2px dashed var(--accent-2); display: grid; place-items: center; pointer-events: none; }

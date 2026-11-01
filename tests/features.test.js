@@ -181,3 +181,28 @@ test('sun times for 자동 brightness (Seoul)', async () => {
   assert.equal(themeByTime(new Date(2026, 10, 1, 18, 30), seoul), 'dark');
   assert.equal(themeByTime(new Date(2026, 10, 1, 6, 0), seoul), 'dark');
 });
+
+test('related notes: shared words, tags, sites and drawers — but a drawer alone is not enough', async () => {
+  const { buildIndex, relatedTo, relatedEdges } = await import('../js/core/related.js');
+  const N = (id, title, body, extra = {}) => ({ id, meta: { id, title, ...extra }, body });
+  const notes = [
+    N('1', '흰색 옥스포드 셔츠', '오크우드 스튜디오 옥스포드 셔츠 35,000원', { tags: ['셔츠'] }),
+    N('2', '가을 레이어드 코디', '흰 셔츠에 차콜 가디건', { tags: ['셔츠', '출근룩'] }),
+    N('3', '들기름 막국수', '메밀면 삶아 들기름 간장'),
+    N('4', '토마토 달걀볶음', '토마토 볶고 달걀 반숙'),
+    N('5', '가습기 비교', '', { source: 'https://www.coupang.com/vp/1' }),
+    N('6', '전기 포트 최저가', '', { source: 'https://www.coupang.com/vp/2' }),
+    N('7', '오크우드 시즌오프', '옥스포드 셔츠 최대 40%'),
+  ];
+  const cats = { 1: ['패션', '옷'], 2: ['패션', '옷'], 3: ['요리', '레시피'], 4: ['요리', '레시피'], 5: ['쇼핑', '가전'], 6: ['쇼핑', '가전'], 7: ['쇼핑', ''] };
+  const idx = buildIndex(notes, { cat: (n) => ({ name: cats[n.id][0], sub: cats[n.id][1] }), tags: (n) => n.meta.tags ?? [] });
+  const near = relatedTo(idx, '1', { limit: 5 });
+  assert.deepEqual(near.map((r) => r.id).sort(), ['2', '7']);
+  assert.ok(near.find((r) => r.id === '2').why.includes('#셔츠'));
+  assert.ok(near.find((r) => r.id === '7').why.some((w) => w.includes('옥스포드')));
+  assert.deepEqual(relatedTo(idx, '3').map((r) => r.id), [], 'two recipes with nothing in common are not linked just for sharing a drawer');
+  assert.deepEqual(relatedTo(idx, '5').map((r) => r.id), ['6'], 'same shopping site + same drawer');
+  const edges = relatedEdges(idx, { linked: new Set(['1|2']) });
+  assert.ok(!edges.some((e) => [e.a, e.b].sort().join('|') === '1|2'), 'already linked pairs are not suggested again');
+  assert.ok(edges.some((e) => [e.a, e.b].sort().join('|') === '5|6'));
+});
