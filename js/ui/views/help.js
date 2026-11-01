@@ -10,6 +10,7 @@ import { CATEGORIES } from '../../core/classify.js';
 import { DATES, HAS } from '../../core/filter.js';
 import { settingsOf } from '../categories.js';
 import { modKey } from '../format.js';
+import { NAV_KEYS } from '../keys.js';
 
 export const SHORTCUTS = [
   ['Enter', '넣는 칸으로 (다른 화면에서는 가운데 입력창)'],
@@ -17,12 +18,12 @@ export const SHORTCUTS = [
   [`${modKey} Enter`, '넣고 바로 열기'],
   ['/', '찾기·빠른 실행 (입력칸 안에서는 명령어)'],
   [`${modKey} K`, '찾기·빠른 실행'],
-  ['T', '오늘 노트'],
-  ['N', '새 노트'],
+  ...NAV_KEYS.map((k) => [k.key, k.label]),
   ['J / K', '다음·이전 노트'],
   [`${modKey} S`, '바로 저장'],
   ['Esc', '닫기'],
 ];
+// 옆 메뉴 이름 옆의 글자가 단축키. 한글 입력 상태에서도 된다.
 
 export function Keys({ keys }) {
   return html`<span class="keys">${keys.split(' ').map((k) => html`<kbd key=${k}>${k}</kbd>`)}</span>`;
@@ -159,6 +160,7 @@ export function Help({ params }) {
           </ul>
         </${Chapter}>
         <${Chapter} id="keys" n="11">
+          <p class="help-p">옆 메뉴 이름 오른쪽의 글자가 단축키예요. 한글 입력 상태에서도 돼요.</p>
           <dl class="help-keys">${SHORTCUTS.map(([k, l]) => html`<div key=${k}><dt><${Keys} keys=${k} /></dt><dd>${l}</dd></div>`)}</dl>
         </${Chapter}>
         <${Chapter} id="faq" n="12">

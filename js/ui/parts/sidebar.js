@@ -7,6 +7,7 @@ import { Icon, Mascot } from '../icons.js';
 import { app, useLib } from '../state.js';
 import { go, folderHref } from '../router.js';
 import { drawerList } from '../categories.js';
+import { keyOf } from '../keys.js';
 import { openComposer } from './composer.js';
 import { openToday } from '../notebook.js';
 import { openTasks } from '../../core/tasks.js';
@@ -25,7 +26,9 @@ export function Sidebar({ path, pinned, side, docked, open, setOpen, setPinned, 
   const tasksLeft = lib ? lib.all.reduce((s, n) => s + (n.body ? openTasks(n.body).length : 0), 0) : 0;
   const on = (test) => (test ? 'page' : undefined);
   const act = (fn) => () => { if (!docked) setOpen(false); fn(); };
-  const item = (href, icon, label, current, extra = null) => html`<a class="sb-item" href=${href} aria-current=${on(current)}><${Icon} name=${icon} /><span>${label}</span>${extra}</a>`;
+  // 오른쪽 글자는 단축키 (keys.js의 표와 같다)
+  const item = (href, icon, label, current, id, extra = null) => html`<a class="sb-item" href=${href} aria-current=${on(current)} title=${keyOf(id) ? `${label} (${keyOf(id)})` : label} aria-keyshortcuts=${keyOf(id) || undefined}>
+    <${Icon} name=${icon} /><span>${label}</span>${extra}${keyOf(id) && html`<kbd>${keyOf(id)}</kbd>`}</a>`;
   return html`
     ${!docked && html`<div class="sb-scrim" onClick=${() => setOpen(false)}></div>`}
     <aside class=${`sb ${side}${docked ? ' docked' : ' floating'}`} aria-label="메뉴">
@@ -38,20 +41,20 @@ export function Sidebar({ path, pinned, side, docked, open, setOpen, setPinned, 
       </div>
       <nav class="sb-nav" aria-label="주요 메뉴">
         <button type="button" class="sb-item" onClick=${act(() => { if (path !== '/') go('#/'); setTimeout(() => { if (!app.focusCapture?.()) openComposer(); }, 60); })}><${Icon} name="plus" /><span>넣기</span><kbd>Enter</kbd></button>
-        ${item('#/', 'home', '홈', path === '/')}
-        ${item('#/drawers', 'drawer', '모든 서랍', path === '/drawers')}
-        ${item('#/all', 'filter', '모든 노트 · 필터', path === '/all')}
-        ${item('#/tasks', 'check', '할 일', path === '/tasks', tasksLeft > 0 && html`<span class="n">${tasksLeft}</span>`)}
-        <button type="button" class="sb-item" onClick=${act(() => openToday())}><${Icon} name="calendar" /><span>오늘 노트</span><kbd>T</kbd></button>
-        ${item('#/graph', 'graph', '생각 지도', path === '/graph')}
-        ${lib?.pinned().length > 0 && item('#/star', 'star', '즐겨찾기', path === '/star')}
+        ${item('#/', 'home', '홈', path === '/', 'home')}
+        ${item('#/drawers', 'drawer', '모든 서랍', path === '/drawers', 'drawers')}
+        ${item('#/all', 'filter', '모든 노트 · 필터', path === '/all', 'all')}
+        ${item('#/tasks', 'check', '할 일', path === '/tasks', 'tasks', tasksLeft > 0 && html`<span class="n">${tasksLeft}</span>`)}
+        <button type="button" class="sb-item" title="오늘 노트 (T)" aria-keyshortcuts="T" onClick=${act(() => openToday())}><${Icon} name="calendar" /><span>오늘 노트</span><kbd>T</kbd></button>
+        ${item('#/graph', 'graph', '생각 지도', path === '/graph', 'graph')}
+        ${lib?.pinned().length > 0 && item('#/star', 'star', '즐겨찾기', path === '/star', 'star')}
       </nav>
       ${drawers.length > 0 && html`<p class="sb-label">서랍</p>
         <nav class="sb-nav" aria-label="서랍">${drawers.map((d) => html`<a key=${d.name} class="sb-item" href=${folderHref(d.name)} aria-current=${on(decodeURIComponent(path) === `/f/${d.name}`)}><i class=${`fdot f${d.look.tone}`}></i><span>${d.name}</span><span class="n">${d.count}</span></a>`)}</nav>`}
       <span class="grow"></span>
       <nav class="sb-nav sb-foot" aria-label="설정">
-        ${item('#/settings', 'gear', '설정', path === '/settings')}
-        ${item('#/help', 'help', '사용법', path === '/help' || path === '/manual')}
+        ${item('#/settings', 'gear', '설정', path === '/settings', 'settings')}
+        ${item('#/help', 'help', '사용법', path === '/help' || path === '/manual', 'help')}
       </nav>
     </aside>`;
 }

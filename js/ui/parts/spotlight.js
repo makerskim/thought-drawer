@@ -15,16 +15,17 @@ import { search, parseQuery } from '../../core/search.js';
 const COMMANDS = [
   ['plus', '넣기', 'Enter', () => { if (!app.focusCapture?.()) openComposer(); }],
   ['calendar', '오늘 노트', 'T', () => openToday()],
-  ['check', '할 일 모아 보기', '', '#/tasks'],
-  ['drawer', '모든 서랍', '', '#/drawers'],
-  ['graph', '생각 지도', '', '#/graph'],
+  ['check', '할 일 모아 보기', 'C', '#/tasks'],
+  ['drawer', '모든 서랍', 'D', '#/drawers'],
+  ['filter', '모든 노트·필터', 'A', '#/all'],
+  ['graph', '생각 지도', 'G', '#/graph'],
   ['pen', '새 노트 크게 쓰기', 'N', '#/new'],
   ['capture', '사진·스크린샷 넣기', '', () => app.pickPhotos()],
   ['star', '북마크 가져오기', '', '#/bookmarks'],
   ['instagram', '인스타 저장 가져오기', '', '#/import'],
   ['phone', '다른 앱에서 넣기', '', '#/connect'],
-  ['gear', '설정', '', '#/settings'],
-  ['book', '사용법', '', () => go('#/help')],
+  ['gear', '설정', ',', '#/settings'],
+  ['book', '사용법', '?', () => go('#/help')],
   ['help', '화면 안내 다시 보기', '', () => { go('#/'); setTimeout(openTutorial, 160); }],
 ];
 

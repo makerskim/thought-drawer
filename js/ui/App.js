@@ -7,6 +7,7 @@ import { useRoute, go, syncFromLocation } from './router.js';
 import { Layers, Toasts, closeAll } from './parts/layers.js';
 import { openComposer } from './parts/composer.js';
 import { openToday } from './notebook.js';
+import { navFor } from './keys.js';
 import { capturePhotos, pickPhotos } from './capture.js';
 import { Home, Drawers, Shelf, Tasks } from './views/drawer.js';
 import { GlobalNav } from './parts/shell.js';
@@ -191,23 +192,27 @@ export function App({ auth }) {
   useEffect(() => {
     if (phase !== 'ready') return undefined;
     const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); app.find(); return; }
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyK') { e.preventDefault(); app.find(); return; }
       // 입력창이 이미 처리한 키(넣고 닫은 Enter 등)는 다시 받지 않는다
-      if (e.defaultPrevented || document.querySelector('.overlay, .pop, .tour, .sb.floating')) return;
+      if (e.defaultPrevented || document.querySelector('.overlay, .pop, .tour')) return;
+      const menuOpen = !!document.querySelector('.sb.floating'); // 옆 메뉴가 떠 있어도 글자 단축키는 받는다 (가면 메뉴는 닫힌다)
       if (e.key === 'Escape') {
+        if (menuOpen) return;
         if (isTyping(document.activeElement)) { if (!document.activeElement.closest('.capbar')) document.activeElement.blur(); return; }
         if (isSheet) { e.preventDefault(); app.closeSheet(); }
         return;
       }
-      if (isTyping(document.activeElement) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTyping(document.activeElement) || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
       // Enter: 무엇에도 커서가 없으면 가운데 입력창 (단추나 카드에 있으면 그것을 누른 것)
       const idle = !document.activeElement || document.activeElement === document.body || document.activeElement.matches('.ws-main, main');
-      if (e.key === 'Enter' && !e.shiftKey && idle && !/^\/(settings|import|bookmarks|connect|share|paste|help|manual)$/.test(route.path)) { e.preventDefault(); if (isSheet || !app.focusCapture?.()) openComposer(); return; }
-      if (e.key === '/') { e.preventDefault(); app.find(); }
-      else if (e.key === 'n') { e.preventDefault(); go('#/new'); }
-      else if (e.key === 't') { e.preventDefault(); openToday(); }
-      else if (isSheet && (e.key === 'j' || e.key === 'ArrowDown')) { e.preventDefault(); app.sheetNav?.(1); }
-      else if (isSheet && (e.key === 'k' || e.key === 'ArrowUp')) { e.preventDefault(); app.sheetNav?.(-1); }
+      if (e.key === 'Enter' && !e.shiftKey && idle && !menuOpen && !/^\/(settings|import|bookmarks|connect|share|paste|help|manual)$/.test(route.path)) { e.preventDefault(); if (isSheet || !app.focusCapture?.()) openComposer(); return; }
+      if (e.code === 'Slash' && !e.shiftKey) { e.preventDefault(); app.find(); return; }
+      if (isSheet && (e.code === 'KeyJ' || e.key === 'ArrowDown')) { e.preventDefault(); app.sheetNav?.(1); return; }
+      if (isSheet && (e.code === 'KeyK' || e.key === 'ArrowUp')) { e.preventDefault(); app.sheetNav?.(-1); return; }
+      const nav = navFor(e); // H 홈, D 서랍, A 모든 노트, C 할 일, T 오늘, G 지도, F 즐겨찾기, N 새 노트, , 설정, ? 사용법
+      if (!nav) return;
+      e.preventDefault();
+      if (nav.id === 'today') openToday(); else go(nav.href);
     };
     const onPaste = (e) => {
       if (isTyping(document.activeElement) || route.path === '/paste') return;

@@ -366,6 +366,35 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.waitForTimeout(800);
   const at = (await p.locator('#m-classify').boundingBox()).y;
   ok(Math.abs(at - 124) < 60, `manual: table of contents jumps to the chapter (${Math.round(at)})`);
+  // ---- 한 글자 단축키: 옆 메뉴에 보이고, 누르면 간다 (한글 입력 상태에서도) ----
+  await p.evaluate(() => { location.hash = '#/'; document.activeElement?.blur(); });
+  await p.waitForSelector(box);
+  await p.click('.nav-toggle');
+  await p.waitForSelector('.sb');
+  const kbd = async (label) => p.locator('.sb .sb-item', { hasText: label }).first().locator('kbd').innerText().catch(() => '');
+  const keysShown = { 홈: await kbd('홈'), '모든 서랍': await kbd('모든 서랍'), '모든 노트': await kbd('모든 노트'), '할 일': await kbd('할 일'), '오늘 노트': await kbd('오늘 노트'), '생각 지도': await kbd('생각 지도'), 설정: await kbd('설정'), 사용법: await kbd('사용법') };
+  ok(JSON.stringify(Object.values(keysShown)) === JSON.stringify(['H', 'D', 'A', 'C', 'T', 'G', ',', '?']), `shortcuts shown in the menu ${JSON.stringify(keysShown)}`);
+  await p.keyboard.press('d');
+  await p.waitForTimeout(200);
+  ok((await p.evaluate(() => location.hash)) === '#/drawers' && await p.locator('.sb.floating').count() === 0, 'D with the menu open → 모든 서랍, menu closes');
+  const hashAfter = async (fn) => { await fn(); await p.waitForTimeout(200); return p.evaluate(() => location.hash); };
+  const seq = [];
+  seq.push(await hashAfter(() => p.keyboard.press('a')));
+  seq.push(await hashAfter(() => p.keyboard.press('c')));
+  seq.push(await hashAfter(() => p.keyboard.press('g')));
+  seq.push(await hashAfter(() => p.keyboard.press(',')));
+  seq.push(await hashAfter(() => p.keyboard.press('Shift+Slash')));
+  seq.push(await hashAfter(() => p.keyboard.press('h')));
+  ok(JSON.stringify(seq) === JSON.stringify(['#/all', '#/tasks', '#/graph', '#/settings', '#/help', '#/']), `A C G , ? H go to their screens ${JSON.stringify(seq)}`);
+  // 한글 입력 상태: 글자는 ㅇ 이지만 자판 위치는 D
+  const ko = await hashAfter(() => p.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ㅇ', code: 'KeyD', bubbles: true, cancelable: true }))));
+  ok(ko === '#/drawers', 'shortcuts work with the Korean keyboard on (ㅇ = D)');
+  await p.evaluate(() => { location.hash = '#/'; });
+  await p.waitForSelector(box);
+  await p.click(box);
+  await p.keyboard.type('dach');
+  ok((await p.inputValue(box)) === 'dach' && (await p.evaluate(() => location.hash)) === '#/', 'letters typed in a box stay text');
+  await p.fill(box, '');
   ok(p.errors.length === 0, 'no page errors ' + p.errors.join(' | '));
   await p.context().close();
 
