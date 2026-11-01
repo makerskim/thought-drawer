@@ -208,6 +208,7 @@ export function Settings({ offline, params }) {
   const [navPinned, setNavPinned] = usePref('navPinned', false);
   const [navSide, setNavSide] = usePref('navSide', 'left');
   const [talk, setTalk] = usePref('mascotTalk', 'on');
+  const [follow, setFollow] = usePref('mascotFollow', true);
   const [openAfter, setOpenAfter] = usePref('openAfterSave', false);
   const [firstTitle, setFirstTitle] = usePref('firstLineTitle', true);
   const [shared, save] = useShared(lib);
@@ -252,6 +253,7 @@ export function Settings({ offline, params }) {
         <${Row} label="정렬"><${Select} label="정렬" value=${sort} set=${setSort} opts=${SORTS} /></${Row}>
         <${Row} label="메뉴 고정"><${Toggle} label="메뉴 고정" checked=${navPinned} onChange=${setNavPinned} /></${Row}>
         ${navPinned && html`<${Row} label="메뉴 위치"><${Seg} label="메뉴 위치" value=${navSide} set=${setNavSide} opts=${[['left', '왼쪽'], ['right', '오른쪽']]} /></${Row}>`}
+        <${Row} label="서랍이 동행" desc="어디서나 오른쪽 아래에"><${Toggle} label="서랍이 동행" checked=${follow} onChange=${setFollow} /></${Row}>
         <${Row} label="서랍이 말"><${Seg} label="서랍이 말" value=${talk} set=${setTalk} opts=${[['on', '자주'], ['quiet', '가끔'], ['off', '끔']]} /></${Row}>
       </${Group}>
 

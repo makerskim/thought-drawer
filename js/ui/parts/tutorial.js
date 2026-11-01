@@ -10,7 +10,7 @@ const STEPS = [
   { target: '.capbar-box', title: '넣기', text: '적고 Enter. / 명령어, # 태그, @ 서랍. + 에서 사진, 붙여넣기, 가져오기.', m: '적고 「넣기」. / 명령어, + 에서 사진.' },
   { target: '.nav-toggle', title: '메뉴', text: '서랍, 모든 노트·필터, 할 일, 설정, 사용법. 핀으로 왼쪽·오른쪽에 고정.' },
   { target: '.gn-search', title: '찾기', text: '/ 또는 ⌘K. 노트 검색과 명령 실행.', m: '노트 검색과 명령 실행.' },
-  { target: '.rows.drawers', title: '내 서랍', text: '서랍 › 세부 서랍과 태그로 자동 분류. 옆으로 넘겨 보세요.' },
+  { target: '.folder-grid', title: '내 서랍', text: '자동으로 나뉜 서랍 폴더. 누르면 안의 노트가 보여요.' },
   { title: '준비됐어요.', mood: 'happy', text: '첫 메모를 넣어 보세요.' },
 ];
 const PAD = 8;

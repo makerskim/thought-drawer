@@ -8,9 +8,9 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
 (async () => {
   const b = await launch();
   let p = await open(b);
-  await p.waitForSelector('.row .poster');
+  await p.waitForSelector('.fold');
   const notes = () => p.evaluate(() => window.__TD_APP__.lib.all.map((n) => ({ id: n.id, title: n.meta.title ?? '', type: n.meta.type, status: n.meta.status, category: n.meta.category ?? '', source: n.meta.source ?? '', body: n.body ?? '', tags: n.meta.tags ?? [], daily: n.meta.daily })));
-  const rowTitles = () => p.$$eval('.rows.drawers .row h2', (els) => els.map((e) => e.textContent));
+  const folderNames = () => p.$$eval('.home .folder-grid .fold b', (els) => els.map((e) => e.textContent));
   const box = '.capbar textarea';
 
   // ---- 애플식 첫 화면, 넷플릭스식 줄 ----
@@ -43,14 +43,12 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.click('.sb [aria-label="고정 풀기"]');
   await p.waitForTimeout(200);
   ok(await p.locator('.sb').count() === 0 && await p.locator('.nav-toggle').count() === 1, 'unpinning hides it again');
-  const rows = await rowTitles();
-  ok(rows.includes('새로 넣은 것') && rows.includes('쇼핑') && rows.includes('일·업무') && rows.includes('요리'), `home: a poster row per drawer ${JSON.stringify(rows)}`);
+  const folders = await folderNames();
+  ok(['쇼핑', '일·업무', '요리', '모든 노트'].every((n) => folders.includes(n)) && await p.locator('.home .poster, .home .row').count() === 0, `home: only drawer folders, no notes ${JSON.stringify(folders)}`);
+  ok(await p.locator('.home .fold svg.folder-ic').count() === folders.length && (await p.locator('.home .fold:has(b:text-is("쇼핑"))').getAttribute('href')) === '#/f/' + encodeURIComponent('쇼핑'), 'home: each folder has the folder icon and opens its drawer');
   ok(await p.locator('.tiles, .tile').count() === 0 && !(await p.locator('.home').innerText()).includes('어디서든 넣으세요'), 'home: no 「어디서든 넣으세요」 tiles');
   ok(/^© \d{4} makerskim\. All rights reserved\.$/.test((await p.locator('.foot').innerText()).trim()), 'footer: just the copyright line');
-  const heights = await p.$$eval('.rows.drawers .row .poster', (els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().height)))]);
-  ok(heights.length === 1, `cards share one height ${JSON.stringify(heights)}`);
   ok(await p.evaluate(() => getComputedStyle(document.body).fontFamily.includes('Pretendard')), 'type: Pretendard');
-  ok(await p.evaluate(() => !document.querySelector('.poster[style*="gradient"]') && getComputedStyle(document.querySelector('.poster')).backgroundImage === 'none'), 'cards are plain paper, no gradients');
 
   // ---- 1. 쉽게 넣기 ----
   await p.evaluate(() => document.activeElement?.blur());
@@ -108,9 +106,9 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   // ---- 4. 자동 분류: 서랍 모음, 서랍 하나, 바꾸면 폴더로 ----
   await p.click('.nav-toggle');
   await p.click('.sb .sb-item:has-text("모든 서랍")');
-  await p.waitForSelector('.dbig');
-  ok((await p.locator('.dbig').allInnerTexts()).some((t) => t.includes('쇼핑')), 'all drawers page lists 쇼핑');
-  await p.click('.dbig:has(b:text-is("쇼핑"))');
+  await p.waitForSelector('.drawers-page .fold');
+  ok((await p.locator('.drawers-page .fold b').allInnerTexts()).includes('쇼핑'), 'all drawers page shows folders (쇼핑)');
+  await p.click('.drawers-page .fold:has(b:text-is("쇼핑"))');
   await p.waitForSelector('.page-hero h1');
   ok((await p.locator('.page-hero h1').innerText()) === '쇼핑.' && await p.locator('.sh-note').count() === 1, 'drawer page: title and auto note');
   await p.locator('.grid .poster', { hasText: 'coupang' }).click();
@@ -196,6 +194,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.evaluate(() => { location.hash = '#/search?q=' + encodeURIComponent('셔츠'); });
   await p.waitForSelector('.grid .poster');
   ok(await p.locator('.grid .poster').count() >= 2 && await p.locator('.grid .poster mark').count() >= 1, 'search page shows highlighted posters');
+  ok(await p.evaluate(() => !document.querySelector('.poster[style*="gradient"]') && getComputedStyle(document.querySelector('.poster')).backgroundImage === 'none'), 'cards are plain paper, no gradients');
 
   // ---- 서랍 화면: 필터 막대, 목록 ----
   await p.evaluate(() => { location.hash = '#/all'; });
@@ -390,6 +389,34 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.waitForTimeout(800);
   const at = (await p.locator('#m-classify').boundingBox()).y;
   ok(Math.abs(at - 124) < 60, `manual: table of contents jumps to the chapter (${Math.round(at)})`);
+  // ---- 어디서나 따라다니는 서랍이 ----
+  await p.evaluate(() => { location.hash = '#/'; window.scrollTo(0, 0); });
+  await p.waitForSelector(box);
+  await p.waitForTimeout(300);
+  ok(await p.locator('.buddy').count() === 0, 'buddy: hides while the home box (with its own 서랍이) is in view');
+  await p.evaluate(() => { location.hash = '#/f/' + encodeURIComponent('공부'); });
+  await p.waitForSelector('.buddy .buddy-btn');
+  await p.waitForSelector('.buddy-bubble');
+  await p.waitForFunction(() => /서랍이에요/.test(document.querySelector('.buddy-bubble')?.textContent ?? ''), null, { timeout: 4000 }).catch(() => {});
+  const bud = await p.locator('.buddy-bubble').innerText().catch(() => '');
+  ok(/공부 서랍이에요\. 노트 \d+개/.test(bud), `buddy: says something about each screen (${bud})`);
+  await p.click('.buddy-btn');
+  await p.waitForSelector('.pop .mi:has-text("한마디 듣기")');
+  await p.click('.pop .mi:has-text("한마디 듣기")');
+  await p.waitForTimeout(200);
+  ok((await p.locator('.buddy-bubble').innerText()).length > 5, 'buddy: menu gives a tip');
+  await p.evaluate(() => { location.hash = '#/drawers'; });
+  await p.waitForSelector('.drawers-page');
+  await p.click('.buddy-btn');
+  await p.click('.pop .mi:has-text("잠깐 숨기기")');
+  await p.waitForTimeout(200);
+  ok(await p.locator('.buddy').count() === 0, 'buddy: can be hidden');
+  await p.evaluate(() => { location.hash = '#/settings'; });
+  await p.waitForSelector('#s-screen');
+  await p.click('#s-screen input[aria-label="서랍이 동행"]');
+  await p.waitForSelector('.buddy .buddy-btn');
+  ok(true, 'buddy: comes back from settings');
+
   // ---- 한 글자 단축키: 옆 메뉴에 보이고, 누르면 간다 (한글 입력 상태에서도) ----
   await p.evaluate(() => { location.hash = '#/'; document.activeElement?.blur(); });
   await p.waitForSelector(box);
@@ -427,7 +454,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.waitForSelector('.tour-card', { timeout: 8000 });
   ok(await p.locator('.tour-count i').count() === 6, 'tutorial: 6 steps');
   const lit = [];
-  for (const sel of ['.capbar-box', '.nav-toggle', '.gn-search', '.rows.drawers']) {
+  for (const sel of ['.capbar-box', '.nav-toggle', '.gn-search', '.folder-grid']) {
     await p.click('.tour-card .btn-primary');
     await p.waitForTimeout(550);
     const [h, t] = [await p.locator('.tour-hole').boundingBox(), await p.locator(sel).first().boundingBox()];
@@ -440,7 +467,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
 
   // ---- 2. 휴대폰 ----
   p = await open(b, { viewport: { width: 390, height: 844 } });
-  await p.waitForSelector('.row .poster');
+  await p.waitForSelector('.fold');
   ok(await p.evaluate(() => document.documentElement.scrollWidth <= 390), 'phone: no sideways scroll');
   ok(await p.locator('.gnav .add-btn').count() === 0 && await p.locator('.nav-toggle').isVisible(), 'phone: ☰ menu, no add button');
   await p.click('.nav-toggle');
@@ -451,7 +478,10 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.keyboard.press('Enter');
   await p.waitForTimeout(300);
   ok(await p.evaluate(() => window.__TD_APP__.lib.all.some((n) => (n.body ?? '').includes('폰에서 적은 메모'))), 'phone: saved');
-  await p.locator('.row .poster').first().click();
+  await p.locator('.fold').first().click();
+  await p.waitForSelector('.grid .poster');
+  ok(await p.evaluate(() => document.documentElement.scrollWidth <= 390), 'phone: drawer page fits');
+  await p.locator('.grid .poster').first().click();
   await p.waitForSelector('.ws .note-title');
   ok(await p.locator('.ws-left').isHidden() && await p.evaluate(() => document.documentElement.scrollWidth <= 390), 'phone: note is one column');
   ok(p.errors.length === 0, 'phone: no page errors ' + p.errors.join(' | '));

@@ -1,7 +1,7 @@
 // 앱 뼈대: 로그인 → 기기 사본으로 바로 열기 → 드라이브와 맞추기.
 // 화면은 위 막대(애플) 아래 한 장씩: 홈, 서랍, 할 일, 노트 작업 공간(옵시디언), 보조 화면. 단축키, 붙여넣기·끌어다 놓기.
 import { html, useState, useEffect, useRef, cx } from './h.js';
-import { Icon } from './icons.js';
+import { Icon, Mascot } from './icons.js';
 import { app, toast, setConn, usePref } from './state.js';
 import { useRoute, go, syncFromLocation } from './router.js';
 import { Layers, Toasts, closeAll } from './parts/layers.js';
@@ -12,6 +12,7 @@ import { capturePhotos, pickPhotos } from './capture.js';
 import { Home, Drawers, Shelf, Tasks } from './views/drawer.js';
 import { GlobalNav } from './parts/shell.js';
 import { Sidebar } from './parts/sidebar.js';
+import { Buddy } from './parts/buddy.js';
 import { openSpotlight } from './parts/spotlight.js';
 import { NoteView } from './views/note.js';
 import { preloadEditor } from './editor.js';
@@ -251,7 +252,7 @@ export function App({ auth }) {
   }, [phase, route.path, isSheet]);
 
   if (phase === 'boot') {
-    return html`<div class="login" aria-busy="true"><div class="login-card"><div class="sk" style="width:52px;height:52px;margin:0 auto;border-radius:12px"></div></div></div>`;
+    return html`<div class="login" aria-busy="true"><div class="boot"><${Mascot} size=${64} mood="wave" /><p>서랍 여는 중</p></div></div>`;
   }
   if (phase === 'login') return html`<${Login} onSignIn=${signIn} busy=${busy} error=${error} /><${Toasts} />`;
 
@@ -263,6 +264,7 @@ export function App({ auth }) {
         <main class=${cx('view', isSheet && 'is-note')} id="main"><${Screen} route=${route} offline=${offline.current} /></main>
       </div>
     </div>
+    <${Buddy} path=${route.path} />
     <${Layers} />
     <${Toasts} />
     ${veil && html`<div class="drop-veil"><div><${Icon} name="capture" />놓으면 바로 넣어요</div></div>`}`;

@@ -1,8 +1,8 @@
 // 서랍 화면들.
-// 홈: 애플 홈페이지처럼 큰 제목과 넣는 칸 → 넷플릭스처럼 서랍마다 옆으로 넘기는 포스터 줄 → 바닥.
+// 홈: 애플 홈페이지처럼 큰 제목과 넣는 칸 → 아래로 내리면 서랍 폴더들(누르면 그 서랍) → 바닥.
 // 서랍 모음, 서랍 하나(포스터 판 또는 목록), 찾은 노트, 할 일도 여기 있다.
 import { html, useState, useEffect, useRef, useLayoutEffect, autosize, cx } from '../h.js';
-import { Icon, Mascot, TYPE_ICON } from '../icons.js';
+import { Icon, Mascot, TYPE_ICON, FolderIcon } from '../icons.js';
 import { app, useLib, usePref, prefs, toast, say, useSpeech } from '../state.js';
 import { go, folderHref, noteHref, tagHref, setUrl } from '../router.js';
 import { PageBar, Footer, Conn } from '../parts/shell.js';
@@ -171,19 +171,6 @@ function TodayLine() {
   </div>`;
 }
 
-// ---------- 포스터 줄 (넷플릭스) ----------
-function Row({ title, href, notes, activeId, count = 0 }) {
-  const track = useRef();
-  if (!notes.length) return null;
-  const slide = (dir) => { const el = track.current; if (el) el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: 'smooth' }); };
-  return html`<section class="row" aria-label=${title}>
-    <div class="row-head"><h2>${title}</h2>${count > notes.length && html`<span class="n">${count}</span>`}${href && html`<a class="more" href=${href}>모두 보기</a>`}</div>
-    <button type="button" class="row-arrow l" aria-label=${`${title} 앞으로`} tabindex="-1" onClick=${() => slide(-1)}><${Icon} name="back" /></button>
-    <div class="row-track" ref=${track}>${notes.map((n) => html`<${Poster} key=${n.id} note=${n} active=${n.id === activeId} />`)}</div>
-    <button type="button" class="row-arrow r" aria-label=${`${title} 뒤로`} tabindex="-1" onClick=${() => slide(1)}><${Icon} name="chevron" /></button>
-  </section>`;
-}
-
 // 아래로 내리면 하나씩 떠오른다
 function useReveal(dep) {
   useEffect(() => {
@@ -195,15 +182,32 @@ function useReveal(dep) {
   }, [dep]);
 }
 
+// 폴더 하나 (맥의 폴더처럼 아이콘 + 이름 + 개수). 누르면 그 서랍으로
+function Folder({ href, name, count, glyph, subs = [], big = false }) {
+  const sub = subs.slice(0, 3).map(([n, c]) => `${n} ${c}`).join(' · ');
+  return html`<a class=${`fold${big ? ' big' : ''}`} href=${href} title=${sub ? `${name}: ${sub}` : name}>
+    <${FolderIcon} glyph=${glyph} size=${big ? 112 : 92} />
+    <b>${name}</b><span>${count}개</span>
+    ${big && sub && html`<small>${sub}</small>`}
+  </a>`;
+}
+
+export function FolderGrid({ big = false }) {
+  const lib = useLib();
+  const drawers = drawerList(lib);
+  return html`<div class=${`folder-grid${big ? ' big' : ''}`}>
+    ${drawers.map((d) => html`<${Folder} key=${d.name} href=${folderHref(d.name)} name=${d.name} count=${d.count} glyph=${d.look.icon} subs=${d.subs} big=${big} />`)}
+    <${Folder} href="#/all" name="모든 노트" count=${lib.all.length} glyph="grid" big=${big} />
+    ${lib.pinned().length > 0 && html`<${Folder} href="#/star" name="즐겨찾기" count=${lib.pinned().length} glyph="star" big=${big} />`}
+  </div>`;
+}
+
 export function Home() {
   const lib = useLib();
   useFirstTour(lib);
   const loading = !lib.all.length && !lib.state.synced && !lib.state.error;
-  const recent = prefs.get('recent', []).map((id) => lib.get(id)).filter(Boolean).slice(0, 20);
-  const drawers = drawerList(lib);
-  const byDrawer = (name) => lib.all.filter((n) => categoryOf(n, lib).name === name).slice(0, 20);
   app.visible = lib.all.map((n) => n.id);
-  useReveal(`${lib.all.length}:${drawers.length}`);
+  useReveal(`${lib.all.length}`);
   useEffect(() => { if (loading) say('드라이브에서 노트를 가져오고 있어요. 잠깐만요.', { mood: 'think', ms: 6000 }); }, [loading]);
   return html`<div class="home">
     <${Conn} />
@@ -217,14 +221,10 @@ export function Home() {
     </section>
     <div class="below">
       ${loading
-        ? html`<div class="rows"><section class="row"><div class="row-track">${[1, 2, 3, 4, 5].map((i) => html`<div class="poster sk" key=${i}></div>`)}</div></section></div>`
+        ? html`<div class="folder-grid">${[1, 2, 3, 4, 5].map((i) => html`<div class="fold sk-fold" key=${i}><div class="sk"></div></div>`)}</div>`
         : lib.all.length
           ? html`<div class="below-head reveal"><h2>내 서랍</h2><${TodayLine} /></div>
-            <div class="rows drawers">
-              ${recent.length > 0 && html`<div class="reveal"><${Row} title="이어서 보기" notes=${recent} /></div>`}
-              <div class="reveal"><${Row} title="새로 넣은 것" href="#/all" notes=${lib.all.slice(0, 20)} count=${lib.all.length} /></div>
-              ${drawers.map((d) => html`<div class="reveal" key=${d.name}><${Row} title=${d.name} href=${folderHref(d.name)} notes=${byDrawer(d.name)} count=${d.count} /></div>`)}
-            </div>`
+            <${FolderGrid} />`
           : html`<${Empty} mood="wave" title="비어 있음" text="첫 메모를 넣어 보세요." />`}
       <${Footer} />
     </div>
@@ -233,20 +233,10 @@ export function Home() {
 
 // ---------- 서랍 모음 ----------
 export function Drawers() {
-  const lib = useLib();
-  const list = drawerList(lib);
   return html`<div class="drawers-page">
     <${Conn} />
-    <div class="page-hero"><h1>서랍.</h1><p>서랍과 세부 서랍으로 자동 분류됩니다.</p></div>
-    <div class="dbig-grid drawers">
-      ${list.map((d) => html`<a key=${d.name} class=${`dbig c${d.look.tone}`} href=${folderHref(d.name)}>
-        <span class="dbig-ic"><${Icon} name=${d.look.icon} /></span><b>${d.name}</b><span>${d.count}개${d.auto ? ` · 자동 ${d.auto}` : ''}</span>
-        ${d.subs.length > 0 && html`<span class="dsubs">${d.subs.slice(0, 4).map(([n, c]) => `${n} ${c}`).join(' · ')}</span>`}
-        <ul>${lib.all.filter((n) => categoryOf(n, lib).name === d.name).slice(0, 3).map((n) => html`<li key=${n.id}>${titleOf(n)}</li>`)}</ul>
-      </a>`)}
-      <a class="dbig c6" href="#/all"><span class="dbig-ic"><${Icon} name="grid" /></span><b>모든 노트</b><span>${lib.all.length}개</span></a>
-      ${lib.pinned().length > 0 && html`<a class="dbig c2" href="#/star"><span class="dbig-ic"><${Icon} name="star" /></span><b>즐겨찾기</b><span>${lib.pinned().length}개</span></a>`}
-    </div>
+    <div class="page-hero"><h1>서랍.</h1><p>서랍을 누르면 안의 노트가 보여요.</p></div>
+    <${FolderGrid} big />
     <${Footer} />
   </div>`;
 }
@@ -371,7 +361,7 @@ export function Shelf({ scope, params }) {
             <a class="btn btn-primary" href=${`#/ask?q=${encodeURIComponent(q.trim())}`}><${Icon} name="sparkle" />물어보기</a></form>
           <p>${q.trim() ? count : '제목, 본문, 태그, 사진 속 글자에서 찾습니다.'}</p></div>`
       : html`<div class="page-hero">
-          <h1>${title}.</h1>
+          <h1 class=${top ? 'with-fold' : ''}>${top && html`<${FolderIcon} glyph=${categoryLook(top).icon} size=${54} />`}${title}.</h1>
           <p class="sh-count">${count}${prog ? ` · 할 일 확인 중 ${prog[0]}/${prog[1]}` : ''}</p>
           ${autoN > 0 && html`<p class="sh-note"><${Icon} name="sparkle" /><span>자동 분류 ${autoN}개. 노트에서 서랍을 바꿀 수 있습니다.</span></p>`}
           ${subs.length > 0 && html`<nav class="chip-row sub-chips" style="margin-top:16px" aria-label="세부 서랍">
