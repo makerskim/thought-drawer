@@ -14,7 +14,7 @@ export function Tag({ name, href = true, onRemove }) {
 }
 
 export const titleOf = (n) => displayTitle(n.meta, n.body ?? n.snippet);
-export const folderLabel = (n) => categoryParts(categoryOf(n, app.lib).path).join(' / ');
+export const folderLabel = (n) => categoryParts(categoryOf(n, app.lib).path).join(' › ');
 
 // 서랍 앞의 작은 색 점 (서랍 타일과 같은 색)
 export function FolderDot({ path }) {
@@ -144,7 +144,7 @@ export function Poster({ note, hl, active = false }) {
       <b class="p-title">${hl ? hl(t) : t}</b>
       ${sub && sub !== t && html`<p class="p-sub">${hl ? hl(sub) : sub}</p>`}
     </div>
-    <span class="p-foot"><${FolderDot} path=${cat.name} /><span class="p-where">${cat.name}${cat.sub && html`<span class="p-subd"> › ${cat.sub}</span>`}</span><span class="grow"></span><span>${relTime(m.updated || m.created)}</span></span>
+    <span class="p-foot"><${FolderDot} path=${cat.name} /><span class="p-where">${cat.name}${cat.sub && html`<span class="p-subd"> › ${cat.sub}${cat.leaf ? ` › ${cat.leaf}` : ''}</span>`}</span><span class="grow"></span><span>${relTime(m.updated || m.created)}</span></span>
     ${m.pinned && html`<span class="p-pin" aria-label="즐겨찾기"><${Icon} name="star" /></span>`}
   </a>`;
 }

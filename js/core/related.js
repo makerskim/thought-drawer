@@ -1,6 +1,7 @@
 // 연관 노트 찾기: 서로 이어 볼 만한 노트를 기기 안에서 고른다 (생각 지도의 점선, 노트 옆 「비슷한 노트」).
-// 점수 = 드문 낱말을 함께 쓰는 정도(TF-IDF 코사인) + 같은 태그 + 같은 사이트 + 같은 서랍(› 세부 서랍).
+// 점수 = 드문 낱말을 함께 쓰는 정도(TF-IDF 코사인) + 같은 태그 + 같은 사이트 + 같은 서랍(› 세부 서랍 › 소분류).
 // 같은 서랍이라는 것만으로는 잇지 않는다. 낱말·태그·사이트 중 하나는 겹쳐야 한다.
+// 단서가 없어 「메모」에 둔 노트(weak)끼리는 서랍이 같아도 점수를 더하지 않는다.
 import { tokenize } from './search.js';
 
 // 흔해서 뜻이 없는 사이트 (같아도 거의 점수를 주지 않는다)
@@ -24,11 +25,11 @@ function termsOf(n) {
   return tf;
 }
 
-// ctx: { cat(n) → { name, sub, path }, tags(n) → [태그] }
+// ctx: { cat(n) → { name, sub, leaf, weak }, tags(n) → [태그] }
 export function buildIndex(notes, ctx) {
   const docs = notes.map((n) => {
     const c = ctx.cat(n);
-    return { id: n.id, note: n, top: c.name, path: c.sub ? `${c.name}/${c.sub}` : '', host: hostOf(n.meta?.source), tags: new Set(ctx.tags(n)), tf: termsOf(n), links: new Set((n.meta?.links ?? []).map(String)) };
+    return { id: n.id, note: n, top: c.name, path: c.sub ? `${c.name}/${c.sub}` : '', leaf: c.sub && c.leaf ? `${c.name}/${c.sub}/${c.leaf}` : '', weak: !!c.weak, host: hostOf(n.meta?.source), tags: new Set(ctx.tags(n)), tf: termsOf(n), links: new Set((n.meta?.links ?? []).map(String)) };
   });
   const N = docs.length || 1;
   const df = new Map();
@@ -62,15 +63,18 @@ function pair(index, a, b) {
   const wide = host && WIDE_HOSTS.some((h) => host.endsWith(h));
   const content = cos >= 0.08 || tags.length > 0 || (host && !wide);
   if (!content) return null;
-  const samePath = a.path && a.path === b.path;
-  const sameTop = a.top && a.top === b.top && a.top !== '기타';
-  const score = cos * 0.75 + Math.min(2, tags.length) * 0.18 + (host ? (wide ? 0.03 : 0.15) : 0) + (samePath ? 0.14 : sameTop ? 0.07 : 0);
+  const drawer = !a.weak && !b.weak;
+  const sameLeaf = drawer && a.leaf && a.leaf === b.leaf;
+  const samePath = drawer && a.path && a.path === b.path;
+  const sameTop = drawer && a.top && a.top === b.top && a.top !== '기타';
+  const score = cos * 0.75 + Math.min(2, tags.length) * 0.18 + (host ? (wide ? 0.03 : 0.15) : 0) + (sameLeaf ? 0.2 : samePath ? 0.14 : sameTop ? 0.07 : 0);
   const why = [];
   shared.sort((x, y) => y[1] - x[1]);
   if (shared.length && cos >= 0.08) why.push(shared.slice(0, 2).map(([t]) => `“${t}”`).join(' '));
   for (const t of tags.slice(0, 2)) why.push(`#${t}`);
   if (host && !wide) why.push(host);
-  if (samePath) why.push(`같은 서랍 ${a.path.replace('/', ' › ')}`);
+  if (sameLeaf) why.push(`같은 서랍 ${a.leaf.replaceAll('/', ' › ')}`);
+  else if (samePath) why.push(`같은 서랍 ${a.path.replaceAll('/', ' › ')}`);
   else if (sameTop) why.push(`같은 서랍 ${a.top}`);
   return { score, why };
 }

@@ -102,14 +102,16 @@ export function Help({ params }) {
           <div class="row-ctl man-links"><a class="btn" href="#/connect"><${Icon} name="phone" />다른 앱·사이트</a><a class="btn btn-ghost" href="#/bookmarks"><${Icon} name="star" />북마크</a><a class="btn btn-ghost" href="#/import"><${Icon} name="instagram" />인스타 저장</a></div>
         </${Chapter}>
         <${Chapter} id="classify" n="4">
-          <p class="help-p">넣는 즉시 <b>서랍 › 세부 서랍</b>과 <b>태그</b>를 정합니다. 기기 안에서 계산해서 비용이 없습니다.</p>
+          <p class="help-p">넣는 즉시 <b>대분류 › 중분류 › 소분류</b>와 <b>태그</b>를 정합니다. 「기타」는 없어요. 기기 안에서 계산해서 비용이 없습니다.</p>
+          <p class="help-ex">아이폰 16 케이스 → <b>쇼핑 › 가전 › 휴대폰</b><br />내일 3시 치과 → <b>건강·운동 › 병원 › 치과</b><br />와이파이 비번 → <b>정보·서류 › 계정 › 와이파이</b></p>
           <ol class="help-list">
             <li><b>내 분류 규칙</b>: 설정에서 만든 것이 가장 먼저.</li>
-            <li><b>사이트</b>: 쿠팡 → 쇼핑, 아고다 → 여행 › 숙소.</li>
-            <li><b>낱말</b>: 레시피 → 요리·맛집 › 레시피.</li>
+            <li><b>사이트</b>: 쿠팡 → 쇼핑, 아고다 → 여행 › 숙소. 모르는 사이트도 주소로 짐작해요.</li>
+            <li><b>낱말</b>: 김치찌개 → 요리·맛집 › 레시피 › 찌개.</li>
+            <li><b>글 모양</b>: 전화번호 → 연락처, 체크 목록 → 할 일, 물음표 → 질문.</li>
             <li><b>배운 것</b>: 직접 옮긴 노트와 비슷하면 그 서랍.</li>
           </ol>
-          <p class="help-p">서랍이 틀리면 노트를 열어 「서랍」을 바꾸세요. 그때 드라이브 폴더로 옮기고, 다음부터 더 잘 맞습니다.</p>
+          <p class="help-p">단서가 없으면 <b>생각·기록 › 메모</b>에 첫 낱말을 소분류로 둡니다. 서랍이 틀리면 노트를 열어 「서랍」을 바꾸세요. 그때 드라이브 폴더로 옮기고, 다음부터 더 잘 맞습니다.</p>
           <details class="help-tree"><summary>기본 서랍 ${CATEGORIES.length}개 · 세부 서랍 ${CATEGORIES.reduce((s, c) => s + c.subs.length, 0)}개</summary>
             <ul>${CATEGORIES.map((c) => html`<li key=${c.name}><b>${c.name}</b> ${c.subs.map((x) => x.name).join(' · ')}</li>`)}</ul>
           </details>

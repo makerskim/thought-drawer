@@ -19,9 +19,11 @@ test('words decide when there is no site', () => {
   assert.equal(classify(note({}, '적금 만기, 배당 ETF 알아보기')).category, '돈·재테크');
 });
 
-test('nothing fits → 기타', () => {
+test('nothing fits → still a drawer (생각·기록 › 메모), never 기타', () => {
   const r = classify(note({}, '음'));
-  assert.equal(r.category, OTHER);
+  assert.notEqual(r.category, OTHER);
+  assert.deepEqual([r.category, r.sub], ['생각·기록', '메모']);
+  assert.equal(classify(note({}, '김철수')).path, '생각·기록/메모/김철수');
 });
 
 test('uses existing folder names instead of built-in ones', () => {

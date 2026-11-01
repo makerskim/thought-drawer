@@ -1,4 +1,4 @@
-// 넣기 전에 미리 보기 (넣는 칸, 가운데 입력창): 어느 서랍(› 세부 서랍)으로, 어떤 태그가 붙을지
+// 넣기 전에 미리 보기 (넣는 칸, 가운데 입력창): 어느 서랍(› 세부 서랍 › 소분류)으로, 어떤 태그가 붙을지
 import { html } from '../h.js';
 import { Icon } from '../icons.js';
 import { withTokens, kindOfText } from '../quick.js';
@@ -24,13 +24,13 @@ export function preview(text, lib, allow = []) {
   const max = Math.max(mine.length, settingsOf(lib).classify.tags);
   const tags = [...new Set([...mine, ...g.tags])].slice(0, max);
   const path = tok.drawer || g.path;
-  const [top, sub = ''] = path.split('/');
-  return { text: tok.text, top, sub, path, tags, mine: !!tok.drawer, label: sub ? `${top} › ${sub}` : top };
+  const [top, sub = '', leaf = ''] = path.split('/');
+  return { text: tok.text, top, sub, leaf, path, tags, mine: !!tok.drawer, label: [top, sub, leaf].filter(Boolean).join(' › ') };
 }
 
 export function GuessLine({ pre }) {
   return html`<p class="cap-hint">
-    <span class="cap-guess"><${Icon} name=${categoryLook(pre.top).icon} /><b>${pre.top}</b>${pre.sub && html`<span class="cap-sub">› ${pre.sub}</span>`}${pre.mine ? ' (직접)' : ''}</span>
+    <span class="cap-guess"><${Icon} name=${categoryLook(pre.top).icon} /><b>${pre.top}</b>${pre.sub && html`<span class="cap-sub">› ${pre.sub}</span>`}${pre.leaf && html`<span class="cap-sub">› ${pre.leaf}</span>`}${pre.mine ? ' (직접)' : ''}</span>
     ${pre.tags.map((t) => html`<span class="cap-tag" key=${t}>#${t}</span>`)}
   </p>`;
 }

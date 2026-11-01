@@ -1,7 +1,7 @@
 // 글 한 덩어리를 노트로 넣기: 가운데 입력창, 공유 받기, 붙여넣기 화면이 함께 쓴다
 import { app, toast, say, prefs } from './state.js';
 import { go, noteHref } from './router.js';
-import { categoryOf, drawerTargets } from './categories.js';
+import { categoryOf, drawerTargets, pathLabel } from './categories.js';
 import { takeTokens } from '../core/slash.js';
 
 const URL_RE = /^(https?:\/\/\S+)\s*([\s\S]*)$/i;
@@ -52,8 +52,8 @@ export async function quickSave(text, { open: open0 = false, allow = [] } = {}) 
   if (open) go(noteHref(n.id));
   else {
     const c = categoryOf(n, app.lib);
-    const where = c.sub ? `${c.name} › ${c.sub}` : c.name;
-    say(c.name === '기타' ? '넣었어요! 어울리는 서랍을 찾으면 옮겨 둘게요.' : `좋아요, ${where} 서랍에 넣어 둘게요.`, { mood: 'happy', hop: true });
+    const where = pathLabel(c);
+    say(c.weak ? `${where}에 넣었어요. 더 맞는 서랍이 생기면 옮겨 둘게요.` : `좋아요, ${where} 서랍에 넣어 둘게요.`, { mood: 'happy', hop: true });
     toast(`${where} 서랍에 넣었어요`, { mascot: true,
       action: '되돌리기', duration: 5000,
       onAction: async () => { try { await app.lib.remove(app.lib.get(n.id) ?? n); toast('방금 넣은 노트를 뺐어요'); } catch (e) { toast(e.message); } },

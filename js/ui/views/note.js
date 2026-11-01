@@ -133,7 +133,7 @@ function Links({ note }) {
       ${links.length
         ? links.map(({ note: n, dir }) => html`<a class="rp-item" key=${n.id} href=${noteHref(n.id)}>
             <b>${dir === 'in' ? html`<span class="kind-ic k-in" aria-hidden="true"><${Icon} name="enter" /></span>` : html`<${KindIcon} type=${n.meta.type} />`}<span>${titleOf(n)}</span></b>
-            <small>${reasons.get(n.id) ?? (dir === 'in' ? '이 노트를 언급함' : categoryParts(categoryOf(n, lib).path).join(' / '))}</small>
+            <small>${reasons.get(n.id) ?? (dir === 'in' ? '이 노트를 언급함' : categoryParts(categoryOf(n, lib).path).join(' › '))}</small>
           </a>`)
         : html`<p class="rp-empty">이어진 노트 없음</p>`}
     </div>
@@ -278,7 +278,7 @@ export function NoteView({ id, params }) {
   const pickFolder = (anchor) => popover(anchor, (close) => html`<${FolderPicker} current=${folder} close=${close} onPick=${async (p) => {
     const n = await ensureSaved();
     if (!n) { toast('먼저 내용을 적어 주세요'); return; }
-    try { await lib.moveTo(n, p); toast(p ? `${categoryParts(p).join(' / ')}(으)로 옮김` : '자동 분류로 변경'); } catch (e) { toast(e.message); }
+    try { await lib.moveTo(n, p); toast(p ? `${categoryParts(p).join(' › ')}(으)로 옮김` : '자동 분류로 변경'); } catch (e) { toast(e.message); }
   }} />`, { width: 300 });
   const remove = () => modal((close) => html`<${ConfirmDialog} close=${close} title="이 노트를 지울까요?" text="구글 드라이브 휴지통으로 옮겨요. 30일 안에는 되살릴 수 있어요." yes="지우기" danger
     onYes=${async () => {
@@ -304,7 +304,7 @@ export function NoteView({ id, params }) {
   return html`<div class="ws">
     <${Explorer} note=${note} cat=${cat} />
     <div class="ws-main">
-      <${WsBar} noteId=${noteId} siblings=${note && cat ? lib.all.filter((n) => categoryOf(n, lib).name === cat.name).map((n) => n.id) : []} crumb=${html`${cat ? html`<a href=${folderHref(cat.name)}>${cat.name}</a><${Icon} name="chevron" />${cat.sub && html`<a href=${folderHref(`${cat.name}/${cat.sub}`)}>${cat.sub}</a><${Icon} name="chevron" />`}` : html`<span>새 노트</span><${Icon} name="chevron" />`}<b>${title.trim() || (note ? titleOf(note) : '제목 없음')}</b>`} right=${html`
+      <${WsBar} noteId=${noteId} siblings=${note && cat ? lib.all.filter((n) => categoryOf(n, lib).name === cat.name).map((n) => n.id) : []} crumb=${html`${cat ? html`<a href=${folderHref(cat.name)}>${cat.name}</a><${Icon} name="chevron" />${cat.sub && html`<a href=${folderHref(`${cat.name}/${cat.sub}`)}>${cat.sub}</a><${Icon} name="chevron" />`}${cat.sub && cat.leaf && html`<a class="hide-m" href=${folderHref(`${cat.name}/${cat.sub}/${cat.leaf}`)}>${cat.leaf}</a><${Icon} name="chevron" class="hide-m" />`}` : html`<span>새 노트</span><${Icon} name="chevron" />`}<b>${title.trim() || (note ? titleOf(note) : '제목 없음')}</b>`} right=${html`
         <${SaveState} state=${saveState} />
         <span class="grow"></span>
         ${note && html`<button type="button" class=${`icon-btn${pinned ? ' starred' : ''}`} aria-pressed=${pinned} aria-label="즐겨찾기" title="즐겨찾기" onClick=${togglePin}><${Icon} name="star" /></button>`}
@@ -315,7 +315,7 @@ export function NoteView({ id, params }) {
         <dl class="props" aria-label="속성">
           <dt><${Icon} name="drawer" />서랍</dt>
           <dd><button type="button" class=${`mpill${cat?.auto ? ' auto' : ''}`} title=${cat?.auto ? `자동 분류${cat.why ? `: ${cat.why}` : ''}. 눌러서 서랍을 바꿔요` : '서랍 바꾸기'} onClick=${(e) => pickFolder(e.currentTarget)}>
-              <${FolderDot} path=${cat?.path ?? ''} />${cat ? categoryParts(cat.path).join(' / ') : '자동 분류'}${cat?.auto && html`<span class="auto-badge">자동</span>`}<${Icon} name="down" /></button>
+              <${FolderDot} path=${cat?.path ?? ''} />${cat ? categoryParts(cat.path).join(' › ') : '자동 분류'}${cat?.auto && html`<span class="auto-badge">자동</span>`}<${Icon} name="down" /></button>
             ${cat?.auto && html`<p class="auto-why"><${Mascot} size=${18} /><span>자동 분류${cat.why ? `: ${cat.why}` : ''}</span></p>`}</dd>
           <dt><${Icon} name="tag" />태그</dt>
           <dd><${TagEditor} tags=${m.tags ?? []} onChange=${(tags) => update({ tags })} />

@@ -83,7 +83,7 @@ export function FilterBar({ notes, f, ctx, drawer = false }) {
       open: (a) => popover(a, (close) => html`<${DatePop} f=${f} close=${close} />`, { width: 300 }), clear: { d: '', from: '', to: '' } },
     { key: 'type', icon: 'memo', label: f.type.length ? f.type.map(typeName).join(', ') : '종류', on: f.type.length > 0,
       open: (a) => popover(a, () => html`<${MultiPop} field="type" f=${f} options=${TYPE_LABEL.filter(([k]) => fx.types.get(k) || f.type.includes(k)).map(([k, l]) => ({ value: k, label: l, icon: TYPE_ICON[k], count: fx.types.get(k) ?? 0 }))} />`, { width: 240 }), clear: { type: [] } },
-    !drawer && { key: 'dr', icon: 'drawer', label: f.dr ? f.dr.replace('/', ' › ') : '서랍', on: !!f.dr,
+    !drawer && { key: 'dr', icon: 'drawer', label: f.dr ? f.dr.replaceAll('/', ' › ') : '서랍', on: !!f.dr,
       open: (a) => popover(a, (close) => html`<${OnePop} field="dr" f=${f} close=${close} options=${drawers} search=${drawers.length > 12 ? '서랍 찾기' : ''} />`, { width: 260 }), clear: { dr: '' } },
     { key: 'tag', icon: 'tag', label: f.tag.length ? `#${f.tag[0]}${f.tag.length > 1 ? ` 외 ${f.tag.length - 1}` : ''}` : '태그', on: f.tag.length > 0,
       open: (a) => popover(a, () => html`<${MultiPop} field="tag" f=${f} search="태그 찾기" options=${[...new Set([...f.tag, ...fx.tags.map(([t]) => t)])].map((t) => ({ value: t, label: `#${t}`, count: fx.tags.find(([x]) => x === t)?.[1] ?? 0 }))} />`, { width: 260 }), clear: { tag: [] } },

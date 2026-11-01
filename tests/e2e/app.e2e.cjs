@@ -59,7 +59,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.keyboard.press('Enter');
   await p.waitForTimeout(300);
   ok((await notes()).some((x) => x.body.includes('김치찌개 레시피 메모')) && (await p.inputValue(box)) === '', 'Enter saves and clears');
-  ok(await p.locator('.toast', { hasText: /요리 › 레시피 서랍에 넣었어요/ }).count() === 1, 'toast names the drawer and sub-drawer');
+  ok(await p.locator('.toast', { hasText: /요리 › 레시피 › 찌개 서랍에 넣었어요/ }).count() === 1, 'toast names 대분류 › 중분류 › 소분류');
   await p.locator('.toast', { hasText: '서랍에 넣었어요' }).last().locator('button').click();
   await p.waitForTimeout(400);
   ok(!(await notes()).some((x) => x.body.includes('김치찌개 레시피 메모')), 'undo removes it');
@@ -128,7 +128,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   // ---- 옵시디언식 작업 공간: 속성, 연결·목차·그래프 ----
   await p.evaluate(() => { location.hash = '#/n/20261020093000'; });
   await p.waitForSelector('.ws .props');
-  ok((await p.locator('.props').innerText()).includes('패션 / 상의') && await p.locator('.callout').count() === 1, 'properties table and summary callout');
+  ok((await p.locator('.props').innerText()).includes('패션 › 상의') && await p.locator('.callout').count() === 1, 'properties table and summary callout');
   await p.waitForSelector('.rp-rel');
   const relTitle = (await p.locator('.rp-rel b span:last-child').first().innerText()).trim();
   await p.locator('.rp-rel .link-btn').first().click();
@@ -485,6 +485,38 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.waitForSelector('.ws .note-title');
   ok(await p.locator('.ws-left').isHidden() && await p.evaluate(() => document.documentElement.scrollWidth <= 390), 'phone: note is one column');
   ok(p.errors.length === 0, 'phone: no page errors ' + p.errors.join(' | '));
+  await p.context().close();
+
+  // ---- 대분류 › 중분류 › 소분류: 무엇을 넣어도 기타 없이 ----
+  p = await open(b, { seedData: { profile: { name: '나', email: 'me@example.com' }, files: [] } });
+  await p.waitForSelector('.capbar textarea');
+  await p.click('.capbar textarea');
+  await p.keyboard.type('아이폰 16 케이스');
+  await p.waitForTimeout(200);
+  ok((await p.locator('.cap-guess').innerText()).replace(/\s+/g, '') === '쇼핑›가전›휴대폰', 'preview shows 대분류 › 중분류 › 소분류');
+  await p.keyboard.press('Enter');
+  await p.waitForTimeout(250);
+  for (const t of ['갤럭시 S25 사전예약', '양자역학 너무 어렵다', '와이파이 비번 abc123', '010-1234-5678 김민수']) {
+    await p.fill('.capbar textarea', t);
+    await p.keyboard.press('Enter');
+    await p.waitForTimeout(250);
+  }
+  const paths = await p.evaluate(async () => {
+    const { categoryOf } = await import('./js/ui/categories.js');
+    const lib = window.__TD_APP__.lib;
+    return lib.all.map((n) => categoryOf(n, lib).path);
+  });
+  ok(paths.length === 5 && paths.every((x) => x.split('/').length === 3 && !x.startsWith('기타')), `every note gets three levels, never 기타 (${paths.join(', ')})`);
+  await p.evaluate(() => { location.hash = '#/f/쇼핑/가전'; });
+  await p.waitForSelector('.leaf-chips');
+  ok((await p.locator('.leaf-chips .chip', { hasText: '휴대폰' }).innerText()).includes('2'), 'sub-drawer page lists 소분류 chips with counts');
+  await p.locator('.leaf-chips .chip', { hasText: '휴대폰' }).click();
+  await p.waitForTimeout(300);
+  ok(decodeURIComponent(await p.evaluate(() => location.hash)) === '#/f/쇼핑/가전/휴대폰' && await p.locator('.grid .poster').count() === 2, '소분류 page shows just those notes');
+  await p.locator('.grid .poster').first().click();
+  await p.waitForSelector('.ws .props');
+  ok((await p.locator('.props .mpill').innerText()).includes('쇼핑 › 가전 › 휴대폰'), 'note shows its three-level drawer');
+  ok(p.errors.length === 0, 'levels: no page errors ' + p.errors.join(' | '));
   await p.context().close();
 
   // ---- 낮 화면, 빈 서랍 ----

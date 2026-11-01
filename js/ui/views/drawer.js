@@ -70,7 +70,7 @@ function HeroMascot({ text, guess, link, drag, busy }) {
   useEffect(() => {
     idle.current = Date.now();
     if (!text.trim() || !guess) { setBubble((b) => (b?.guess ? null : b)); return undefined; }
-    const t = setTimeout(() => setBubble({ guess: true, text: link ? `링크네요! ${guess} 서랍에 넣을게요.` : guess === '기타' ? '어디에 둘지 고민돼요. 일단 넣어 두면 나중에 옮길게요.' : `${guess} 서랍이 어울려요.`, until: Date.now() + 5000 }), 450);
+    const t = setTimeout(() => setBubble({ guess: true, text: link ? `링크네요! ${guess} 서랍에 넣을게요.` : `${guess} 서랍이 어울려요.`, until: Date.now() + 5000 }), 450);
     return () => clearTimeout(t);
   }, [text.trim().slice(0, 80), guess]);
   // 오래 가만히 있으면 쓰는 법 하나 (세 번까지)
@@ -279,7 +279,7 @@ function List({ notes, hl, more }) {
     try {
       for (const n of list) await lib.moveTo(lib.get(n.id) ?? n, p);
       setSel(new Set());
-      t.update(p ? `${list.length}개를 ${categoryParts(p).join(' / ')} 서랍에 넣었어요` : `${list.length}개를 자동 분류에 맡겼어요`);
+      t.update(p ? `${list.length}개를 ${categoryParts(p).join(' › ')} 서랍에 넣었어요` : `${list.length}개를 자동 분류에 맡겼어요`);
     } catch (e) { t.update(e.message, { duration: 6000 }); }
   }} />`, { width: 300 });
   const removeMany = (list) => modal((close) => html`<${ConfirmDialog} close=${close} danger yes="지우기"
@@ -340,8 +340,13 @@ export function Shelf({ scope, params }) {
   const entry = top ? drawerList(lib).find((d) => d.name === top) : null;
   const real = top ? lib.folders().find((x) => x.path === top)?.children ?? [] : [];
   const subs = entry ? [...entry.subs, ...real.filter((r) => !entry.subs.some(([n]) => n === r.name)).map((r) => [r.name, r.count])] : real.map((r) => [r.name, r.count]);
+  // 세부 서랍을 열었으면 그 안의 소분류 (자동으로 찾은 것 + 실제 폴더)
+  const sub = scope.kind === 'folder' ? categoryParts(scope.value)[1] ?? '' : '';
+  const realLeaves = sub ? real.find((r) => r.name === sub)?.children ?? [] : [];
+  const autoLeaves = sub && entry ? entry.leaves?.[sub] ?? [] : [];
+  const leaves = sub ? [...autoLeaves, ...realLeaves.filter((r) => !autoLeaves.some(([n]) => n === r.name)).map((r) => [r.name, r.count])] : [];
   const autoN = scope.kind === 'folder' ? base.filter((n) => categoryOf(n, lib).auto).length : 0;
-  const title = { folder: categoryParts(scope.value ?? '').join(' / '), tag: `#${scope.value}`, star: '즐겨찾기', inbox: '자동 분류만 된 노트', all: '모든 노트', search: '찾기' }[scope.kind];
+  const title = { folder: categoryParts(scope.value ?? '').join(' › '), tag: `#${scope.value}`, star: '즐겨찾기', inbox: '자동 분류만 된 노트', all: '모든 노트', search: '찾기' }[scope.kind];
   const menu = (anchor) => popover(anchor, (close) => html`
     <div class="mi-label">정렬</div>
     ${SORTS.map(([k, label]) => html`<${MenuItem} key=${k} icon=${sortKey === k ? 'check' : 'blank'} label=${label} onClick=${() => { close(); setSort(k); }} />`)}
@@ -366,7 +371,11 @@ export function Shelf({ scope, params }) {
           ${autoN > 0 && html`<p class="sh-note"><${Icon} name="sparkle" /><span>자동 분류 ${autoN}개. 노트에서 서랍을 바꿀 수 있습니다.</span></p>`}
           ${subs.length > 0 && html`<nav class="chip-row sub-chips" style="margin-top:16px" aria-label="세부 서랍">
             <a class="chip" href=${folderHref(top)} aria-current=${scope.value === top ? 'page' : undefined}>${top} 전체</a>
-            ${subs.map(([name, c]) => html`<a key=${name} class="chip" href=${folderHref(`${top}/${name}`)} aria-current=${scope.value === `${top}/${name}` ? 'page' : undefined}>${name}<span class="n">${c}</span></a>`)}
+            ${subs.map(([name, c]) => html`<a key=${name} class="chip" href=${folderHref(`${top}/${name}`)} aria-current=${scope.value === `${top}/${name}` ? 'page' : sub === name ? 'true' : undefined}>${name}<span class="n">${c}</span></a>`)}
+          </nav>`}
+          ${leaves.length > 0 && html`<nav class="chip-row leaf-chips" aria-label="소분류">
+            <a class="chip" href=${folderHref(`${top}/${sub}`)} aria-current=${scope.value === `${top}/${sub}` ? 'page' : undefined}>${sub} 전체</a>
+            ${leaves.map(([name, c]) => html`<a key=${name} class="chip" href=${folderHref(`${top}/${sub}/${name}`)} aria-current=${scope.value === `${top}/${sub}/${name}` ? 'page' : undefined}>${name}<span class="n">${c}</span></a>`)}
           </nav>`}
         </div>`}
     ${base.length > 0 && html`<${FilterBar} notes=${base} f=${f} ctx=${ctx} drawer=${scope.kind === 'folder'} />`}

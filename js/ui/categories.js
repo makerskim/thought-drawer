@@ -37,16 +37,21 @@ function autoOf(note, lib) {
   return hit;
 }
 
-// { name, path, sub, auto, why }
+// { name, sub, leaf, path, folder, auto, why, weak } — path 는 대분류/중분류/소분류, folder 는 실제로 옮겨 둔 폴더
+// 옮겨 둔 폴더가 두 단계까지면, 자동 분류가 같은 서랍을 골랐을 때 그 소분류를 화면에서만 붙인다
 export function categoryOf(note, lib) {
   const m = note.meta;
   if (m.status === 'organized' && m.category) {
-    const [name, sub = ''] = String(m.category).split('/').map((s) => s.trim());
-    return { name, path: m.category, sub, auto: false, why: '' };
+    const [name, sub = '', leaf0 = ''] = String(m.category).split('/').map((s) => s.trim()).filter(Boolean);
+    let leaf = leaf0;
+    if (!leaf && sub) { const r = autoOf(note, lib); if (r.category === name && r.sub === sub) leaf = r.leaf; }
+    return { name, sub, leaf, path: [name, sub, leaf].filter(Boolean).join('/'), folder: m.category, auto: false, why: '' };
   }
   const r = autoOf(note, lib);
-  return { name: r.category, path: r.path, sub: r.sub, auto: true, why: r.why };
+  return { name: r.category, sub: r.sub, leaf: r.leaf ?? '', path: r.path, folder: '', auto: true, why: r.why, weak: !!r.weak };
 }
+// 화면에 보이는 이름: 쇼핑 › 가전 › 노트북
+export const pathLabel = (c) => [c.name, c.sub, c.leaf].filter(Boolean).join(' › ');
 
 // 노트의 태그: 달아 둔 게 있으면 그것, 없으면 자동 태그 (화면에서만)
 export function tagsOf(note, lib) {
@@ -77,19 +82,25 @@ export function enrichNew({ meta, body }, lib) {
   return { meta: tags.length ? { ...meta, tags } : meta, body };
 }
 
-// 서랍 목록: [{ name, count, auto, latest, look, subs: [[이름, 수]] }] 많은 순, 기타는 맨 끝
+// 서랍 목록: [{ name, count, auto, latest, look, subs: [[이름, 수]], leaves: { 세부 서랍: [[소분류, 수]] } }] 많은 순
+const byCount = (m) => [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko'));
 export function drawerList(lib) {
   const map = new Map();
   for (const n of lib.all) {
     const c = categoryOf(n, lib);
-    if (!map.has(c.name)) map.set(c.name, { name: c.name, count: 0, auto: 0, latest: n, subs: new Map() });
+    if (!map.has(c.name)) map.set(c.name, { name: c.name, count: 0, auto: 0, latest: n, subs: new Map(), leaves: new Map() });
     const d = map.get(c.name);
     d.count++;
     if (c.auto) d.auto++;
     if (c.sub) d.subs.set(c.sub, (d.subs.get(c.sub) ?? 0) + 1);
+    if (c.sub && c.leaf) {
+      if (!d.leaves.has(c.sub)) d.leaves.set(c.sub, new Map());
+      const l = d.leaves.get(c.sub);
+      l.set(c.leaf, (l.get(c.leaf) ?? 0) + 1);
+    }
   }
   return [...map.values()]
-    .map((d) => ({ ...d, subs: [...d.subs].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')), look: categoryLook(d.name) }))
+    .map((d) => ({ ...d, subs: byCount(d.subs), leaves: Object.fromEntries([...d.leaves].map(([k, v]) => [k, byCount(v)])), look: categoryLook(d.name) }))
     .sort((a, b) => (a.name === OTHER) - (b.name === OTHER) || b.count - a.count || a.name.localeCompare(b.name, 'ko'));
 }
 
@@ -110,7 +121,11 @@ export function drawerTargets(lib) {
     out.add(top);
     for (const s of d.subs) out.add(`${top}/${s.name}`);
   }
-  for (const d of drawerList(lib)) { if (d.name !== OTHER) out.add(d.name); for (const [s] of d.subs) out.add(`${d.name}/${s}`); }
+  for (const d of drawerList(lib)) {
+    if (d.name !== OTHER) out.add(d.name);
+    for (const [s] of d.subs) out.add(`${d.name}/${s}`);
+    for (const [s, ls] of Object.entries(d.leaves)) for (const [l] of ls) out.add(`${d.name}/${s}/${l}`);
+  }
   return [...out];
 }
 

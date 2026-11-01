@@ -91,11 +91,11 @@ function RuleDialog({ rule, close, onSave }) {
         <option value="__new">새 서랍 직접 적기…</option>
       </select></label>
     ${(drawer === '__new' || (drawer && !known)) && html`<label class="fld"><span>새 서랍 이름</span>
-      <input class="input" value=${drawer === '__new' ? fresh : drawer} onInput=${(e) => { setDrawer('__new'); setFresh(e.target.value); }} placeholder="예: 쇼핑/가전 또는 캠핑" aria-label="새 서랍 이름" /><small>세부 서랍은 빗금(/)으로</small></label>`}
+      <input class="input" value=${drawer === '__new' ? fresh : drawer} onInput=${(e) => { setDrawer('__new'); setFresh(e.target.value); }} placeholder="예: 쇼핑/가전/노트북 또는 캠핑" aria-label="새 서랍 이름" /><small>세부 서랍·소분류는 빗금(/)으로</small></label>`}
     <label class="fld"><span>달 태그 <em>선택</em></span>
       <input class="input" value=${tags} onInput=${(e) => { setTags(e.target.value); setErr(''); }} placeholder="가전, 계절" aria-label="태그" /></label>
     <p class="sdlg-prev">${word
-      ? html`<span>예</span>「${word} …」 → <b>${to ? to.replace('/', ' › ') : '자동 분류'}</b>${tagList.map((t) => html` <span class="cap-tag" key=${t}>#${t}</span>`)}`
+      ? html`<span>예</span>「${word} …」 → <b>${to ? to.replaceAll('/', ' › ') : '자동 분류'}</b>${tagList.map((t) => html` <span class="cap-tag" key=${t}>#${t}</span>`)}`
       : html`<span>예</span>낱말을 적으면 미리 보여 줘요.`}</p>
     ${err && html`<p class="sdlg-err" role="alert">${err}</p>`}
     <div class="actions"><button type="button" class="btn btn-ghost" onClick=${close}>취소</button><button class="btn btn-primary">저장</button></div>
@@ -157,7 +157,7 @@ function Rules() {
   return html`
     ${s.rules.length
       ? s.rules.map((r, i) => html`<div class="sg-row item-row" key=${`${r.match}:${i}`}>
-          <div class="item-main"><span class="rl-match">${r.match}</span><${Icon} name="chevron" /><span class="rl-to">${r.drawer ? html`<b>${r.drawer.replace('/', ' › ')}</b>` : ''}${r.tags.map((t) => html`<span class="cap-tag" key=${t}>#${t}</span>`)}</span></div>
+          <div class="item-main"><span class="rl-match">${r.match}</span><${Icon} name="chevron" /><span class="rl-to">${r.drawer ? html`<b>${r.drawer.replaceAll('/', ' › ')}</b>` : ''}${r.tags.map((t) => html`<span class="cap-tag" key=${t}>#${t}</span>`)}</span></div>
           <button type="button" class="icon-btn" aria-label=${`${r.match} 규칙 고치기`} onClick=${() => edit(r, i)}><${Icon} name="pen" /></button>
           <button type="button" class="icon-btn" aria-label=${`${r.match} 규칙 지우기`} onClick=${() => save({ rules: s.rules.filter((_, j) => j !== i) })}><${Icon} name="trash" /></button>
         </div>`)
@@ -264,7 +264,7 @@ export function Settings({ offline, params }) {
 
       <${Group} id="classify" title="자동 분류" scope="모든 기기">
         <${TryIt} />
-        <${Row} label="세부 서랍" desc="쇼핑 › 가전"><${Toggle} label="세부 서랍" checked=${cls.subs} onChange=${(v) => save({ classify: { ...cls, subs: v } })} /></${Row}>
+        <${Row} label="세부 서랍" desc="가전 › 노트북"><${Toggle} label="세부 서랍" checked=${cls.subs} onChange=${(v) => save({ classify: { ...cls, subs: v } })} /></${Row}>
         <${Row} label="태그 개수"><${Seg} label="태그 개수" value=${cls.tags} set=${(v) => save({ classify: { ...cls, tags: v } })} opts=${[[0, '끔'], [2, '2'], [3, '3'], [4, '4'], [6, '6']]} /></${Row}>
         <${Row} label="내 정리 배우기" desc="서랍을 바꾸면 기억"><${Toggle} label="내 정리 배우기" checked=${cls.learn} onChange=${(v) => save({ classify: { ...cls, learn: v } })} /></${Row}>
       </${Group}>

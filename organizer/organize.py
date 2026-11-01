@@ -42,10 +42,10 @@ SHORT_OCR = 20  # 사진 속 글자가 이보다 적으면 사진을 직접 보�
 
 RULES = """## 정리 규칙
 - 노트마다 아래 형식의 결정을 하나씩 쓴다. 결과는 JSON 배열 하나만 `organizer/work/decisions.json`에 저장한다.
-  `{"id": "노트 번호", "title": "제목", "category": "큰폴더/작은폴더", "tags": ["태그"], "summary": "한 문장 요약", "links": [{"id": "번호", "why": "이유"}]}`
+  `{"id": "노트 번호", "title": "제목", "category": "대분류/중분류/소분류", "tags": ["태그"], "summary": "한 문장 요약", "links": [{"id": "번호", "why": "이유"}]}`
 - title: 30자 이내, 무엇인지 바로 알 수 있게. 사용자가 단 제목이 있으면 그대로 둔다(빈 문자열로 쓴다).
-- category: 한국어, 최대 두 단계(예: "패션/상의", "요리/레시피", "여행/제주"). **기존 폴더 목록에 맞는 게 있으면 반드시 그걸 쓴다.**
-  새 폴더는 기존 것과 겹치지 않을 때만 만든다. 정보가 너무 부족하면 "확인 필요".
+- category: 한국어, 세 단계까지(예: "쇼핑/가전/노트북", "요리·맛집/레시피/김치찌개", "여행/국내/제주"). **기존 폴더 목록에 맞는 게 있으면 반드시 그걸 쓴다.**
+  새 폴더는 기존 것과 겹치지 않을 때만 만든다. 「기타」는 쓰지 않는다: 무엇이든 어떤 것의 한 종류로 넣는다(정보가 너무 적으면 "생각·기록/메모").
 - tags: 2~5개, 짧은 명사. 사고 싶은 물건이면 "위시리스트"를 넣는다.
 - summary: 80자 이내 한 문장. 나중에 검색할 핵심 단어(브랜드, 가격, 장소, 재료 등)를 넣는다.
 - links: 그 노트의 "연결 후보"나 이번 묶음의 다른 노트 중 정말 관련 있는 것만, 0~3개. why는 15자 이내.
@@ -274,7 +274,7 @@ def cmd_prepare(store, args):
 def clean_category(raw: str) -> str:
     parts = [safe_name(p, 20) for p in str(raw or '').split('/')]
     parts = [p for p in parts if p and not p.startswith('_') and not p.startswith('00_')]
-    return '/'.join(parts[:2])
+    return '/'.join(parts[:3])
 
 
 def body_with_fetched(body: str, card: dict) -> str:

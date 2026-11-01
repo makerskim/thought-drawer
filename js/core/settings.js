@@ -31,7 +31,7 @@ export function normalizeSettings(raw) {
   const s = raw && typeof raw === 'object' ? raw : {};
   const c = s.classify ?? {};
   const rules = (Array.isArray(s.rules) ? s.rules : [])
-    .map((r) => ({ match: String(r?.match ?? '').trim(), drawer: String(r?.drawer ?? '').split('/').map((x) => x.trim()).filter(Boolean).slice(0, 2).join('/'), tags: tagList(r?.tags) }))
+    .map((r) => ({ match: String(r?.match ?? '').trim(), drawer: String(r?.drawer ?? '').split('/').map((x) => x.trim()).filter(Boolean).slice(0, 3).join('/'), tags: tagList(r?.tags) }))
     .filter((r) => r.match && (r.drawer || r.tags.length))
     .slice(0, 200);
   const seen = new Set();

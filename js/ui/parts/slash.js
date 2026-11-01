@@ -27,7 +27,7 @@ function itemsFor(trig, lib) {
   const q = trig.query.trim().toLowerCase();
   if (trig.char === '/') {
     const drawers = q ? drawerTargets(lib).filter((d) => d.toLowerCase().includes(q)).slice(0, 4)
-      .map((d) => ({ key: d, label: `${d.replace('/', ' › ')} 서랍에 넣기`, icon: categoryLook(d.split('/')[0]).icon, insert: `@${d} `, drawer: true })) : [];
+      .map((d) => ({ key: d, label: `${d.replaceAll('/', ' › ')} 서랍에 넣기`, icon: categoryLook(d.split('/')[0]).icon, insert: `@${d} `, drawer: true })) : [];
     return [...matchSlash(q, slashCommands(lib)), ...drawers].slice(0, LIMIT);
   }
   if (trig.char === '#') {
@@ -39,7 +39,7 @@ function itemsFor(trig, lib) {
   const list = drawerTargets(lib).filter((d) => !q || d.toLowerCase().includes(q))
     .sort((a, b) => (a.toLowerCase().startsWith(q) ? 0 : 1) - (b.toLowerCase().startsWith(q) ? 0 : 1) || a.split('/').length - b.split('/').length)
     .slice(0, LIMIT - 1)
-    .map((d) => ({ key: d, label: d.replace('/', ' › '), icon: categoryLook(d.split('/')[0]).icon, insert: `@${d} ` }));
+    .map((d) => ({ key: d, label: d.replaceAll('/', ' › '), icon: categoryLook(d.split('/')[0]).icon, insert: `@${d} ` }));
   if (q && !list.some((d) => d.key.toLowerCase() === q)) list.push({ key: trig.query, label: `새 서랍 「${trig.query}」`, icon: 'plus', insert: `@${trig.query} `, fresh: true });
   return list;
 }

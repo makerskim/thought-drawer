@@ -23,6 +23,7 @@ const out = path.resolve(__dirname, '../../docs/screens');
   await shot('help', desk, async (p) => { await p.evaluate(() => { location.hash = '#/help'; }); await p.waitForSelector('.man-sec'); });
   await shot('map', desk, async (p) => { await p.evaluate(() => { location.hash = '#/graph'; }); await p.waitForSelector('.graph canvas'); await p.waitForTimeout(4000); });
   await shot('rows', desk, async (p) => { await p.evaluate(() => { document.querySelectorAll('.reveal').forEach((e) => e.classList.add('in')); window.scrollTo(0, document.querySelector('.below').offsetTop - 40); }); await p.waitForTimeout(1200); });
+  await shot('levels', desk, async (p) => { await p.fill('.capbar textarea', '갤럭시 S25 사전예약'); await p.keyboard.press('Enter'); await p.waitForTimeout(300); await p.evaluate(() => { location.hash = '#/f/쇼핑/가전'; }); await p.waitForSelector('.leaf-chips'); await p.waitForTimeout(600); });
   await shot('sidebar', desk, async (p) => { await p.click('.nav-toggle'); await p.click('.sb [aria-label="고정하기"]'); await p.evaluate(() => { location.hash = '#/drawers'; }); await p.waitForSelector('.drawers-page .fold'); await p.waitForTimeout(1200); });
   await shot('note', desk, async (p) => { await p.evaluate(() => { location.hash = '#/n/20261020093000'; }); await p.waitForSelector('.ws .props'); await p.click('.rp-tabs button:has-text("그래프")'); await p.evaluate(() => document.activeElement?.blur()); });
   await shot('mobile', { viewport: { width: 390, height: 844 } }, async (p) => { await p.waitForSelector('.cm-bubble'); });

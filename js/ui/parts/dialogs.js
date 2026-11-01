@@ -12,9 +12,9 @@ export function FolderPicker({ current, onPick, close }) {
   const all = drawerNames(app.lib);
   const ql = q.trim();
   const list = all.filter((p) => p.toLowerCase().includes(ql.toLowerCase()));
-  const clean = categoryParts(ql).slice(0, 2).join('/');
+  const clean = categoryParts(ql).slice(0, 3).join('/');
   const inbox = { label: '자동 분류에 맡기기', sub: '앱이 정해요', icon: 'sparkle', value: '' };
-  const folders = list.map((p) => ({ label: categoryParts(p).join(' / '), icon: 'folder', value: p, on: p === current }));
+  const folders = list.map((p) => ({ label: categoryParts(p).join(' › '), icon: 'folder', value: p, on: p === current }));
   const create = clean && !all.includes(clean) ? [{ label: `새 서랍 “${clean}”`, icon: 'plus', value: clean }] : [];
   // 무언가 입력했으면 맞는 서랍(또는 새 서랍)이 먼저, 아니면 「자동 분류에 맡기기」가 먼저
   const options = ql ? [...folders, ...create, inbox] : [inbox, ...folders];
@@ -26,7 +26,7 @@ export function FolderPicker({ current, onPick, close }) {
     <div class="pop-list">${options.map((o, i) => html`<button type="button" key=${o.label} class=${`mi${i === idx ? ' on' : ''}`} onMouseMove=${() => setIdx(i)} onClick=${() => pick(i)}>
       <${Icon} name=${o.icon} /><span>${o.label}</span>${o.on ? html`<${Icon} name="check" class="sub" />` : o.sub && html`<span class="sub">${o.sub}</span>`}
     </button>`)}</div>
-    <div class="muted" style="font-size:11.5px;padding:6px 8px 2px">“큰 서랍/작은 서랍”처럼 빗금으로 나눠요.</div>`;
+    <div class="muted" style="font-size:11.5px;padding:6px 8px 2px">“쇼핑/가전/노트북”처럼 빗금으로 세 단계까지 나눠요.</div>`;
 }
 
 export function Lightbox({ src, close }) {

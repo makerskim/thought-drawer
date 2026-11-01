@@ -110,8 +110,8 @@ def test_apply_files_cards_links_and_index(vault, capsys):
     reel_meta, reel_body = parse_note((vault / '요리/음료/20261026213300 달고나 라떼 레시피.md').read_text(encoding='utf-8'))
     assert '## 캡션' in reel_body and '달고나 라떼 만드는 법' in reel_body
 
-    memo = vault / '할일/주말/20261025180000 성수 팝업 가기.md'
-    assert memo.exists(), 'category sanitized to two levels without system folders'
+    memo = vault / '할일/주말/더깊이/20261025180000 성수 팝업 가기.md'
+    assert memo.exists(), 'category sanitized to three levels without system folders'
     assert '[[20261027093012 오크우드 가을 시즌오프]] 매장 근처' in memo.read_text(encoding='utf-8'), 'bare [[id]] link renamed'
 
     idx = json.loads((vault / '_시스템/index.json').read_text(encoding='utf-8'))
@@ -174,3 +174,10 @@ def test_snippet_drops_checkbox_markers_like_the_web_app():
 def test_snippet_keeps_dates_and_ranges_like_the_web_app():
     from td_note import snippet
     assert snippet('10.28~11.03 최대 40%, 2026-10-30 **세일**\n- 목록\n> 인용') == '10.28~11.03 최대 40%, 2026-10-30 세일 목록 인용'
+
+
+def test_category_keeps_three_levels():
+    # 대분류/중분류/소분류까지 쓰고, 그보다 깊으면 자른다
+    assert organize.clean_category('쇼핑/가전/노트북') == '쇼핑/가전/노트북'
+    assert organize.clean_category('쇼핑/가전/노트북/맥북') == '쇼핑/가전/노트북'
+    assert '기타' in organize.RULES and '세 단계' in organize.RULES

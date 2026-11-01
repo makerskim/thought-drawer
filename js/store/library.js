@@ -322,7 +322,7 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
       return write(full, { meta, body: changes.body ?? full.body });
     },
     async createFolder(path) {
-      const clean = categoryParts(path).slice(0, 2).join('/');
+      const clean = categoryParts(path).slice(0, 3).join('/');
       if (!clean) throw new Error('폴더 이름을 적어 주세요.');
       await adapter.mkdir(clean);
       if (!dirs.includes(clean)) dirs = [...dirs, clean];

@@ -6,29 +6,54 @@ import { triggerAt, applyInsert, takeTokens, fillVars, matchSlash, BUILTINS, ALI
 import { normalizeSettings, DEFAULT_SETTINGS, BASE_KEYWORDS } from '../js/core/settings.js';
 
 const note = (meta, body = '') => ({ meta: { type: 'memo', ...meta }, body });
+const two = (r) => [r.category, r.sub].filter(Boolean).join('/');
+
+test('everything gets a drawer — no 기타 — and usually 대분류 › 중분류 › 소분류', () => {
+  const inputs = ['내일 3시 치과', '와이파이 비번 abc12345', '010-1234-5678 김민수', '양자역학 너무 어렵다', '주말에 뭐하지',
+    '롤 티어 올리기', '몬스테라 분갈이', '대통령 선거 토론', '여권 갱신 서류', '친구 결혼식 축의금', '- [ ] 은행 가기', '배고프다',
+    '피곤하다 오늘 너무 힘들었다', '왜 하늘은 파랄까?', 'ㅋㅋㅋ', '음', '회사 가기 싫다', '넷플릭스 뭐 보지', '전기세 너무 많이 나왔다',
+    'Buy milk and eggs', '버스 시간표', 'https://example.com/a', 'https://shop.example.co.kr/1', 'https://news.naver.com/article/1'];
+  const rs = inputs.map((t) => (/^https?:/.test(t) ? classify(note({ type: 'bookmark', source: t })) : classify(note({}, t))));
+  assert.deepEqual(rs.filter((r) => r.category === '기타' || !r.sub).map((r, i) => inputs[i]), []);
+  assert.ok(rs.filter((r) => r.leaf).length >= inputs.length - 4, rs.map((r) => r.path).join(', '));
+  const at = (t) => rs[inputs.indexOf(t)];
+  assert.equal(at('내일 3시 치과').path, '건강·운동/병원/치과');
+  assert.equal(at('010-1234-5678 김민수').path, '사람·연락/연락처/전화번호');
+  assert.equal(at('양자역학 너무 어렵다').path, '생각·기록/메모/양자역학');
+  assert.ok(at('양자역학 너무 어렵다').weak);
+  assert.equal(at('왜 하늘은 파랄까?').path, '생각·기록/질문/하늘');
+  assert.equal(at('- [ ] 은행 가기').path, '할 일·일정/할 일/은행');
+  assert.equal(at('https://shop.example.co.kr/1').path, '쇼핑/위시리스트/example');
+  assert.equal(two(at('https://news.naver.com/article/1')), '뉴스·이슈/사회');
+  // 시각·날짜는 내용이 없을 때만 일정으로 (내용이 있으면 내용대로)
+  assert.equal(two(classify(note({}, '내일 오후 3시'))), '할 일·일정/일정');
+  // 비슷한 말은 한 소분류로 묶는다
+  assert.equal(classify(note({}, '아이폰 16 케이스')).leaf, '휴대폰');
+  assert.equal(classify(note({}, '갤럭시 S25 사전예약')).leaf, '휴대폰');
+});
 
 test('sub-drawers: site and words pick 서랍 › 세부 서랍', () => {
   const a = classify(note({ type: 'bookmark', source: 'https://www.coupang.com/vp/products/1' }, '가습기 비교'));
-  assert.deepEqual([a.category, a.sub, a.path], ['쇼핑', '가전', '쇼핑/가전']);
-  assert.equal(classify(note({}, '김치찌개 레시피: 재료는 김치')).path, '요리·맛집/레시피');
+  assert.deepEqual([a.category, a.sub, a.leaf, a.path], ['쇼핑', '가전', '생활가전', '쇼핑/가전/생활가전']);
+  assert.equal(classify(note({}, '김치찌개 레시피: 재료는 김치')).path, '요리·맛집/레시피/찌개');
   assert.equal(classify(note({}, '다음 주 오사카 항공권 비교')).category, '여행');
-  assert.equal(classify(note({}, '강아지 사료 바꾸기')).path, '집·생활/반려동물');
-  assert.equal(classify(note({ type: 'bookmark', source: 'https://www.agoda.com/x' })).path, '여행/숙소');
+  assert.equal(classify(note({}, '강아지 사료 바꾸기')).path, '집·생활/반려동물/강아지');
+  assert.equal(classify(note({ type: 'bookmark', source: 'https://www.agoda.com/x' })).path, '여행/숙소/아고다');
 });
 
 test('sub-drawers can be turned off', () => {
   const r = classify(note({}, '김치찌개 레시피'), null, { subs: false });
-  assert.deepEqual([r.path, r.sub], ['요리·맛집', '']);
+  assert.deepEqual([r.path, r.sub, r.leaf], ['요리·맛집', '', '']);
 });
 
 test('one-syllable words do not hit inside other words', () => {
-  assert.equal(classify(note({}, '이번 분기 책임 정리')).sub, '');
-  assert.equal(classify(note({}, '읽은 책 정리')).path, '공부·자료/책');
+  assert.notEqual(classify(note({}, '이번 분기 책임 정리')).category, '공부·자료');
+  assert.equal(two(classify(note({}, '읽은 책 정리'))), '공부·자료/책');
 });
 
 test('a link inside a memo still counts as its site', () => {
   const r = classify(note({}, '청소기 비교 https://www.coupang.com/vp/1'));
-  assert.equal(r.path, '쇼핑/가전');
+  assert.equal(r.path, '쇼핑/가전/청소기');
   assert.ok(r.tags.includes('쿠팡'));
 });
 
@@ -49,9 +74,12 @@ test('auto tags reuse tags I already use when they appear in the text', () => {
 test('my rules beat everything and bring their own tags', () => {
   const rules = [{ match: '다이슨, 발뮤다', drawer: '쇼핑/가전', tags: ['브랜드'] }, { match: 'musinsa.com', drawer: '쇼핑/위시리스트', tags: [] }];
   const r = classify(note({}, '발뮤다 토스터 레시피'), null, { rules });
-  assert.deepEqual([r.path, r.tags[0]], ['쇼핑/가전', '브랜드']);
+  assert.deepEqual([two(r), r.tags[0]], ['쇼핑/가전', '브랜드']);
   assert.match(r.why, /내 규칙/);
-  assert.equal(classify(note({ type: 'bookmark', source: 'https://www.musinsa.com/a' }), null, { rules }).path, '쇼핑/위시리스트');
+  assert.equal(two(classify(note({ type: 'bookmark', source: 'https://www.musinsa.com/a' }), null, { rules })), '쇼핑/위시리스트');
+  // 규칙은 소분류까지 정할 수 있다
+  const three = classify(note({}, '발뮤다 토스터'), null, { rules: [{ match: '발뮤다', drawer: '쇼핑/가전/발뮤다' }] });
+  assert.equal(three.path, '쇼핑/가전/발뮤다');
 });
 
 test('learned sub-folders: my own 세부 서랍 names win', () => {
@@ -60,7 +88,7 @@ test('learned sub-folders: my own 세부 서랍 names win', () => {
     note({ status: 'organized', category: '쇼핑/전자제품', title: '키보드' }, '무선 키보드'),
   ];
   const r = classify(note({}, '노트북 할인'), learn(filed));
-  assert.equal(r.path, '쇼핑/전자제품');
+  assert.equal(r.path, '쇼핑/전자제품/노트북·태블릿');
 });
 
 test('filters: dates, types, drawers, tags, sites, conditions', () => {
@@ -142,9 +170,9 @@ test('tokens: #태그 and known @서랍 leave the text, others stay', () => {
 });
 
 test('shared settings are cleaned up', () => {
-  const s = normalizeSettings({ v: 2, classify: { subs: false, tags: '99' }, rules: [{ match: ' 가습기 ', drawer: '쇼핑 / 가전 / 더', tags: '#가전, 계절' }, { match: '', drawer: 'x' }], keywords: [{ key: '/회의', text: 'a' }, { key: '회의', text: 'b' }, { key: '띄 어', text: 'c' }] });
+  const s = normalizeSettings({ v: 2, classify: { subs: false, tags: '99' }, rules: [{ match: ' 가습기 ', drawer: '쇼핑 / 가전 / 가습기 / 더', tags: '#가전, 계절' }, { match: '', drawer: 'x' }], keywords: [{ key: '/회의', text: 'a' }, { key: '회의', text: 'b' }, { key: '띄 어', text: 'c' }] });
   assert.deepEqual(s.classify, { subs: false, tags: 8, learn: true });
-  assert.deepEqual(s.rules, [{ match: '가습기', drawer: '쇼핑/가전', tags: ['가전', '계절'] }]);
+  assert.deepEqual(s.rules, [{ match: '가습기', drawer: '쇼핑/가전/가습기', tags: ['가전', '계절'] }]);
   assert.deepEqual(s.keywords, [{ key: '회의', text: 'a' }]);
   assert.equal(normalizeSettings(null).keywords.length, DEFAULT_SETTINGS.keywords.length);
   assert.deepEqual(normalizeSettings({ v: 2, keywords: [] }).keywords, []);
@@ -157,15 +185,15 @@ test('shared settings are cleaned up', () => {
 test('realistic notes land in the right drawer (longest word wins, brands, weak shop words)', () => {
   const cases = [
     ['운동화 270 사이즈 나이키', '패션·뷰티/신발·가방'], ['러닝 30분 했다', '건강·운동/운동'], ['카페인 줄이기', '건강·운동/식단'],
-    ['시계열 데이터 분석 공부', '공부·자료'], ['고기압 영향으로 맑음', '기타'], ['회의적인 생각이 든다', '생각·기록'],
-    ['주식회사 계약서 검토', '일·업무'], ['삼성전자 주식 10주 매수', '돈·재테크/투자'], ['세탁기 고장 AS 접수', '쇼핑/가전'],
+    ['시계열 데이터 분석 공부', '공부·자료'], ['고기압 영향으로 맑음', '뉴스·이슈/날씨'], ['회의적인 생각이 든다', '생각·기록'],
+    ['주식회사 계약서 검토', '일·업무'], ['삼성전자 주식 10주 매수', '돈·재테크/투자'], ['세탁기 고장 AS 접수', '집·생활/살림'],
     ['냉장고 정리 팁', '집·생활/살림'], ['전세 계약 확정일자', '돈·재테크/부동산'], ['자동차 엔진오일 교체 주기', '집·생활/자동차'],
     ['무신사 겨울 패딩 세일 알림', '패션·뷰티'], ['배민 쿠폰 오늘까지', '요리·맛집/배달'], ['디즈니플러스 신작', '영상·음악/영화·드라마'],
     ['영양제 비타민D 주문', '건강·운동'], ['고양이 모래 주문', '집·생활/반려동물'], ['KTX 예매 부산', '여행/교통'],
     ['아이유 콘서트 예매', '영상·음악/공연·전시'], ['블로그 글감 아이디어', '생각·기록/아이디어'], ['오늘 하루 회고: 일찍 일어남', '생각·기록/일기'],
-    ['새해 다짐: 매일 30분 독서', '생각·기록/목표'], ['토스트 만들기', '기타'], ['테니스 코트 예약', '건강·운동/운동'],
+    ['새해 다짐: 매일 30분 독서', '생각·기록/목표'], ['토스트 만들기', '요리·맛집/레시피'], ['테니스 코트 예약', '건강·운동/운동'],
   ];
-  const wrong = cases.map(([t, want]) => [t, want, classify(note({}, t))]).filter(([, want, r]) => (want.includes('/') ? r.path !== want : r.category !== want));
+  const wrong = cases.map(([t, want]) => [t, want, classify(note({}, t))]).filter(([, want, r]) => (want.includes('/') ? two(r) !== want : r.category !== want));
   assert.deepEqual(wrong.map(([t, want, r]) => `${t} → ${r.path} (기대 ${want})`), []);
 });
 
