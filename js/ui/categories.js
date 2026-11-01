@@ -53,6 +53,9 @@ export function categoryOf(note, lib) {
 // 화면에 보이는 이름: 쇼핑 › 가전 › 노트북
 export const pathLabel = (c) => [c.name, c.sub, c.leaf].filter(Boolean).join(' › ');
 
+// 찾기에 넘길 자동 분류: 서랍 경로(소분류까지)와 태그
+export const searchAuto = (lib) => (note) => ({ path: categoryOf(note, lib).path, tags: tagsOf(note, lib) });
+
 // 노트의 태그: 달아 둔 게 있으면 그것, 없으면 자동 태그 (화면에서만)
 export function tagsOf(note, lib) {
   const t = note.meta.tags ?? [];

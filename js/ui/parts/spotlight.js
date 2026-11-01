@@ -9,7 +9,7 @@ import { KindIcon, titleOf, highlighter } from './common.js';
 import { openComposer } from './composer.js';
 import { openTutorial } from './tutorial.js';
 import { openToday } from '../notebook.js';
-import { categoryOf } from '../categories.js';
+import { categoryOf, searchAuto } from '../categories.js';
 import { search, parseQuery } from '../../core/search.js';
 
 const COMMANDS = [
@@ -36,7 +36,7 @@ function Spot({ close }) {
   const lib = app.lib;
   const t = q.trim();
   const pq = parseQuery(t);
-  const notes = t ? search(lib.all, pq, { limit: 7 }).map((h) => h.note) : lib.all.slice(0, 5);
+  const notes = t ? search(lib.all, pq, { limit: 7, auto: searchAuto(lib) }).map((h) => h.note) : lib.all.slice(0, 5);
   const cmds = COMMANDS.filter(([, label]) => !t || label.includes(t)).slice(0, t ? 5 : 6);
   const hl = highlighter(pq.terms);
   // 할 일 이름과 맞으면(또는 아무것도 안 적었으면) 빠른 실행이 먼저, 아니면 노트가 먼저

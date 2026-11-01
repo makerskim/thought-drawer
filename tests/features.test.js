@@ -19,8 +19,10 @@ test('everything gets a drawer — no 기타 — and usually 대분류 › 중�
   const at = (t) => rs[inputs.indexOf(t)];
   assert.equal(at('내일 3시 치과').path, '건강·운동/병원/치과');
   assert.equal(at('010-1234-5678 김민수').path, '사람·연락/연락처/전화번호');
-  assert.equal(at('양자역학 너무 어렵다').path, '생각·기록/메모/양자역학');
-  assert.ok(at('양자역학 너무 어렵다').weak);
+  assert.equal(at('양자역학 너무 어렵다').path, '지식·상식/과학/양자역학');
+  const none = classify(note({}, '유리구슬 굴러간다'));
+  assert.equal(none.path, '생각·기록/메모/유리구슬');
+  assert.ok(none.weak);
   assert.equal(at('왜 하늘은 파랄까?').path, '생각·기록/질문/하늘');
   assert.equal(at('- [ ] 은행 가기').path, '할 일·일정/할 일/은행');
   assert.equal(at('https://shop.example.co.kr/1').path, '쇼핑/위시리스트/example');
@@ -37,7 +39,7 @@ test('sub-drawers: site and words pick 서랍 › 세부 서랍', () => {
   assert.deepEqual([a.category, a.sub, a.leaf, a.path], ['쇼핑', '가전', '생활가전', '쇼핑/가전/생활가전']);
   assert.equal(classify(note({}, '김치찌개 레시피: 재료는 김치')).path, '요리·맛집/레시피/찌개');
   assert.equal(classify(note({}, '다음 주 오사카 항공권 비교')).category, '여행');
-  assert.equal(classify(note({}, '강아지 사료 바꾸기')).path, '집·생활/반려동물/강아지');
+  assert.equal(classify(note({}, '강아지 사료 바꾸기')).path, '반려동물/강아지/사료');
   assert.equal(classify(note({ type: 'bookmark', source: 'https://www.agoda.com/x' })).path, '여행/숙소/아고다');
 });
 
@@ -187,10 +189,10 @@ test('realistic notes land in the right drawer (longest word wins, brands, weak 
     ['운동화 270 사이즈 나이키', '패션·뷰티/신발·가방'], ['러닝 30분 했다', '건강·운동/운동'], ['카페인 줄이기', '건강·운동/식단'],
     ['시계열 데이터 분석 공부', '공부·자료'], ['고기압 영향으로 맑음', '뉴스·이슈/날씨'], ['회의적인 생각이 든다', '생각·기록'],
     ['주식회사 계약서 검토', '일·업무'], ['삼성전자 주식 10주 매수', '돈·재테크/투자'], ['세탁기 고장 AS 접수', '집·생활/살림'],
-    ['냉장고 정리 팁', '집·생활/살림'], ['전세 계약 확정일자', '돈·재테크/부동산'], ['자동차 엔진오일 교체 주기', '집·생활/자동차'],
+    ['냉장고 정리 팁', '집·생활/살림'], ['전세 계약 확정일자', '돈·재테크/부동산'], ['자동차 엔진오일 교체 주기', '자동차·교통/자동차 관리'],
     ['무신사 겨울 패딩 세일 알림', '패션·뷰티'], ['배민 쿠폰 오늘까지', '요리·맛집/배달'], ['디즈니플러스 신작', '영상·음악/영화·드라마'],
-    ['영양제 비타민D 주문', '건강·운동'], ['고양이 모래 주문', '집·생활/반려동물'], ['KTX 예매 부산', '여행/교통'],
-    ['아이유 콘서트 예매', '영상·음악/공연·전시'], ['블로그 글감 아이디어', '생각·기록/아이디어'], ['오늘 하루 회고: 일찍 일어남', '생각·기록/일기'],
+    ['영양제 비타민D 주문', '건강·운동'], ['고양이 모래 주문', '반려동물/고양이'], ['KTX 예매 부산', '여행/교통'],
+    ['아이유 콘서트 예매', '영상·음악/공연·전시'], ['블로그 글감 아이디어', '생각·기록/아이디어'], ['오늘 하루 회고: 일찍 일어남', '생각·기록/회고'],
     ['새해 다짐: 매일 30분 독서', '생각·기록/목표'], ['토스트 만들기', '요리·맛집/레시피'], ['테니스 코트 예약', '건강·운동/운동'],
   ];
   const wrong = cases.map(([t, want]) => [t, want, classify(note({}, t))]).filter(([, want, r]) => (want.includes('/') ? two(r) !== want : r.category !== want));
@@ -233,4 +235,15 @@ test('related notes: shared words, tags, sites and drawers — but a drawer alon
   const edges = relatedEdges(idx, { linked: new Set(['1|2']) });
   assert.ok(!edges.some((e) => [e.a, e.b].sort().join('|') === '1|2'), 'already linked pairs are not suggested again');
   assert.ok(edges.some((e) => [e.a, e.b].sort().join('|') === '5|6'));
+});
+
+test('search also finds notes by their auto drawer, 소분류 and auto tags', async () => {
+  const { search } = await import('../js/core/search.js');
+  const N = (id, body) => ({ id, meta: { id, type: 'memo' }, body });
+  const notes = [N('1', '아이폰 16 케이스 살까'), N('2', '제주 애월 숙소'), N('3', '양자역학 너무 어렵다')];
+  const auto = (n) => { const r = classify({ meta: n.meta, body: n.body }); return { path: r.path, tags: r.tags }; };
+  assert.deepEqual(search(notes, '휴대폰').map((r) => r.note.id), []);
+  assert.deepEqual(search(notes, '휴대폰', { auto }).map((r) => r.note.id), ['1']);
+  assert.deepEqual(search(notes, '서랍:여행', { auto }).map((r) => r.note.id), ['2']);
+  assert.deepEqual(search(notes, '과학', { auto }).map((r) => r.note.id), ['3']);
 });

@@ -9,7 +9,7 @@ import { toEditorMarkdown, fromEditorMarkdown, WIKI, ATT } from '../core/wiki.js
 import { search } from '../core/search.js';
 import { displayTitle } from '../core/note.js';
 import { fillVars, takeTokens, matchSlash, ALIASES, LABELS } from '../core/slash.js';
-import { settingsOf, drawerTargets } from './categories.js';
+import { settingsOf, drawerTargets, searchAuto } from './categories.js';
 
 let bundle;
 const loadBundle = () => (bundle ??= import('../vendor/editor.bundle.js'));
@@ -41,7 +41,7 @@ function matchBlocks(q) {
 
 function matchNotes(q, selfId) {
   const lib = app.lib;
-  const list = q.trim() ? search(lib.all, q, { limit: 8 }).map((r) => r.note) : lib.recent(8);
+  const list = q.trim() ? search(lib.all, q, { limit: 8, auto: searchAuto(lib) }).map((r) => r.note) : lib.recent(8);
   return list.filter((n) => n.id !== selfId).slice(0, 7);
 }
 

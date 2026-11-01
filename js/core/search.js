@@ -96,12 +96,22 @@ export function docFor(note) {
   };
 }
 
-export function search(notes, query, { limit = 60 } = {}) {
+// auto(note) → { path, tags }: 자동 분류가 고른 서랍 › 세부 서랍 › 소분류와 자동 태그도 함께 찾는다
+// (아직 폴더로 옮기지 않은 노트도 「휴대폰」「서랍:여행」으로 찾을 수 있게)
+function withAuto(d, auto) {
+  if (!auto) return d;
+  const a = auto(d.note);
+  if (!a) return d;
+  const extra = (a.tags ?? []).map(normalize).filter((t) => !d.tagList.includes(t));
+  return { ...d, category: normalize([d.category, String(a.path ?? '').replaceAll('/', ' ')].filter(Boolean).join(' ')), tags: [d.tags, ...extra].filter(Boolean).join(' '), tagList: [...d.tagList, ...extra] };
+}
+
+export function search(notes, query, { limit = 60, auto = null } = {}) {
   const q = typeof query === 'string' ? parseQuery(query) : query;
   const type = q.type ? (TYPE_ALIASES[q.type] ?? q.type) : null;
   const results = [];
   for (const note of notes) {
-    const d = note._doc ?? docFor(note);
+    const d = withAuto(note._doc ?? docFor(note), auto);
     if (type && d.type !== type) continue;
     if (q.category && !d.category.includes(q.category)) continue;
     if (q.tags.length && !q.tags.every((t) => d.tagList.some((x) => x.includes(t)))) continue;

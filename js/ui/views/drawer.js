@@ -16,7 +16,7 @@ import { quickSave, kindOfText } from '../quick.js';
 import { useSlash } from '../parts/slash.js';
 import { preview, GuessLine } from '../parts/guess.js';
 import { openToday, todayKey, findDaily } from '../notebook.js';
-import { categoryOf, guessCategory, drawerList, inDrawer, categoryLook, settingsOf, tagsOf, tagCounts } from '../categories.js';
+import { categoryOf, guessCategory, drawerList, inDrawer, categoryLook, settingsOf, tagsOf, tagCounts, searchAuto } from '../categories.js';
 import { search, parseQuery } from '../../core/search.js';
 import { readFilter, applyFilter, activeCount, SORTS } from '../../core/filter.js';
 import { FilterBar, clearFilters } from '../parts/filters.js';
@@ -327,7 +327,7 @@ export function Shelf({ scope, params }) {
   useEffect(() => { window.scrollTo(0, 0); }, [scope.kind, scope.value]);
   const searching = scope.kind === 'search';
   const pq = parseQuery(q);
-  const base = searching ? (q.trim() ? search(lib.all, pq, { limit: 400 }).map((h) => h.note) : []) : pick(lib, scope);
+  const base = searching ? (q.trim() ? search(lib.all, pq, { limit: 400, auto: searchAuto(lib) }).map((h) => h.note) : []) : pick(lib, scope);
   const ctx = { cat: (n) => categoryOf(n, lib), tags: (n) => tagsOf(n, lib), title: titleOf };
   const prog = useBodies(f.has.some((k) => k === 'todo' || k === 'open' || k === 'done'));
   const sortKey = f.sort || (searching ? '' : sort);

@@ -7,12 +7,13 @@ import { PageBar } from '../parts/shell.js';
 import { NoteRow, Empty, highlighter } from '../parts/common.js';
 import { answerLocally, buildClaudePrompt, claudeUrl } from '../../core/ask.js';
 import { categoryParts } from '../../core/note.js';
+import { searchAuto } from '../categories.js';
 
 export function Ask({ params }) {
   const lib = useLib();
   const [q, setQ] = useState(params.get('q') ?? '');
   const [asked, setAsked] = useState(params.get('q') ?? '');
-  const result = useMemo(() => (asked.trim() ? answerLocally(lib.all, asked) : null), [asked, lib.all.length]);
+  const result = useMemo(() => (asked.trim() ? answerLocally(lib.all, asked, { auto: searchAuto(lib) }) : null), [asked, lib.all.length]);
   const submit = (e) => { e?.preventDefault(); setAsked(q); setUrl(`#/ask?q=${encodeURIComponent(q)}`); };
   const suggestions = useMemo(() => {
     const folders = lib.folders().slice(0, 2).map((f) => `${f.name}에 뭐가 있었지?`);

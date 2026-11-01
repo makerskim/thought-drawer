@@ -4,7 +4,7 @@
 // 글에서 가장 구체적인 낱말을 소분류로 삼는다. 「기타」는 없다: 아무 단서가 없으면 모르는 사이트는 주소로 짐작하고,
 // 그것도 없으면 「생각·기록 › 메모」에 글의 첫 낱말을 소분류로 둔다. 왜 그렇게 골랐는지와 자동 태그도 함께 돌려준다.
 import { tokenize } from './search.js';
-import { CATEGORIES, BLOCKERS, PLATFORMS, SITES, BRAND_SKIP, HOST_HINTS } from './taxonomy.js';
+import { CATEGORIES, BLOCKERS, PLATFORMS, SITES, BRAND_SKIP, HOST_HINTS, STARTS } from './taxonomy.js';
 
 export { CATEGORIES, SITES };
 // 예전 버전이 쓰던 「기타」 (이제 자동 분류는 쓰지 않지만, 그 이름의 폴더를 만든 사람이 있을 수 있다)
@@ -25,7 +25,7 @@ const matchers = new Map();
 function has(text, word) {
   let m = matchers.get(word);
   if (!m) {
-    const w = lc(word.replace(/^[~+\-!]/, ''));
+    const w = lc(word.replace(FLAGS, ''));
     const re = ASCII.test(w) ? new RegExp(`(^|[^a-z0-9])${esc(w)}([^a-z0-9]|$)`)
       : /^[가-힣]$/.test(w) ? new RegExp(ONE(w))
         : /^[가-힣] /.test(w) ? new RegExp(`(^|[^가-힣])${esc(w)}`) : null;
@@ -34,21 +34,28 @@ function has(text, word) {
   }
   return m(text);
 }
-const tagWord = (w) => !/^[~-]/.test(w) && !/\s/.test(w);
+// 낱말 앞 표시: ~ 분류에만, - 약하게, + 세게, ! 사이트 이름, ^ 낱말 첫머리에서만(「라면」이 「~이라면」에 걸리지 않게). 여럿을 함께 쓸 수 있다(~^먹을)
+const FLAGS = /^[~+\-!^]+/;
+const fl = (w) => FLAGS.exec(w)?.[0] ?? '';
+const has1 = (w, c) => fl(w).includes(c);
+const tagWord = (w) => !has1(w, '~') && !has1(w, '-') && !/\s/.test(w);
 const NORM = new Map(); // 낱말 → 찾을 때 쓰는 꼴 (자주 불려서 한 번만 만든다)
-const norm = (w) => { let n = NORM.get(w); if (n === undefined) { n = lc(w.replace(/^[~+\-!]/, '')); NORM.set(w, n); } return n; };
-const weight = (w) => (w[0] === '!' ? 4 : w[0] === '+' ? 3 : w[0] === '-' ? 0.8 : 1.2);
-const plain = (w) => w.replace(/^[~+\-!]/, '');
+const norm = (w) => { let n = NORM.get(w); if (n === undefined) { n = lc(w.replace(FLAGS, '')); NORM.set(w, n); } return n; };
+const weight = (w) => { const f = fl(w); return f.includes('!') ? 4 : f.includes('+') ? 3 : f.includes('-') ? 0.8 : 1.2; };
+const plain = (w) => w.replace(FLAGS, '');
 
 // 사이트의 한국어 이름을 그 서랍·세부 서랍의 센 낱말로 (뜻이 여럿인 이름은 뺀다)
 const brandsOf = (hosts = []) => [...new Set(hosts.flatMap((h) => Object.keys(SITES).filter((k) => h.includes(k) || k.includes(h)).map((k) => SITES[k])))]
   .filter((n) => !BRAND_SKIP.has(n)).map((n) => `!${n}`);
 // 세부 서랍의 낱말: 묶음(groups)의 낱말도 넣고, 낱말 → 소분류 이름을 기억해 둔다 (아이폰 → 휴대폰)
+// ^ 표시가 한 번이라도 붙은 낱말은 어디서든 낱말 첫머리에서만 찾는다
+const BOUND = new Set(STARTS.trim().split(/\s+/));
 // 같은 낱말이 두 번 들어 있으면(앞 표시만 다르게) 처음 것만 센다
 const uniq = (ws) => { const seen = new Set(); return ws.filter((w) => !seen.has(norm(w)) && seen.add(norm(w))); };
 const LEAF = new Map(); // `${세부 서랍}|${낱말}` → 소분류 이름
 const GROUP = new Map(); // 낱말 → 소분류 이름 (다른 서랍에서 빌려 올 때)
 for (const d of CATEGORIES) {
+  for (const w of [...d.words, ...d.subs.flatMap((x) => [...x.words, ...Object.values(x.groups ?? {}).flat()])]) if (has1(w, '^')) BOUND.add(norm(w));
   d.words = [...d.words, ...brandsOf(d.hosts)];
   for (const x of d.subs) {
     const grouped = Object.entries(x.groups ?? {});
@@ -68,7 +75,7 @@ function finder(w) {
     // 한 글자로 시작하는 말(「방 정리」「물 마시기」)은 앞이 낱말 속(가방 정리)이 아닐 때만
     const re = ASCII.test(w) ? new RegExp(`(^|[^a-z0-9])(${esc(w)})(?=[^a-z0-9]|$)`, 'g')
       : /^[가-힣]$/.test(w) ? new RegExp(ONE(w), 'g')
-        : /^[가-힣] /.test(w) ? new RegExp(`(^|[^가-힣])(${esc(w)})`, 'g')
+        : /^[가-힣] /.test(w) || BOUND.has(w) ? new RegExp(`(^|[^가-힣])(${esc(w)})`, 'g')
           : new RegExp(`()(${esc(w)})`, 'g');
     f = (t) => [...t.matchAll(re)].map((m) => m.index + m[1].length);
     finders.set(w, f);
@@ -259,7 +266,8 @@ export function classify({ meta = {}, body = '' }, model = null, opts = {}) {
       if (s > 0) add(name, s, '비슷한 노트가 있는 서랍');
     }
   }
-  const top = () => { let b = null; for (const [name, s] of scores) if (!b || s > b.score) b = { category: name, score: s }; return b; };
+  // 점수가 같으면 사전 순서가 앞선 서랍 (내용 서랍이 앞, 할 일·생각·기록이 뒤)
+  const top = () => { let b = null; for (const [name, s] of scores) if (!b || s > b.score + 1e-9) b = { category: name, score: s }; return b; };
   let best = top();
   if (!best || best.score < 1.2) {
     for (const g of sigs) if (g.soft) add(g.top, g.s, g.why);
@@ -336,7 +344,7 @@ function pickLeaf(top, sub, def, { found, places, host, sigs, siteLeaf, meta, bo
   const skip = new Set([top, sub, def?.name, sdef?.name, ...String(sub).split(/\s+/), ...String(top).split(/[\s·]+/)].filter(Boolean).map(lc));
   const labelOf = (w, own) => (own ? LEAF.get(`${sdef?.name}|${norm(w)}`) : null) ?? GROUP.get(norm(w)) ?? '';
   // ~ 낱말(「힘들」)은 묶음 이름(기분)이 있을 때만, 「~하는 법」「챙기기」 같은 꼴은 묶음 이름이 있을 때만
-  const usable = (w, label) => (w[0] !== '~' || label) && (label || !(/\s/.test(w) ? BAD_END : VERB_END).test(plain(w)));
+  const usable = (w, label) => (!has1(w, '~') || label) && (label || !(/\s/.test(w) ? BAD_END : VERB_END).test(plain(w)));
   const pick = (ws, own) => {
     const list = [];
     for (const w of ws) {
@@ -350,7 +358,7 @@ function pickLeaf(top, sub, def, { found, places, host, sigs, siteLeaf, meta, bo
       // 다른 서랍에서 빌려 올 때 서랍 이름 자체(위시리스트, 레시피)는 쓰지 않는다
       if (!own && NAMES.has(lc(label))) continue;
       // 보통 낱말 → 흔한 낱말 → 사이트 이름, 같으면 글에 먼저 나온 것
-      list.push([label, w[0] === '!' ? 2 : w[0] === '-' ? 1 : 0, found.get(norm(w))]);
+      list.push([label, has1(w, '!') ? 2 : has1(w, '-') ? 1 : 0, found.get(norm(w))]);
     }
     list.sort((a, b) => a[1] - b[1] || a[2] - b[2]);
     return list[0]?.[0] ?? '';
@@ -359,7 +367,7 @@ function pickLeaf(top, sub, def, { found, places, host, sigs, siteLeaf, meta, bo
   const own = pick(places.filter((e) => sdef && e.s === sdef).map((e) => e.w), true);
   if (own) return own;
   // 다른 서랍의 낱말은 흔한 말(-)과 한 글자 말은 빼고 빌려 온다 (「집 근처 맛집」의 「집」)
-  const other = pick(uniq(places.map((e) => e.w).filter((w) => w[0] !== '-' && plain(w).length > 1)), false);
+  const other = pick(uniq(places.map((e) => e.w).filter((w) => !has1(w, '-') && plain(w).length > 1)), false);
   if (other) return other;
   const sig = sigs.find((g) => g.leaf);
   if (sig) return sig.leaf;
@@ -368,20 +376,24 @@ function pickLeaf(top, sub, def, { found, places, host, sigs, siteLeaf, meta, bo
 }
 
 // 사전에 없는 글: 제목·첫 줄에서 이름 같은 낱말 하나 (「양자역학 너무 어렵다」 → 양자역학)
-const NOUN_STOP = new Set(['추천', '후기', '리뷰', '방법', '시작', '준비', '고민', '근처', '정보', '확인', '찾기', '오늘', '내일', '어제', '모레', '지금', '이번', '다음', '지난', '정말', '진짜', '너무', '그냥', '하나', '이거', '저거', '그거', '여기', '거기', '저기', '우리', '나중', '다시', '같이', '먼저', '생각', '메모', '기록', '정리', '내용', '부분', '관련', '많이', '조금', '아주', '매우', '계속', '항상', '가끔', '혹시', '아마', '이제', '벌써', '아직', '자주', '모두', '전부', '다들', '이건', '그건', '저건', '이런', '그런', '저런', '어떤', '모든', '제일', '가장', '완전', '엄청', '되게', '갑자기', '드디어', '일단', '이따', '요즘', '오랜만', '때문', '정도', '사실', '그리고', '근데', '그래서', '하지만', '또는', '그럼', '아니', '없음', '있음', '목록', '리스트', '사진', '링크', '노트']);
-const VERBISH = /(을|를|의|에|로|와|과|도|만|다|요|죠|네|까|군|구나|니|냐|게|고|며|면|서|자|라|래|야|어|아|여|해|했|할|한|된|될|던|는|은|기|지|음|임|함|됨|듯|려|러|도록|면서|지만|는데|니까|으로|에서|처럼|까지|부터|이랑|하고)$/;
+const NOUN_STOP = new Set(['필요', '가능', '진행', '사용', '이용', '추천', '후기', '리뷰', '방법', '시작', '준비', '고민', '근처', '정보', '확인', '찾기', '오늘', '내일', '어제', '모레', '지금', '이번', '다음', '지난', '정말', '진짜', '너무', '그냥', '하나', '이거', '저거', '그거', '여기', '거기', '저기', '우리', '나중', '다시', '같이', '먼저', '생각', '메모', '기록', '정리', '내용', '부분', '관련', '많이', '조금', '아주', '매우', '계속', '항상', '가끔', '혹시', '아마', '이제', '벌써', '아직', '자주', '모두', '전부', '다들', '이건', '그건', '저건', '이런', '그런', '저런', '어떤', '모든', '제일', '가장', '완전', '엄청', '되게', '갑자기', '드디어', '일단', '이따', '요즘', '오랜만', '때문', '정도', '사실', '그리고', '근데', '그래서', '하지만', '또는', '그럼', '아니', '없음', '있음', '목록', '리스트', '사진', '링크', '노트']);
+const VERBISH = /(을|를|의|에|로|와|과|도|만|세|다|요|죠|네|까|군|구나|니|냐|게|고|며|면|서|자|라|래|야|어|아|여|해|했|할|한|된|될|던|는|은|기|지|음|임|함|됨|듯|려|러|도록|면서|지만|는데|니까|으로|에서|처럼|까지|부터|이랑|하고)$/;
 function nounOf(meta, body, skip) {
   const lines = [meta.title ?? '', ...String(body ?? '').replace(/https?:\/\/\S+/g, ' ').replace(/!\[\[[^\]]*\]\]/g, ' ').split('\n')]
     .map((l) => l.replace(/^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|#{1,6}\s+|\d+[.)]\s+)/, '')).filter((l) => l.trim());
   for (const line of lines.slice(0, 4)) {
-    for (const t of tokenize(line)) {
+    for (const t0 of tokenize(line)) {
+      // 「당황했어」「고독한」「격려가」처럼 이름씨 뒤에 붙은 끝을 떼어 본다
+      const cut = /[가-힣]/.test(t0) ? t0.replace(ENDING, '') : t0;
+      const t = cut.length >= 2 ? cut : t0;
       if (t.length < 2 || t.length > 12 || /\d/.test(t) || /^[ㄱ-ㅎㅏ-ㅣ]+$/.test(t) || NOUN_STOP.has(t) || skip.has(t)) continue;
-      if (/^[a-z]+$/.test(t) ? t.length < 3 : VERBISH.test(t)) continue;
+      if (/^[a-z]+$/.test(t) ? t.length < 3 : t === t0 && VERBISH.test(t)) continue;
       return t;
     }
   }
   return '';
 }
+const ENDING = /(했었|했는데|했잖아|했다|했어|했음|했고|합니다|해요|해서|해야|하고|하는|하니|할까|한다|하자|하면|하기|하게|하지|됐어|됐다|되는|된다|되고|돼서|스럽다|스러워|스러운|스럽|적인|적으로|이었|이다|이야|이에요|예요|인데|인게|이라|이랑|이고|이지|인가|일까|에서|으로|한테|에게|까지|부터|처럼|했|해|할|한|돼|랑|은|는|이|가|을|를|도|만|에|로|와|과|의)$/;
 
 // 자동 태그: 규칙의 태그 → 이미 쓰는 태그 중 글에 나온 것 → 사이트 이름 → 세부 서랍 낱말 → 서랍 낱말 → 다른 서랍 낱말
 function pickTags({ text, found, places, host, top, sub, ruleTags, model, maxTags }) {
@@ -432,5 +444,5 @@ export function categoryLook(name) {
 export const defaultTree = () => CATEGORIES.map((d) => ({
   name: d.name,
   subs: d.subs.map((s) => s.name),
-  leaves: Object.fromEntries(d.subs.map((s) => [s.name, [...Object.keys(s.groups ?? {}), ...s.words.filter((w) => tagWord(w) && w[0] !== '!' && !GROUP.has(norm(w)) && w !== s.name)].slice(0, 4).map(plain)])),
+  leaves: Object.fromEntries(d.subs.map((s) => [s.name, [...Object.keys(s.groups ?? {}), ...s.words.filter((w) => tagWord(w) && !has1(w, '!') && !GROUP.has(norm(w)) && w !== s.name)].slice(0, 4).map(plain)])),
 }));

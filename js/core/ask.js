@@ -4,12 +4,13 @@
 import { search, parseQuery } from './search.js';
 import { displayTitle, TYPES } from './note.js';
 
-export function answerLocally(notes, question, { limit = 40 } = {}) {
+export function answerLocally(notes, question, { limit = 40, auto = null } = {}) {
   const q = parseQuery(question);
-  const results = search(notes, q, { limit });
+  const results = search(notes, q, { limit, auto });
   const groups = new Map();
   for (const r of results) {
-    const cat = r.note.meta.category || '정리 대기';
+    // 폴더로 옮긴 노트는 그 폴더, 아니면 자동 분류가 고른 서랍 › 세부 서랍
+    const cat = r.note.meta.category || (auto ? String(auto(r.note)?.path ?? '').split('/').slice(0, 2).join('/') : '') || '정리 대기';
     if (!groups.has(cat)) groups.set(cat, []);
     groups.get(cat).push(r);
   }
