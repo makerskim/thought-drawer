@@ -14,8 +14,11 @@ import { topOf } from '../../core/classify.js';
 import { SORTS } from '../../core/filter.js';
 import { preview, GuessLine } from '../parts/guess.js';
 import { convertForExport } from '../../core/export.js';
-import { ATTACH_DIR, GOOGLE_CLIENT_ID } from '../../config.js';
-import { relTime } from '../format.js';
+import { ATTACH_DIR } from '../../config.js';
+import { relTime, fullDate } from '../format.js';
+import { noteHref } from '../router.js';
+import { categoryParts } from '../../core/note.js';
+import { titleOf } from '../parts/common.js';
 import { loadScript, JSZIP } from './more.js';
 
 const GUIDE = 'https://github.com/makerskim/thought-drawer/blob/main/docs/%EC%84%A4%EC%A0%95%EA%B0%80%EC%9D%B4%EB%93%9C.md';
@@ -193,115 +196,37 @@ function TryIt() {
   </div>`;
 }
 
-// ---------- Claude 자동 정리: 무엇을 하는지, 켜는 법, 지금 정리하기, 확인·되돌리기, 문제 해결 ----------
-const CL_PROMPT = 'organizer/ROUTINE.md 순서대로 Thought Drawer를 정리해줘.';
-const CL_ASK = 'Thought Drawer 자동 정리 예약 작업 만들어줘. 하루 세 번, Haiku로.';
-const CL_CHECK = 'python3 organizer/organize.py status';
-const CL_HOSTS = 'googleapis.com, oauth2.googleapis.com, www.instagram.com';
-const copyText = async (text, what = '') => { try { await navigator.clipboard.writeText(text); toast(`${what || '복사'}했어요.`); } catch { toast('복사 실패. 직접 선택해 복사하세요.'); } };
-// 복사할 값 한 줄: 이름(굵게) · 값(코드) · 복사 단추
-const Copy = ({ name, value, hint, secret = false }) => html`<div class="cg-copy">
-  ${name && html`<b>${name}</b>`}
-  ${secret ? html`<span class="cg-hint">${hint}</span>` : html`<code>${value}</code>`}
-  ${!secret && html`<button type="button" class="btn btn-sm btn-ghost" onClick=${() => copyText(value, name ? `${name} 값 복사` : '복사')} aria-label=${`${name || value} 복사`}><${Icon} name="copy" /></button>`}
-  ${name && html`<button type="button" class="btn btn-sm btn-ghost cg-name" onClick=${() => copyText(name, '이름 복사')} aria-label=${`${name} 이름 복사`}>이름</button>`}
-</div>`;
+// ---------- Claude 자동 정리: 상태창 (켜는 법은 설정 가이드 4단계) ----------
+const copyText = async (text, what = '복사') => { try { await navigator.clipboard.writeText(text); toast(`${what}했어요.`); } catch { toast('복사 실패. 직접 선택해 복사하세요.'); } };
+const DAY = 86_400_000;
 
-function ClaudeGuide({ token, setToken, secret, setSecret }) {
+function ClaudeStatus({ token, setToken, secret, setSecret }) {
   const lib = useLib();
+  const last = lib.index?.generatedAt ?? '';
+  const on = !!last;
+  const done = lib.all.filter((n) => n.meta.organized);
   const waiting = lib.all.filter((n) => n.meta.status !== 'organized').length;
+  // 정리할 노트가 쌓였는데 이틀 넘게 정리가 없으면 예약 작업이 멈췄을 수 있다 (새 노트가 없으면 정리기는 바로 끝나서 시각이 안 바뀐다)
+  const stale = on && waiting > 0 && Date.now() - Date.parse(last) > 2 * DAY;
+  const recent = [...done].sort((a, b) => String(b.meta.organized).localeCompare(String(a.meta.organized))).slice(0, 3);
   return html`
-    <div class="cg-intro">
-      <p>앱의 자동 분류는 낱말로 바로 나누는 <b>1차 분류</b>예요. Claude 자동 정리는 노트를 직접 읽고 <b>정밀하게</b> 다시 정리해요.</p>
-      <ul class="cg-does">
-        <li><${Icon} name="drawer" />대분류 › 중분류 › 소분류로 다시 나누고 실제 폴더로 옮김</li>
-        <li><${Icon} name="type" />알아보기 쉬운 제목과 한 줄 요약</li>
-        <li><${Icon} name="tag" />검색용 태그 2~5개</li>
-        <li><${Icon} name="connect" />관련 노트끼리 연결</li>
-      </ul>
-      <p class="cg-small">내 Claude 구독(Pro 이상)으로 돌아서 추가 비용이 없어요. 사용량은 평소 한도에서 같이 빠져요. 정리할 노트는 지금 <b>${waiting}개</b>예요.</p>
-    </div>
-
+    <${Row} label="상태"><span class=${cx('cl-state', on && !stale && 'on', stale && 'warn')}><i></i>${!on ? '꺼짐' : stale ? '확인 필요' : '켜짐'}</span></${Row}>
+    ${on && html`<${Row} label="마지막 정리"><span class="cl-val" title=${fullDate(last)}>${relTime(last)}</span></${Row}>`}
+    ${on && html`<${Row} label="정리한 노트"><span class="cl-val">${done.length}개</span></${Row}>`}
+    <${Row} label="정리 대기"><span class="cl-val">${waiting}개</span></${Row}>
+    <${Row} label="비용"><span class="cl-val">0원 · 구독 안에서</span></${Row}>
+    ${stale && html`<div class="banner warn cl-banner"><${Icon} name="alert" /><p>정리 대기 노트가 있는데 이틀 넘게 정리가 없어요. claude.ai/code의 예약 작업 실행 기록을 확인하세요.</p></div>`}
+    ${recent.length > 0 && html`<div class="cl-recent"><span class="cl-cap">최근 정리</span>
+      ${recent.map((n) => html`<a key=${n.id} href=${noteHref(n.id)}><b>${titleOf(n)}</b><small>${categoryParts(n.meta.category).join(' › ')} · ${relTime(n.meta.organized)}</small></a>`)}</div>`}
     <details class="sg-details" open=${!!(token?.refreshToken || token?.error) || undefined}>
-      <summary>켜는 법 · 처음 한 번 (약 15분)</summary>
-      <ol class="cg-steps">
-        <li><b class="cg-t">준비물</b>
-          <ul>
-            <li>Claude Pro 이상 구독, 이 앱 저장소(thought-drawer)가 있는 GitHub 계정</li>
-            <li>구글 클라우드에서 만든 로그인용 <b>클라이언트 보안 비밀</b> (앱을 처음 만들 때 받은 값)</li>
-            <li>구글 클라우드 <b>OAuth 동의 화면</b>을 「프로덕션」으로 게시해 두세요. 「테스트」면 토큰이 7일마다 끊겨요.</li>
-          </ul></li>
-        <li><b class="cg-t">정리기용 토큰 받기 <span>이 화면에서</span></b>
-          <ul><li>보안 비밀을 넣고 <b>토큰 받기</b> → 구글 허용 화면에서 계속 → 돌아오면 토큰이 보여요. <b>복사</b>해 두세요.</li></ul>
-          <form class="code-box" onSubmit=${(e) => { e.preventDefault(); if (!secret.trim()) { toast('클라이언트 보안 비밀을 넣어 주세요.'); return; } app.auth.requestOfflineCode(secret.trim()); }}>
-            <input class="input" type="password" autocomplete="off" value=${secret} onInput=${(e) => setSecret(e.target.value)} placeholder="클라이언트 보안 비밀" aria-label="클라이언트 보안 비밀" /><button class="btn">토큰 받기</button>
-          </form>
-          ${token?.refreshToken && html`<div class="code-box"><input class="input mono" readonly value=${token.refreshToken} onFocus=${(e) => e.target.select()} aria-label="정리기용 토큰" /><button type="button" class="btn" onClick=${() => copyText(token.refreshToken, '토큰 복사')}><${Icon} name="copy" />복사</button></div>`}
-          ${token?.error && html`<div class="banner warn"><${Icon} name="alert" /><p>${token.error}</p><button type="button" class="btn btn-ghost" onClick=${() => setToken(null)}>닫기</button></div>`}
-          <p class="cg-small">보안 비밀은 저장하지 않아요. 토큰은 이 화면을 나가면 다시 볼 수 없어요(다시 받으면 돼요).</p></li>
-        <li><b class="cg-t">Claude Code 환경 만들기</b>
-          <ul>
-            <li><a href="https://claude.ai/code" target="_blank" rel="noopener">claude.ai/code</a>에서 GitHub의 <b>thought-drawer</b> 저장소를 연결해요.</li>
-            <li>위쪽 환경 이름 → <b>편집</b> → <b>환경 변수</b>에 세 개를 넣어요.</li>
-          </ul>
-          <div class="cg-vars">
-            <${Copy} name="TD_GOOGLE_CLIENT_ID" value=${GOOGLE_CLIENT_ID} />
-            <${Copy} name="TD_GOOGLE_CLIENT_SECRET" secret hint="구글 클라우드의 보안 비밀을 직접 붙여 넣기" />
-            <${Copy} name="TD_GOOGLE_REFRESH_TOKEN" secret hint="2단계에서 복사한 토큰" />
-          </div>
-          <ul>
-            <li><b>네트워크 접근</b>은 「전체」로 두면 저장한 링크의 내용까지 읽어요. 「제한」이면 허용 목록에 아래 주소를 넣어요(링크는 주소만 보고 정리).</li>
-          </ul>
-          <${Copy} value=${CL_HOSTS} /></li>
-        <li><b class="cg-t">연결 확인</b>
-          <ul><li>그 환경에서 새 세션을 열고 아래 명령을 보내요. 「정리 대기 N장」이 나오면 성공이에요.</li></ul>
-          <${Copy} value=${CL_CHECK} /></li>
-        <li><b class="cg-t">예약 작업 만들기 <span>자동으로 하루 몇 번</span></b>
-          <ul>
-            <li>claude.ai/code → <b>예약 작업</b> → 새로 만들기. 저장소는 thought-drawer, 환경은 3단계 환경.</li>
-            <li>할 일(프롬프트)에 아래 문장을 넣어요.</li>
-          </ul>
-          <${Copy} value=${CL_PROMPT} />
-          <ul>
-            <li>일정은 하루 2~3번(예: 아침 8:47, 낮 1:47, 밤 9:47), 모델은 <b>Haiku</b>(사용량이 가장 적어요).</li>
-            <li>또는 그 환경의 세션에서 아래처럼 말하면 Claude가 만들어 줘요.</li>
-          </ul>
-          <${Copy} value=${CL_ASK} /></li>
-      </ol>
-    </details>
-
-    <details class="sg-details">
-      <summary>지금 정밀 분류하기</summary>
-      <ol class="cg-steps">
-        <li>예약 작업 화면에서 <b>지금 실행</b>을 누르거나, 그 환경에서 새 세션을 열고 아래 문장을 보내요.<${Copy} value=${CL_PROMPT} /></li>
-        <li>한 번에 최대 30개씩 정리해요. 노트가 많으면 끝날 때까지 여러 번 실행하세요(새 노트가 없으면 바로 끝나요).</li>
-        <li>더 꼼꼼하게 하려면 그때만 모델을 <b>Sonnet</b>으로 바꿔요. 사용량은 조금 더 들어요.</li>
-        <li>정리 대상은 <b>「자동」 배지가 붙은 노트</b>(아직 폴더로 옮기지 않은 것)예요. 내가 직접 서랍을 정한 노트는 건드리지 않아요.</li>
-        <li>항상 같은 서랍에 넣고 싶은 것이 있으면 먼저 <a href="#/settings?s=rules">분류 규칙</a>을 만들어 두세요. Claude도 그 규칙을 그대로 따라요.</li>
-      </ol>
-    </details>
-
-    <details class="sg-details">
-      <summary>정리 후 확인 · 되돌리기</summary>
-      <ul class="cg-steps">
-        <li>위의 <b>상태</b>가 「켜짐 · 방금 정리」로 바뀌어요.</li>
-        <li>정리된 노트는 「자동」 배지가 사라지고, 제목·요약·태그가 붙은 채 서랍 폴더로 옮겨져요. 드라이브 「메모」 폴더에서도 같은 폴더로 보여요.</li>
-        <li>서랍이 마음에 안 들면 노트를 열어 <b>서랍</b>을 바꾸세요. 「자동 분류에 맡기기」를 고르면 다음 정리 때 다시 정리돼요.</li>
-        <li>내가 고친 서랍은 앱의 자동 분류도 배워서 다음부터 더 잘 맞아요.</li>
-      </ul>
-    </details>
-
-    <details class="sg-details">
-      <summary>문제가 생기면</summary>
-      <ul class="cg-steps">
-        <li><b>상태가 계속 「꺼짐」</b>: 예약 작업의 실행 기록에서 마지막 메시지를 확인해요.</li>
-        <li><b>「구글 인증 실패」</b>: 동의 화면이 「테스트」라 토큰이 7일 만에 끊겼을 수 있어요. 「프로덕션」으로 바꾸고 2단계를 다시 해요.</li>
-        <li><b>「환경 변수가 없어요」</b>: 3단계의 이름 철자(대문자, 밑줄)를 확인해요. 위의 「이름」 단추로 복사하면 정확해요.</li>
-        <li><b>링크 내용을 못 읽음</b>: 네트워크 접근을 「전체」로 바꿔요.</li>
-        <li>화면별 자세한 설명은 <a href=${GUIDE} target="_blank" rel="noopener">설정 가이드 4단계</a>에 있어요.</li>
-      </ul>
-    </details>
-    <p class="cg-small cg-warn"><${Icon} name="alert" />토큰과 보안 비밀은 Claude 채팅창에 붙여 넣지 마세요. 환경 변수 칸에만 넣어요.</p>`;
+      <summary>정리기 연결 (토큰 받기)</summary>
+      <form class="code-box" onSubmit=${(e) => { e.preventDefault(); if (!secret.trim()) { toast('클라이언트 보안 비밀을 넣어 주세요.'); return; } app.auth.requestOfflineCode(secret.trim()); }}>
+        <input class="input" type="password" autocomplete="off" value=${secret} onInput=${(e) => setSecret(e.target.value)} placeholder="클라이언트 보안 비밀" aria-label="클라이언트 보안 비밀" /><button class="btn">토큰 받기</button>
+      </form>
+      ${token?.refreshToken && html`<div class="code-box"><input class="input mono" readonly value=${token.refreshToken} onFocus=${(e) => e.target.select()} aria-label="정리기용 토큰" /><button type="button" class="btn" onClick=${() => copyText(token.refreshToken, '토큰 복사')}><${Icon} name="copy" />복사</button></div>`}
+      ${token?.error && html`<div class="banner warn"><${Icon} name="alert" /><p>${token.error}</p><button type="button" class="btn btn-ghost" onClick=${() => setToken(null)}>닫기</button></div>`}
+      <small class="muted">보안 비밀은 저장하지 않아요. 토큰은 채팅창에 붙여 넣지 마세요.</small>
+    </details>`;
 }
 
 // ---------- 설정 화면 ----------
@@ -392,9 +317,8 @@ export function Settings({ offline, params }) {
         <${Row} label="다시 받기" desc="드라이브에서 새로"><button type="button" class="btn btn-sm" onClick=${refetch}><${Icon} name="refresh" />다시 받기</button></${Row}>
       </${Group}>
 
-      <${Group} id="claude" title="Claude 자동 정리" scope="선택" foot="필요할 때 켜는 정밀 분류. 추가 비용 없음.">
-        <${Row} label="상태"><span class=${`cl-state ${lib.index?.generatedAt ? 'on' : ''}`}><i></i>${lib.index?.generatedAt ? `켜짐 · ${relTime(lib.index.generatedAt)} 정리` : '꺼짐'}</span></${Row}>
-        <${ClaudeGuide} token=${token} setToken=${setToken} secret=${secret} setSecret=${setSecret} />
+      <${Group} id="claude" title="Claude 자동 정리" scope="선택" foot=${html`필요할 때 켜는 정밀 분류. 켜는 법은 <a href=${GUIDE} target="_blank" rel="noopener">설정 가이드 4단계</a>.`}>
+        <${ClaudeStatus} token=${token} setToken=${setToken} secret=${secret} setSecret=${setSecret} />
       </${Group}>
     </div>
     <${Footer} />`;

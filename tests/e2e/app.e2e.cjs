@@ -293,21 +293,11 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   const labels0 = await p.$$eval('.sg-label b', (els) => els.map((e) => e.textContent.trim()));
   const descs = await p.$$eval('.sg-label small', (els) => els.map((e) => e.textContent.trim()));
   ok(labels0.every((l) => l.length <= 8) && descs.every((d) => d.length <= 12), `settings: short labels (${labels0.join('·')}) and tiny hints only`);
-  // Claude 자동 정리: 무엇을 하는지, 켜는 법 5단계, 지금 정리하기, 확인·되돌리기, 문제 해결 + 복사 단추
+  // Claude 자동 정리: 켜기 전에는 짧은 상태창 (설정법은 길게 쓰지 않는다)
   const cg = p.locator('#s-claude');
-  const sums = await cg.locator('details summary').allInnerTexts();
-  ok(sums.length === 4 && sums[0].startsWith('켜는 법') && sums[1] === '지금 정밀 분류하기' && sums[2].startsWith('정리 후') && sums[3] === '문제가 생기면', `claude guide: sections (${sums.join(' / ')})`);
-  ok(await cg.locator('.cg-intro .cg-does li').count() === 4 && (await cg.locator('.cg-intro').innerText()).includes('1차 분류'), 'claude guide: says what it does vs the quick auto classification');
-  await cg.locator('details summary').first().click();
-  ok(await cg.locator('details').first().locator('.cg-steps > li').count() === 5, 'claude guide: five setup steps');
-  await cg.locator('.cg-copy', { hasText: 'TD_GOOGLE_CLIENT_ID' }).locator('button[aria-label$="값 복사"], button[aria-label="TD_GOOGLE_CLIENT_ID 복사"]').first().click();
-  const copiedId = await p.evaluate(() => navigator.clipboard.readText());
-  ok(/apps\.googleusercontent\.com$/.test(copiedId), 'claude guide: copies the client ID value');
-  await cg.locator('.cg-copy', { hasText: 'TD_GOOGLE_REFRESH_TOKEN' }).locator('.cg-name').click();
-  ok((await p.evaluate(() => navigator.clipboard.readText())) === 'TD_GOOGLE_REFRESH_TOKEN', 'claude guide: copies variable names exactly');
-  await cg.locator('.cg-copy', { hasText: 'ROUTINE.md' }).first().locator('button').click();
-  ok((await p.evaluate(() => navigator.clipboard.readText())).startsWith('organizer/ROUTINE.md'), 'claude guide: copies the routine prompt');
-  ok(await cg.locator('.cg-copy code', { hasText: /SECRET|refresh/i }).count() === 0, 'claude guide: never shows a secret value');
+  const cgLabels = await cg.locator('.sg-label b').allInnerTexts();
+  ok(JSON.stringify(cgLabels) === JSON.stringify(['상태', '정리 대기', '비용']) && (await cg.locator('.cl-state').innerText()).includes('꺼짐'), `claude: off → short status (${cgLabels.join(', ')})`);
+  ok(await cg.locator('.cg-steps, .cg-intro').count() === 0 && (await cg.locator('details summary').allInnerTexts()).join() === '정리기 연결 (토큰 받기)' && await cg.locator('.sg-foot a').count() === 1, 'claude: no long how-to, just token connect and a guide link');
   const kws = await p.$$eval('#s-keywords .item-row code', (els) => els.map((e) => e.textContent));
   ok(['/할일', '/오늘', '/내일', '/어제', '/지금'].every((k) => kws.includes(k)) && await p.locator('#s-keywords .fixed-row code').count() === 5, 'settings: default commands are listed and editable, actions shown as fixed');
   // 내 명령어: 창에서 이름, 글, 끼워 넣기
@@ -533,6 +523,37 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   ok((await p.locator('.props .mpill').innerText()).includes('쇼핑 › 가전 › 휴대폰'), 'note shows its three-level drawer');
   ok(p.errors.length === 0, 'levels: no page errors ' + p.errors.join(' | '));
   await p.context().close();
+
+  // ---- Claude 자동 정리가 켜진 뒤의 상태창 ----
+  {
+    const { serializeNote, fileNameFor } = await import('../../js/core/note.js');
+    const iso = (ms) => new Date(Date.now() - ms).toISOString().slice(0, 19);
+    const mk = (id, meta, body, dir) => ({ dir, name: fileNameFor({ id, ...meta }), text: serializeNote({ meta: { id, type: 'memo', created: iso(5e6), ...meta }, body }) });
+    const files = (lastMs) => [
+      mk('20261101090000', { title: '맥북 에어 비교', status: 'organized', category: '쇼핑/가전/노트북', organized: iso(3600e3) }, '13인치와 15인치', '쇼핑/가전/노트북'),
+      mk('20261101100000', { title: '새로 넣은 메모', status: 'inbox' }, '아직 정리 전', '00_인박스'),
+      { dir: '_시스템', name: 'index.json', text: JSON.stringify({ version: 1, generatedAt: iso(lastMs), notes: [] }) },
+    ];
+    for (const [label, lastMs] of [['fresh', 3600e3], ['stale', 3 * 86400e3]]) {
+      const q = await open(b, { seedData: { profile: { name: '나', email: 'me@example.com' }, files: files(lastMs) }, hash: '#/settings?s=claude' });
+      await q.waitForSelector('#s-claude .cl-state');
+      await q.waitForTimeout(300);
+      const c = q.locator('#s-claude');
+      const labels = await c.locator('.sg-label b').allInnerTexts();
+      const state = await c.locator('.cl-state').innerText();
+      if (label === 'fresh') {
+        ok(JSON.stringify(labels) === JSON.stringify(['상태', '마지막 정리', '정리한 노트', '정리 대기', '비용']) && state.includes('켜짐'), `claude on: status rows (${labels.join(', ')} · ${state.trim()})`);
+        const vals = await c.locator('.cl-val').allInnerTexts();
+        ok(vals[1] === '1개' && vals[2] === '1개' && vals[3].startsWith('0원'), `claude on: counts and cost (${vals.join(' / ')})`);
+        ok((await c.locator('.cl-recent a').innerText()).includes('맥북 에어 비교') && (await c.locator('.cl-recent a').innerText()).includes('쇼핑 › 가전 › 노트북'), 'claude on: recently organized notes');
+        ok(await c.locator('.cl-banner').count() === 0, 'claude on: no warning when it ran recently');
+      } else {
+        ok(state.includes('확인 필요') && await c.locator('.cl-banner').count() === 1, 'claude on: warns when notes wait and nothing ran for 2+ days');
+      }
+      ok(q.errors.length === 0, `claude ${label}: no page errors ` + q.errors.join(' | '));
+      await q.context().close();
+    }
+  }
 
   // ---- 낮 화면, 빈 서랍 ----
   p = await open(b, { seedData: { profile: { name: '나', email: 'me@example.com' }, files: [], quota: { limit: String(15 * 1024 ** 3), usage: String(14 * 1024 ** 3), usageInDrive: String(3 * 1024 ** 3) } } });
