@@ -6,4 +6,5 @@
 - 웹앱: 빌드 없는 정적 사이트 (`index.html`, `js/`, `css/`). 화면은 Preact + htm(`js/vendor/`), 진입점 `js/main.js`. 테스트 `npm test`
 - 정리기: `organizer/` (파이썬 표준 라이브러리만 사용). 테스트 `python3 -m pytest -q organizer/tests`
 - 노트 형식은 `js/core/note.js` 와 `organizer/td_note.py` 가 같은 규칙을 따른다. 한쪽을 바꾸면 다른 쪽도 바꾼다.
+- 자동 분류 사전: `js/core/taxonomy.js`(+ `taxonomy-more.js`). 서랍 이름을 바꾸면 `node tools/export-taxonomy.mjs` 로 `organizer/taxonomy.json` 을 다시 만든다 (Claude 정리기가 같은 이름을 쓰게, `npm test`가 확인). 대량 점검은 `node tools/classify-bench.mjs <말뭉치 폴더>`.
 - 크롬 확장: `extension/` (MV3). `extension/app/` 은 웹앱 코드 복사본이라 직접 고치지 않는다. 웹앱 공용 코드를 바꾸면 `node tools/sync-extension.mjs` 로 복사와 zip(`downloads/`)을 다시 만든다 (`npm test`가 확인).

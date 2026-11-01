@@ -31,6 +31,7 @@ ATTACH = '_첨부'
 SYSTEM = '_시스템'
 SPECIAL = {ATTACH, SYSTEM}
 WORK = Path(__file__).resolve().parent / 'work'
+TAXONOMY = Path(__file__).resolve().parent / 'taxonomy.json'  # 앱의 기본 서랍 (tools/export-taxonomy.mjs 가 만든다)
 
 # 한 번에 Claude에게 보여 줄 양 (구독 사용량을 아끼는 장치)
 MAX_CARDS = 30
@@ -44,8 +45,10 @@ RULES = """## 정리 규칙
 - 노트마다 아래 형식의 결정을 하나씩 쓴다. 결과는 JSON 배열 하나만 `organizer/work/decisions.json`에 저장한다.
   `{"id": "노트 번호", "title": "제목", "category": "대분류/중분류/소분류", "tags": ["태그"], "summary": "한 문장 요약", "links": [{"id": "번호", "why": "이유"}]}`
 - title: 30자 이내, 무엇인지 바로 알 수 있게. 사용자가 단 제목이 있으면 그대로 둔다(빈 문자열로 쓴다).
-- category: 한국어, 세 단계까지(예: "쇼핑/가전/노트북", "요리·맛집/레시피/김치찌개", "여행/국내/제주"). **기존 폴더 목록에 맞는 게 있으면 반드시 그걸 쓴다.**
-  새 폴더는 기존 것과 겹치지 않을 때만 만든다. 「기타」는 쓰지 않는다: 무엇이든 어떤 것의 한 종류로 넣는다(정보가 너무 적으면 "생각·기록/메모").
+- category: 한국어, 세 단계 "대분류/중분류/소분류"(예: "쇼핑/가전/노트북", "요리·맛집/레시피/김치찌개", "여행/국내/제주").
+  **기존 폴더 목록에 맞는 게 있으면 반드시 그걸 쓴다.** 없으면 아래 "기본 서랍"의 대분류·중분류 이름을 그대로 쓴다(앱 자동 분류와 같은 이름).
+  소분류는 그 노트를 가장 잘 나타내는 구체적인 낱말 하나(제품 종류, 장소, 음식 이름, 사람 관계 등). 마땅치 않으면 두 단계로 둔다.
+  새 서랍은 기본 서랍과 기존 폴더 어디에도 맞지 않을 때만 만든다. 「기타」는 쓰지 않는다: 무엇이든 어떤 것의 한 종류로 넣는다(정보가 너무 적으면 "생각·기록/메모").
 - tags: 2~5개, 짧은 명사. 사고 싶은 물건이면 "위시리스트"를 넣는다.
 - summary: 80자 이내 한 문장. 나중에 검색할 핵심 단어(브랜드, 가격, 장소, 재료 등)를 넣는다.
 - links: 그 노트의 "연결 후보"나 이번 묶음의 다른 노트 중 정말 관련 있는 것만, 0~3개. why는 15자 이내.
@@ -82,6 +85,15 @@ def load_rules(store, files):
         if match and (drawer or tags):
             out.append({'match': match, 'drawer': drawer, 'tags': tags})
     return out
+
+
+def taxonomy_lines():
+    """앱의 기본 서랍·세부 서랍 (Claude가 앱과 같은 이름을 쓰게)"""
+    try:
+        drawers = json.loads(TAXONOMY.read_text(encoding='utf-8'))['drawers']
+    except (OSError, ValueError, KeyError):
+        return []
+    return ['## 기본 서랍 (대분류: 중분류들)', '', *[f"- {d['name']}: {', '.join(d['subs'])}" for d in drawers], '']
 
 
 def rules_lines(rules):
@@ -244,7 +256,7 @@ def cmd_prepare(store, args):
 
     WORK.mkdir(parents=True, exist_ok=True)
     (WORK / 'batch.json').write_text(json.dumps(batch, ensure_ascii=False, indent=1), encoding='utf-8')
-    lines = [f'# 정리할 노트 {len(batch)}장 (전체 대기 {len(inbox_files)}장)', '', RULES, *rules_lines(load_rules(store, files)), '## 기존 폴더 (노트 수)', '']
+    lines = [f'# 정리할 노트 {len(batch)}장 (전체 대기 {len(inbox_files)}장)', '', RULES, *rules_lines(load_rules(store, files)), *taxonomy_lines(), '## 기존 폴더 (노트 수)', '']
     drawers = drawer_counts(organized)
     lines.append(', '.join(f'{c} ({n})' for c, n in drawers) if drawers else '(아직 없음. 필요한 폴더를 새로 만든다)')
     lines += ['', '## 노트', '']

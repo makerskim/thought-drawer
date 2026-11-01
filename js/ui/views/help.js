@@ -112,6 +112,7 @@ export function Help({ params }) {
             <li><b>배운 것</b>: 직접 옮긴 노트와 비슷하면 그 서랍.</li>
           </ol>
           <p class="help-p">단서가 없으면 <b>생각·기록 › 메모</b>에 첫 낱말을 소분류로 둡니다. 서랍이 틀리면 노트를 열어 「서랍」을 바꾸세요. 그때 드라이브 폴더로 옮기고, 다음부터 더 잘 맞습니다.</p>
+          <p class="help-p">더 정밀하게 정리하고 싶으면 <a href="#/settings?s=claude">설정 → Claude 자동 정리</a>를 켜세요. 노트를 직접 읽고 같은 서랍 이름으로 다시 정리해 폴더로 옮겨요.</p>
           <p class="help-p">자동으로 고른 서랍·소분류·태그로도 찾을 수 있어요. 예: 「휴대폰」으로 아이폰 노트, 「서랍:여행」으로 여행 노트.</p>
           <details class="help-tree"><summary>기본 서랍 ${CATEGORIES.length}개 · 세부 서랍 ${CATEGORIES.reduce((s, c) => s + c.subs.length, 0)}개</summary>
             <ul>${CATEGORIES.map((c) => html`<li key=${c.name}><b>${c.name}</b> ${c.subs.map((x) => x.name).join(' · ')}</li>`)}</ul>

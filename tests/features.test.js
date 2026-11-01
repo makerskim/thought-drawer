@@ -247,3 +247,9 @@ test('search also finds notes by their auto drawer, 소분류 and auto tags', as
   assert.deepEqual(search(notes, '서랍:여행', { auto }).map((r) => r.note.id), ['2']);
   assert.deepEqual(search(notes, '과학', { auto }).map((r) => r.note.id), ['3']);
 });
+
+test('Claude 정리기가 쓰는 서랍 목록(organizer/taxonomy.json)이 앱 사전과 같다', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { treeJson } = await import('../tools/export-taxonomy.mjs');
+  assert.equal(readFileSync(new URL('../organizer/taxonomy.json', import.meta.url), 'utf8'), treeJson(), 'node tools/export-taxonomy.mjs 를 실행하세요');
+});

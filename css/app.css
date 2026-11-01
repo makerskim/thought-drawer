@@ -963,6 +963,33 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 .cl-state { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: var(--text-2); }
 .cl-state i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
 .cl-state.on i { background: var(--ok); }
+/* Claude 자동 정리 안내 */
+.cg-intro { padding: 14px 16px; border-top: 1px solid var(--border); display: grid; gap: 10px; font-size: 14px; line-height: 1.6; color: var(--text-2); }
+.cg-intro p { margin: 0; }
+.cg-intro b { color: var(--text); font-weight: 600; }
+.cg-does { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.cg-does li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text); }
+.cg-does .i { width: 16px; height: 16px; flex: none; color: var(--accent-ink); }
+.cg-small { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--text-3); }
+.cg-warn { display: flex; align-items: flex-start; gap: 6px; padding: 12px 16px; border-top: 1px solid var(--border); }
+.cg-warn .i { width: 14px; height: 14px; flex: none; margin-top: 2px; }
+.sg-details + .cg-warn, .cg-intro + .sg-details { border-top: 1px solid var(--border); }
+.cg-steps { margin: 0; padding-left: 20px; display: grid; gap: 14px; font-size: 13.5px; line-height: 1.6; color: var(--text-2); }
+.cg-steps b { color: var(--text); font-weight: 600; }
+.cg-steps .cg-t { display: block; margin-bottom: 2px; font-size: 14px; }
+.cg-steps .cg-t span { margin-left: 6px; font-size: 12.5px; font-weight: 400; color: var(--text-3); }
+.cg-steps ul { margin: 2px 0 0; padding-left: 16px; display: grid; gap: 3px; }
+.cg-steps .code-box, .cg-steps .cg-copy, .cg-steps .cg-vars, .cg-steps .banner, .cg-steps .cg-small { margin-top: 8px; }
+.cg-steps a { color: var(--accent-ink); }
+.cg-vars { display: grid; gap: 6px; }
+.cg-vars .cg-copy { margin-top: 0; }
+.cg-vars .cg-copy b { flex: 1 0 100%; padding-top: 4px; }
+.cg-copy { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 40px; padding: 6px 6px 6px 12px; border-radius: 10px; background: var(--soft); }
+.cg-copy b { font: 600 12px var(--mono); color: var(--text); }
+.cg-copy code { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; font: 12.5px/1.5 var(--mono); color: var(--text); }
+.cg-copy .cg-hint { flex: 1 1 160px; font-size: 12.5px; color: var(--text-3); }
+.cg-copy .btn { flex: none; }
+.cg-copy .cg-name { font-size: 12px; }
 .sg-steps code { padding: 1px 5px; border-radius: 5px; background: var(--soft); font: 12px var(--mono); }
 .sg { border-radius: 14px; background: var(--paper); box-shadow: 0 0 0 1px var(--border); overflow: hidden; }
 .sg-row { display: flex; align-items: center; gap: 16px; min-height: 52px; padding: 10px 16px; }

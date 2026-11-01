@@ -60,6 +60,7 @@ def test_prepare_builds_compact_batch(vault, capsys):
     assert '달고나 라떼' in md, 'instagram caption fetched without AI'
     assert '저장했어요' not in md and '인스타그램에서 보기' not in md, 'boilerplate stripped'
     assert '20260912214510 | 흰색 옥스포드 셔츠' in md, 'link candidate by shared words'
+    assert '## 기본 서랍' in md and '- 쇼핑: 가전,' in md and '- 생각·기록: 메모,' in md, 'app drawer names for consistent folders'
     batch = json.loads((organize.WORK / 'batch.json').read_text(encoding='utf-8'))
     assert [c['id'] for c in batch] == ['20261027093012', '20261026213300', '20261025180000'], 'newest first'
 
