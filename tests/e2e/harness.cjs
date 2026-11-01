@@ -21,6 +21,8 @@ exports.open = async (b, { viewport = { width: 1440, height: 900 }, dark = false
   const data = seedData === undefined ? await seed() : seedData;
   if (data) await ctx.addInitScript((s) => { window.__TD_TEST__ = s; }, data);
   if (!tutorial) await ctx.addInitScript(() => { try { localStorage.setItem('td.tutorialDone', 'true'); } catch { /* 없음 */ } });
+  // 시험·스크린샷은 시각에 따라 바뀌지 않게 기기 설정(밝게/어둡게 옵션)을 따른다. 시험이 바꾸면 그대로 둔다.
+  await ctx.addInitScript(() => { try { if (localStorage.getItem('td.theme') === null) localStorage.setItem('td.theme', '"system"'); } catch { /* 없음 */ } });
   const p = await ctx.newPage();
   p.errors = [];
   p.on('pageerror', (e) => p.errors.push(e.message));

@@ -1,5 +1,6 @@
 // 앱 전체가 함께 쓰는 것: 라이브러리, 로그인, 설정값, 알림, 떠 있는 창
 import { useState, useEffect } from './h.js';
+import { themeByTime } from '../core/sun.js';
 
 export const app = {
   lib: null,
@@ -44,14 +45,25 @@ export function usePref(key, fallback) {
   return [v, (nv) => { prefs.set(key, nv); setV(nv); }];
 }
 
+// 밝기: '' 자동(해 뜨면 밝게, 지면 어둡게) · 'system' 기기 설정 따라 · 'light' · 'dark'
 export function applyAppearance() {
   const root = document.documentElement;
   const theme = prefs.get('theme', '');
   const font = prefs.get('font', '');
-  // 기본은 기기 설정을 따른다. 낮(light)·밤(dark)을 고르면 그 화면으로 고정
-  if (theme === 'light' || theme === 'dark') root.dataset.theme = theme; else delete root.dataset.theme;
+  const eff = theme === 'light' || theme === 'dark' ? theme : theme === 'system' ? '' : themeByTime();
+  if (eff) root.dataset.theme = eff; else delete root.dataset.theme;
   if (font) root.dataset.font = font; else delete root.dataset.font;
   delete root.dataset.palette;
+  // 브라우저 위쪽 막대 색도 같이
+  for (const m of document.querySelectorAll('meta[name="theme-color"]')) {
+    m.dataset.base ??= m.getAttribute('content');
+    m.setAttribute('content', eff ? (eff === 'dark' ? '#000000' : '#f5f5f7') : m.dataset.base);
+  }
+}
+// 자동이면 해가 뜨고 질 때 바뀌도록 1분마다, 그리고 앱으로 돌아올 때 다시 본다
+export function keepAppearance() {
+  setInterval(applyAppearance, 60_000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') applyAppearance(); });
 }
 
 // ---- 서랍이의 말 (첫 화면의 서랍이가 말풍선으로 보여 주고, 다른 화면에서는 알림으로) ----

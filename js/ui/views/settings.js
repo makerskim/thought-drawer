@@ -246,7 +246,7 @@ export function Settings({ offline, params }) {
       <div class="page-head"><h1>설정</h1></div>
 
       <${Group} id="screen" title="화면" scope="이 기기">
-        <${Row} label="밝기"><${Seg} label="밝기" value=${theme} set=${setTheme} opts=${[['', '자동'], ['light', '밝게'], ['dark', '어둡게']]} /></${Row}>
+        <${Row} label="밝기" desc=${theme === '' ? '낮 밝게 · 밤 어둡게' : theme === 'system' ? '기기 설정 따라' : ''}><${Seg} label="밝기" value=${theme} set=${setTheme} opts=${[['', '자동'], ['system', '기기'], ['light', '밝게'], ['dark', '어둡게']]} /></${Row}>
         <${Row} label="글꼴"><${Seg} label="글꼴" value=${font} set=${setFont} opts=${[['', '기본'], ['serif', '명조'], ['mono', '고정폭']]} /></${Row}>
         <${Row} label="보기"><${Seg} label="보기" value=${view} set=${setView} opts=${[['wall', '카드'], ['list', '목록']]} /></${Row}>
         <${Row} label="정렬"><${Select} label="정렬" value=${sort} set=${setSort} opts=${SORTS} /></${Row}>

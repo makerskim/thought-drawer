@@ -168,3 +168,16 @@ test('realistic notes land in the right drawer (longest word wins, brands, weak 
   const wrong = cases.map(([t, want]) => [t, want, classify(note({}, t))]).filter(([, want, r]) => (want.includes('/') ? r.path !== want : r.category !== want));
   assert.deepEqual(wrong.map(([t, want, r]) => `${t} → ${r.path} (기대 ${want})`), []);
 });
+
+test('sun times for 자동 brightness (Seoul)', async () => {
+  const { sunTimes, themeByTime } = await import('../js/core/sun.js');
+  const seoul = { lat: 37.57, lon: 126.98, tz: 540 };
+  const near = (got, h, m) => Math.abs(got - (h * 60 + m)) <= 8;
+  const nov = sunTimes(new Date(2026, 10, 1, 12), seoul);
+  assert.ok(near(nov.rise, 6, 55) && near(nov.set, 17, 35), JSON.stringify(nov));
+  const jun = sunTimes(new Date(2026, 5, 21, 12), seoul);
+  assert.ok(near(jun.rise, 5, 11) && near(jun.set, 19, 57), JSON.stringify(jun));
+  assert.equal(themeByTime(new Date(2026, 10, 1, 13, 0), seoul), 'light');
+  assert.equal(themeByTime(new Date(2026, 10, 1, 18, 30), seoul), 'dark');
+  assert.equal(themeByTime(new Date(2026, 10, 1, 6, 0), seoul), 'dark');
+});

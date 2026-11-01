@@ -1,7 +1,7 @@
 // Thought Drawer 시작점
 import { html, render } from './ui/h.js';
 import { App } from './ui/App.js';
-import { app, applyAppearance } from './ui/state.js';
+import { app, applyAppearance, keepAppearance } from './ui/state.js';
 import { createAuth } from './store/auth.js';
 import { GOOGLE_CLIENT_ID } from './config.js';
 
@@ -22,6 +22,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 applyAppearance();
+keepAppearance();
 adoptShareQuery();
 render(html`<${App} auth=${createAuth(GOOGLE_CLIENT_ID)} />`, document.getElementById('root'));
 

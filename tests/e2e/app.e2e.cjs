@@ -167,8 +167,13 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   ok((await p.evaluate(() => document.documentElement.dataset.theme)) === 'light', 'theme: switch to light');
   await p.click('#s-screen .seg button:has-text("어둡게")');
   ok((await p.evaluate(() => document.documentElement.dataset.theme)) === 'dark', 'theme: dark');
+  await p.click('#s-screen .seg button:has-text("기기")');
+  ok(!(await p.evaluate(() => document.documentElement.dataset.theme)), 'theme: 기기 follows the device');
   await p.click('#s-screen .seg button:has-text("자동")');
-  ok(!(await p.evaluate(() => document.documentElement.dataset.theme)), 'theme: follows the device by default');
+  const byTime = await p.evaluate(async () => (await import('./js/core/sun.js')).themeByTime());
+  ok((await p.evaluate(() => document.documentElement.dataset.theme)) === byTime && (await p.locator('#s-screen').innerText()).includes('낮 밝게 · 밤 어둡게'), `theme: 자동 follows the sun (now ${byTime})`);
+  ok(await p.evaluate(() => [...document.querySelectorAll('meta[name="theme-color"]')].every((m) => m.content === (document.documentElement.dataset.theme === 'dark' ? '#000000' : '#f5f5f7'))), 'theme: browser bar color follows too');
+  await p.click('#s-screen .seg button:has-text("기기")');
   await p.evaluate(() => { location.hash = '#/search?q=' + encodeURIComponent('셔츠'); });
   await p.waitForSelector('.grid .poster');
   ok(await p.locator('.grid .poster').count() >= 2 && await p.locator('.grid .poster mark').count() >= 1, 'search page shows highlighted posters');
