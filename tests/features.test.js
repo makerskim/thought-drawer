@@ -253,3 +253,18 @@ test('Claude 정리기가 쓰는 서랍 목록(organizer/taxonomy.json)이 앱 �
   const { treeJson } = await import('../tools/export-taxonomy.mjs');
   assert.equal(readFileSync(new URL('../organizer/taxonomy.json', import.meta.url), 'utf8'), treeJson(), 'node tools/export-taxonomy.mjs 를 실행하세요');
 });
+
+test('나만 쓰기: 주인 계정만 통과 (메일 주소는 지문으로만 비교)', async () => {
+  const { isOwner } = await import('../js/store/auth.js');
+  const { createHash } = await import('node:crypto');
+  const fp = (e) => createHash('sha256').update(e).digest('hex');
+  const owners = [fp('me@example.com')];
+  assert.equal(await isOwner('me@example.com', owners), true);
+  assert.equal(await isOwner('  Me@Example.com ', owners), true, '대소문자·앞뒤 빈칸 무시');
+  assert.equal(await isOwner('stranger@example.com', owners), false);
+  assert.equal(await isOwner('', owners), false);
+  assert.equal(await isOwner('anyone@example.com', []), true, '비우면 누구나');
+  const { readFileSync } = await import('node:fs');
+  const config = readFileSync(new URL('../js/config.js', import.meta.url), 'utf8');
+  assert.ok(!/@gmail\.com/.test(config), '공개 코드에 메일 주소를 두지 않는다');
+});

@@ -354,6 +354,6 @@ async function start() {
   const st = await send('status').catch(() => ({ profile: null }));
   s.profile = st.profile;
   header();
-  if (!s.profile) { showConnect(); return; }
+  if (!s.profile) { showConnect(st.error); return; }
   await start();
 })();

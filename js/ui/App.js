@@ -26,7 +26,8 @@ import { enrichNew } from './categories.js';
 import { createLibrary } from '../store/library.js';
 import { createDriveAdapter } from '../store/drive.js';
 import { createMemoryAdapter } from '../store/memory.js';
-import { AuthRequired, isStandalone } from '../store/auth.js';
+import { AuthRequired, isStandalone, isOwner, OWNER_ONLY } from '../store/auth.js';
+import { OWNERS } from '../config.js';
 import { DriveError } from '../store/drive.js';
 
 const isTyping = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
@@ -119,6 +120,14 @@ export function App({ auth }) {
   const openLibrary = async () => {
     const test = window.__TD_TEST__;
     const profile = test?.profile ?? auth.profile ?? {};
+    // 나만 쓰기: 주인이 아닌 구글 계정이면 연결을 끊고 로그인 화면으로 (노트를 열거나 기기에 남기지 않는다)
+    if (!(await isOwner(profile.email, test ? test.owners ?? [] : OWNERS))) {
+      if (!test) auth.signOut();
+      app.profile = null;
+      setError(OWNER_ONLY);
+      setPhase('login');
+      return;
+    }
     app.profile = profile;
     const adapter = test ? createMemoryAdapter(test) : createDriveAdapter(auth);
     app.lib = createLibrary(adapter, { cacheName: test ? 'td-test' : `td-cache:${profile.email ?? 'me'}` });

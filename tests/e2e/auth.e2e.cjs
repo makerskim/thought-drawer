@@ -13,9 +13,15 @@ const GIS = `window.google = { accounts: { oauth2: {
     setTimeout(() => cfg.callback({ access_token: 'POP', expires_in: 3599, scope: ${JSON.stringify(SCOPE)} }), 30); } }; },
   revoke() {} } } };`;
 
-async function start(b, { token, exp, hash = '#/', google = 'ok' }) {
+// 나만 쓰기: 시험에서는 시험 계정(me@example.com)을 주인으로 둔다 (실제 config.js 는 그대로)
+const FP = require('crypto').createHash('sha256').update('me@example.com').digest('hex');
+async function start(b, { token, exp, hash = '#/', google = 'ok', owner = FP }) {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
   const log = { auth: [], bearer: new Set() };
+  await ctx.route(/\/js\/config\.js(\?.*)?$/, async (r) => {
+    const res = await r.fetch();
+    r.fulfill({ response: res, body: (await res.text()).replace(/export const OWNERS = \[[^\]]*\];/, `export const OWNERS = ['${owner}'];`) });
+  });
   await ctx.route(/^https:\/\/(cdn\.jsdelivr\.net|fonts\.(googleapis|gstatic)\.com|www\.google\.com\/s2)\//, (r) => r.fulfill({ status: 404, body: '' }));
   await ctx.route(/^https:\/\/accounts\.google\.com\//, (r) => {
     const u = new URL(r.request().url());
@@ -85,6 +91,13 @@ const saved = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('td.google
   await p.waitForTimeout(300);
   ok((await p.evaluate(() => window.__gis.length)) === 1, 'in use: no more popups once renewed');
   ok(p.errors.length === 0, 'in use: no errors ' + p.errors.join(' | '));
+  await ctx.close();
+
+  // 나만 쓰기: 주인이 아닌 계정으로 열면 연결을 끊고 로그인 화면에 안내 (노트를 열지 않음)
+  ({ p, ctx, log } = await start(b, { token: 'OK', exp: 3_600_000, owner: require('crypto').createHash('sha256').update('owner@example.com').digest('hex') }));
+  await p.waitForSelector('.login', { timeout: 15000 });
+  ok((await p.locator('.login').innerText()).includes('주인만 쓸 수 있어요') && (await saved(p)) === null, 'owner lock: another account is signed out and sees why');
+  ok(p.errors.length === 0, 'owner lock: no errors ' + p.errors.join(' | '));
   await ctx.close();
 
   await b.close();

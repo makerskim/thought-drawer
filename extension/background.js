@@ -2,7 +2,7 @@
 // 팝업은 창이 닫히면 하던 일이 멈추므로, 저장과 로그인은 모두 여기서 한다.
 
 import { APP_URL } from './app/config.js';
-import { AuthRequired } from './app/store/auth.js';
+import { AuthRequired, isOwner, OWNER_ONLY } from './app/store/auth.js';
 import * as auth from './ext/auth.js';
 import { save } from './ext/save.js';
 import { readPage } from './ext/page.js';
@@ -43,6 +43,9 @@ const LABEL = { memo: '메모', page: '페이지', image: '이미지', capture: 
 async function run(kind, data, { quiet = false } = {}) {
   badge('…');
   try {
+    // 나만 쓰기: 예전에 다른 계정으로 연결돼 있었다면 넣지 않고 연결을 끊는다
+    const who = auth.profile();
+    if (who && !(await isOwner(who.email))) { await auth.signOut(); throw new Error(OWNER_ONLY); }
     const meta = await save(kind, data, (step) => chrome.runtime.sendMessage({ type: 'progress', step }).catch(() => {}));
     await remember({ ...meta, title: meta.title || data.title || '' }, kind);
     badge('✓', '#2d855a');
@@ -94,9 +97,15 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
 });
 
 const handlers = {
-  status: () => auth.status(),
+  // 나만 쓰기: 주인이 아닌 계정이면 연결을 끊는다 (웹앱과 같은 config.js 의 OWNERS)
+  async status() {
+    const st = await auth.status();
+    if (st.profile && !(await isOwner(st.profile.email))) { await auth.signOut(); return { profile: null, connected: false, error: OWNER_ONLY }; }
+    return st;
+  },
   async signin({ consent }) {
     const profile = await auth.signIn({ consent });
+    if (!(await isOwner(profile?.email))) { await auth.signOut(); throw new Error(OWNER_ONLY); }
     // 구글 창이 뜨면 팝업이 닫히므로, 연결이 끝나면 다시 열어 준다
     chrome.action.openPopup?.().catch(() => {});
     return { profile };

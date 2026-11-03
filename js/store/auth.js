@@ -4,7 +4,20 @@
 //  - 앱을 열 때 만료됐으면 구글에 잠깐 다녀온다(prompt=none: 구글에 로그인돼 있으면 화면 없이 바로 돌아온다)
 //  - 쓰는 중에 끝나 가면 다음 클릭 때 작은 창이 잠깐 떴다 닫힌다(이미 허용했으면 누를 것 없음)
 
+import { OWNERS } from '../config.js';
+
 export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+
+// 나만 쓰기: 로그인한 구글 계정이 주인(config.js 의 OWNERS)인지. 메일 주소의 SHA-256 지문으로 비교한다.
+// 다른 사람은 내 노트를 원래 볼 수 없고(노트는 각자 드라이브, drive.file 권한), 이 검사는 남이 이 앱 자체를 쓰지 못하게 막는다.
+export const OWNER_ONLY = '이 앱은 주인만 쓸 수 있어요. 주인의 구글 계정으로 다시 로그인해 주세요.';
+export async function isOwner(email, owners = OWNERS) {
+  if (!owners?.length) return true;
+  if (!email) return false;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(email).trim().toLowerCase()));
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return owners.includes(hex);
+}
 const SCOPES = `${DRIVE_SCOPE} openid email profile`;
 const KEY = 'td.google';
 const BACK = 'td.back'; // 구글에 다녀오기 전 보던 화면

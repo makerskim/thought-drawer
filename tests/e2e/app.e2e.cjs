@@ -524,6 +524,21 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   ok(p.errors.length === 0, 'levels: no page errors ' + p.errors.join(' | '));
   await p.context().close();
 
+  // ---- 나만 쓰기: 주인이 아닌 계정은 로그인 화면에서 막는다 ----
+  {
+    const fp = (e) => require('crypto').createHash('sha256').update(e).digest('hex');
+    const owners = [fp('me@example.com')];
+    const q1 = await open(b, { seedData: { profile: { name: '남', email: 'stranger@example.com' }, files: [], owners } });
+    await q1.waitForSelector('.login');
+    ok((await q1.locator('.login').innerText()).includes('주인만 쓸 수 있어요') && await q1.locator('.capbar').count() === 0, 'owner lock: a stranger account stays on the login screen with a message');
+    ok(q1.errors.length === 0, 'owner lock: no page errors ' + q1.errors.join(' | '));
+    await q1.context().close();
+    const q2 = await open(b, { seedData: { profile: { name: '나', email: 'me@example.com' }, files: [], owners } });
+    await q2.waitForSelector('.capbar textarea');
+    ok(await q2.locator('.login').count() === 0, 'owner lock: the owner account opens the app');
+    await q2.context().close();
+  }
+
   // ---- Claude 자동 정리가 켜진 뒤의 상태창 ----
   {
     const { serializeNote, fileNameFor } = await import('../../js/core/note.js');
