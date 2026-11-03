@@ -1,6 +1,6 @@
 // 노트 화면: 제목, 속성(폴더·태그·출처·날짜), Claude 요약, 내 생각, 본문(바로 쓰는 편집기, 자동 저장),
 // 오른쪽 패널(연결, 비슷한 노트). /new 는 아무것도 적기 전까지 파일을 만들지 않는다.
-import { html, useState, useEffect, useLayoutEffect, useRef, useCallback, autosize } from '../h.js';
+import { html, useState, useEffect, useLayoutEffect, useRef, useCallback, autosize, cx } from '../h.js';
 import { Icon, Mascot, TYPE_ICON } from '../icons.js';
 import { app, useLib, toast } from '../state.js';
 import { go, setUrl, noteHref, folderHref, tagHref } from '../router.js';
@@ -72,11 +72,11 @@ function WsBar({ noteId = null, crumb = null, right = null, siblings = [] }) {
 }
 
 // 왼쪽 칸: 같은 서랍의 노트들 (옵시디언의 파일 탐색기)
-function Explorer({ note, cat }) {
+function Explorer({ note, cat, onClose }) {
   const lib = useLib();
   const list = note ? lib.all.filter((n) => categoryOf(n, lib).name === cat.name).slice(0, 300) : lib.all.slice(0, 60);
   return html`<aside class="ws-left" aria-label="같은 서랍의 노트">
-    <div class="ws-pane-head"><${Icon} name=${note ? categoryLook(cat.name).icon : 'clock'} /><b>${note ? cat.name : '최근 노트'}</b><span class="grow"></span><a href=${note ? folderHref(cat.name) : '#/all'} title="모두 보기">${list.length}</a></div>
+    <div class="ws-pane-head"><${Icon} name=${note ? categoryLook(cat.name).icon : 'clock'} /><b>${note ? cat.name : '최근 노트'}</b><span class="grow"></span><a href=${note ? folderHref(cat.name) : '#/all'} title="모두 보기">${list.length}</a>${onClose && html`<button type="button" class="icon-btn show-m pane-x" aria-label="닫기" onClick=${onClose}><${Icon} name="x" /></button>`}</div>
     <ul class="ex-list">${list.map((n) => html`<li key=${n.id}><a href=${noteHref(n.id)} aria-current=${note && n.id === note.id ? 'page' : undefined}><${Icon} name=${TYPE_ICON[n.meta.type] ?? 'memo'} /><span>${titleOf(n)}</span></a></li>`)}</ul>
   </aside>`;
 }
@@ -99,11 +99,11 @@ function LocalGraph({ note }) {
 }
 
 // 오른쪽 칸: 연결 · 목차 · 그래프 (옵시디언의 오른쪽 사이드바)
-function Side({ note, md }) {
+function Side({ note, md, onClose }) {
   const [tab, setTab] = useState('links');
   const tabs = [['links', '연결'], ['outline', '목차'], ['graph', '그래프']];
   return html`<aside class="ws-right" aria-label="연결과 목차">
-    <div class="rp-tabs" role="tablist">${tabs.map(([k, label]) => html`<button type="button" key=${k} role="tab" aria-selected=${tab === k} onClick=${() => setTab(k)}>${label}</button>`)}</div>
+    <div class="rp-tabs" role="tablist">${tabs.map(([k, label]) => html`<button type="button" key=${k} role="tab" aria-selected=${tab === k} onClick=${() => setTab(k)}>${label}</button>`)}${onClose && html`<button type="button" class="icon-btn show-m pane-x" aria-label="닫기" onClick=${onClose}><${Icon} name="x" /></button>`}</div>
     <div class="rp-body note-links">
       ${tab === 'links' && (note ? html`<${Links} note=${note} />` : html`<p class="rp-empty">저장 후 표시됩니다.</p>`)}
       ${tab === 'outline' && html`<${Outline} md=${md} />`}
@@ -172,6 +172,8 @@ export function NoteView({ id, params }) {
   const [main, setMain] = useState(() => (note || id !== 'new' ? splitLinks(note?.body).main : TEMPLATES.find((t) => t.id === params?.get('template'))?.body ?? ''));
   const [thought, setThought] = useState(note?.meta.thought ?? '');
   const [saveState, setSaveState] = useState(null);
+  const [pane, setPane] = useState(''); // 폰: PC의 왼쪽(같은 서랍 노트)·오른쪽(연결·목차·그래프) 칸을 밀어 여는 창으로
+  const flip = (k) => setPane((p) => (p === k ? '' : k));
   const dirty = useRef(false);
   const queue = useRef(Promise.resolve());
   const latest = useRef({});
@@ -301,12 +303,15 @@ export function NoteView({ id, params }) {
     <${MenuItem} icon="trash" label="지우기" danger onClick=${() => { close(); remove(); }} />`);
 
   const kindLabel = KIND_LABEL[m.type] ?? '메모';
-  return html`<div class="ws">
-    <${Explorer} note=${note} cat=${cat} />
+  return html`<div class=${cx('ws', pane && `pane-${pane}`)}>
+    <${Explorer} note=${note} cat=${cat} onClose=${() => setPane('')} />
+    ${pane && html`<button type="button" class="ws-scrim show-m" aria-label="닫기" onClick=${() => setPane('')}></button>`}
     <div class="ws-main">
       <${WsBar} noteId=${noteId} siblings=${note && cat ? lib.all.filter((n) => categoryOf(n, lib).name === cat.name).map((n) => n.id) : []} crumb=${html`${cat ? html`<a href=${folderHref(cat.name)}>${cat.name}</a><${Icon} name="chevron" />${cat.sub && html`<a href=${folderHref(`${cat.name}/${cat.sub}`)}>${cat.sub}</a><${Icon} name="chevron" />`}${cat.sub && cat.leaf && html`<a class="hide-m" href=${folderHref(`${cat.name}/${cat.sub}/${cat.leaf}`)}>${cat.leaf}</a><${Icon} name="chevron" class="hide-m" />`}` : html`<span>새 노트</span><${Icon} name="chevron" />`}<b>${title.trim() || (note ? titleOf(note) : '제목 없음')}</b>`} right=${html`
         <${SaveState} state=${saveState} />
         <span class="grow"></span>
+        <button type="button" class="icon-btn show-m" aria-label="같은 서랍 노트" aria-pressed=${pane === 'left'} title="같은 서랍 노트" onClick=${() => flip('left')}><${Icon} name="sidebar" /></button>
+        <button type="button" class="icon-btn show-m" aria-label="연결 · 목차 · 그래프" aria-pressed=${pane === 'right'} title="연결 · 목차 · 그래프" onClick=${() => flip('right')}><${Icon} name="panel" /></button>
         ${note && html`<button type="button" class=${`icon-btn${pinned ? ' starred' : ''}`} aria-pressed=${pinned} aria-label="즐겨찾기" title="즐겨찾기" onClick=${togglePin}><${Icon} name="star" /></button>`}
         <button type="button" class="icon-btn" aria-label="더 보기" onClick=${(e) => more(e.currentTarget)}><${Icon} name="more" /></button>`} />
       <article class=${`note-page k-${m.type ?? 'memo'}`}>
@@ -352,6 +357,6 @@ export function NoteView({ id, params }) {
         ${note && html`<p class="facts"><span>${fullDate(m.created)}에 넣음</span><span>${relTime(m.updated || m.created)} 고침</span>${m.organized && html`<span>${relTime(m.organized)} Claude가 정리</span>`}<span class="num">No.${note.id}</span></p>`}
       </article>
     </div>
-    <${Side} note=${note} md=${main} />
+    <${Side} note=${note} md=${main} onClose=${() => setPane('')} />
   </div>`;
 }

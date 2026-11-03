@@ -129,6 +129,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.evaluate(() => { location.hash = '#/n/20261020093000'; });
   await p.waitForSelector('.ws .props');
   ok((await p.locator('.props').innerText()).includes('패션 › 상의') && await p.locator('.callout').count() === 1, 'properties table and summary callout');
+  ok(await p.locator('.ws .show-m:visible').count() === 0 && await p.locator('.ws-left').isVisible() && await p.locator('.ws-right').isVisible(), 'desktop: three panes side by side, phone-only buttons hidden');
   await p.waitForSelector('.rp-rel');
   const relTitle = (await p.locator('.rp-rel b span:last-child').first().innerText()).trim();
   await p.locator('.rp-rel .link-btn').first().click();
@@ -489,6 +490,20 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.locator('.grid .poster').first().click();
   await p.waitForSelector('.ws .note-title');
   ok(await p.locator('.ws-left').isHidden() && await p.evaluate(() => document.documentElement.scrollWidth <= 390), 'phone: note is one column');
+  // 폰에서도 PC의 세 칸: 위쪽 단추로 왼쪽(같은 서랍 노트)·오른쪽(연결·목차·그래프)을 밀어 연다
+  const crumbH = await p.locator('.ws-bar .crumbs').evaluate((e) => e.getBoundingClientRect().height);
+  ok(crumbH <= 24, `phone: note path stays on one line (${Math.round(crumbH)}px)`);
+  await p.click('[aria-label="같은 서랍 노트"]');
+  await p.waitForTimeout(400);
+  ok(await p.locator('.ws-left').isVisible() && await p.locator('.ws-left .ex-list a').count() > 0, 'phone: list button slides in the same-drawer notes');
+  await p.click('.ws-left .pane-x');
+  await p.waitForTimeout(400);
+  await p.click('[aria-label="연결 · 목차 · 그래프"]');
+  await p.waitForTimeout(400);
+  ok(await p.locator('.ws-right').isVisible() && await p.locator('.ws-left').isHidden() && (await p.locator('.ws-right .rp-tabs').innerText()).includes('연결'), 'phone: panel button slides in links · outline · graph');
+  await p.locator('.ws-scrim').click({ position: { x: 20, y: 300 } });
+  await p.waitForTimeout(400);
+  ok(await p.locator('.ws-right').isHidden() && await p.evaluate(() => document.documentElement.scrollWidth <= 390), 'phone: tapping outside closes it, no sideways scroll');
   ok(p.errors.length === 0, 'phone: no page errors ' + p.errors.join(' | '));
   await p.context().close();
 

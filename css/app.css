@@ -709,7 +709,6 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 }
 @media (max-width: 860px) {
   .gn-links { display: none; }
-  .gn-brand span { display: none; }
   .add-btn span { display: none; }
   .add-btn { width: 34px; padding: 0; justify-content: center; }
   .hero { padding: 24px var(--gut) 96px; }
@@ -945,10 +944,9 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 .man-faq dd { margin: 4px 0 0; font-size: 14px; line-height: 1.6; color: var(--text-2); }
 @media (max-width: 860px) {
   .manual { grid-template-columns: 1fr; gap: 14px; }
-  .man-toc { position: static; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(var(--gut) * -1); padding: 0 var(--gut); }
-  .man-toc::-webkit-scrollbar { display: none; }
-  .man-toc button { flex: none; gap: 6px; height: 32px; min-height: 0; padding: 0 12px; border-radius: 999px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--border); }
-  .man-toc button span { width: auto; }
+  /* PC처럼 차례를 한눈에: 두 줄 목록 */
+  .man-toc { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 8px; padding: 8px; border-radius: 14px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--border); }
+  .man-toc button { min-height: 34px; padding: 0 8px; }
   .man-sec { padding: 18px; }
 }
 
@@ -1044,9 +1042,9 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 .sk-fold .sk { width: 92px; height: 76px; border-radius: 12px; }
 @media (max-width: 860px) {
   .folder-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
-  .folder-grid.big { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .fold .folder-ic { width: 76px; height: 62px; }
-  .fold.big .folder-ic { width: 96px; height: 79px; }
+  .folder-grid.big { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .fold .folder-ic, .fold.big .folder-ic { width: 76px; height: 62px; }
+  .fold.big b { font-size: 14.5px; }
 }
 
 /* ---- 어디서나 따라다니는 서랍이 ---- */
@@ -1064,12 +1062,33 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 .boot .mascot { animation: bob 1.2s ease-in-out infinite; }
 .boot p { margin: 0; }
 @media (max-width: 860px) {
-  .buddy { right: 12px; bottom: calc(12px + var(--safe-b)); }
-  .buddy-btn { width: 52px; height: 52px; }
-  .buddy-btn .mascot { width: 42px; height: 42px; }
+  .buddy { right: 10px; bottom: calc(10px + var(--safe-b)); gap: 4px; }
+  .buddy-btn { width: 46px; height: 46px; }
+  .buddy-btn .mascot { width: 38px; height: 38px; }
+  .buddy-bubble { margin-bottom: 34px; max-width: min(240px, 60vw); padding: 7px 11px; font-size: 12.5px; }
 }
 @media (prefers-reduced-motion: reduce) { .buddy-btn .mascot, .boot .mascot { animation: none; } }
 
 .page-hero h1.with-fold { display: flex; align-items: center; gap: 14px; }
 .page-hero h1.with-fold .folder-ic { flex: none; filter: drop-shadow(0 4px 8px rgba(30, 110, 180, .18)); }
 @media (max-width: 860px) { .page-hero h1.with-fold .folder-ic { width: 42px; height: 35px; } }
+
+/* ---------- 폰: PC 구조를 그대로 (노트의 세 칸, 같은 메뉴) ---------- */
+@media (max-width: 860px) {
+  /* 노트: 왼쪽(같은 서랍 노트)·오른쪽(연결·목차·그래프) 칸을 위쪽 단추로 밀어 연다 */
+  .ws-left, .ws-right { display: block; position: fixed; z-index: 36; top: calc(var(--nav-h) + env(safe-area-inset-top, 0px)); bottom: 0; width: min(86vw, 340px); border: 0; box-shadow: var(--shadow-pop); visibility: hidden; transition: transform .26s var(--ease), visibility 0s .26s; }
+  .ws-left { left: 0; transform: translateX(-104%); }
+  .ws-right { right: 0; transform: translateX(104%); border-top: 0; }
+  .ws.pane-left .ws-left, .ws.pane-right .ws-right { visibility: visible; transform: none; transition: transform .26s var(--ease); }
+  .ws-scrim { position: fixed; inset: 0; z-index: 35; border: 0; background: rgba(0, 0, 0, .28); animation: fade-in .2s; }
+  .ws-bar { gap: 0; padding: 0 4px; }
+  .ws-bar .icon-btn { width: 34px; }
+  .crumbs { flex: 0 1 auto; overflow: hidden; white-space: nowrap; padding-left: 4px; }
+  .crumbs > :not(:first-child) { display: none; }
+  .crumbs a { overflow: hidden; text-overflow: ellipsis; }
+  .editor-host .ProseMirror { padding-bottom: 14vh; }
+  .p-foot > span:last-child { flex: none; white-space: nowrap; }
+  .ws-pane-head .pane-x, .rp-tabs .pane-x { flex: none; width: 30px; height: 30px; margin-right: -6px; }
+}
+@keyframes fade-in { from { opacity: 0; } }
+
