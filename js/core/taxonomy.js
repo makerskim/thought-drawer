@@ -9,6 +9,11 @@
 import { MORE, STARTS } from './taxonomy-more.js';
 export { STARTS };
 
+// 바뀐 기본 서랍 이름 장부: { '옛 이름': '새 이름' } (대분류는 '쇼핑', 세부 서랍은 '쇼핑/가전'처럼 경로로).
+// 기본 서랍·세부 서랍 이름을 바꾸거나 없앨 때는 반드시 여기 적는다. 그 이름으로 이미 정리된 노트는 Claude에게 다시 보내지 않고,
+// 앱과 정리기가 이 장부대로 이름만 새것으로 옮긴다 (js/core/renames.js). 빠뜨리면 tools/export-taxonomy.mjs 와 npm test 가 막는다.
+export const RENAMED = {};
+
 export const CATEGORIES = [
   { name: '쇼핑', icon: 'bag', tone: 4, aliases: ['쇼핑', '위시', '위시리스트', '살 것', '구매'], base: '위시리스트',
     hosts: ['coupang', '11st', 'gmarket', 'auction.co', 'ssg.com', 'lotteon', 'amazon', 'aliexpress', 'ebay', 'temu', 'smartstore.naver', 'shopping.naver', 'brand.naver', 'idus', 'enuri', 'tmon', 'wemakeprice', 'costco', 'emart', 'gsshop', 'cjonstyle', 'hmall', 'lotteimall', 'shein'],

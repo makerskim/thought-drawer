@@ -1,6 +1,7 @@
 // 기기 사이에 함께 쓰는 설정: 드라이브 「메모/_시스템/settings.json」에 둔다 (폰에서 만든 키워드를 PC에서도).
 // 밝기·글꼴처럼 이 기기에만 쓰는 값은 여기 말고 브라우저(prefs)에 둔다.
 import { keyOk } from './slash.js';
+import { normalizeRenames } from './renames.js';
 
 // 처음부터 들어 있는 명령어 중 글을 넣는 것 (예전 설정 파일에도 없으면 채워 준다)
 export const BASE_KEYWORDS = [
@@ -15,6 +16,7 @@ export const DEFAULT_SETTINGS = {
   v: 2,
   classify: { subs: true, tags: 4, learn: true },
   rules: [],
+  renames: [], // 서랍 이름 바꿈 장부 [{ from, to, at }] (js/core/renames.js)
   keywords: [
     ...BASE_KEYWORDS,
     { key: '회의', text: '회의 {오늘}\n- 참석: \n- 결정: \n- [ ] ' },
@@ -46,6 +48,7 @@ export function normalizeSettings(raw) {
     v: 2,
     classify: { subs: c.subs !== false, tags: clampInt(c.tags, 0, 8, 4), learn: c.learn !== false },
     rules,
+    renames: normalizeRenames(s.renames),
     keywords,
   };
 }

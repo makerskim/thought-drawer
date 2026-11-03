@@ -141,6 +141,89 @@ def test_user_organized_meanwhile_is_left_alone(vault):
     assert p.exists(), 'not moved because the user already filed it'
 
 
+def test_once_organized_notes_are_never_sent_again(vault, capsys):
+    """한 번 정리한 노트는 인박스로 돌아와도 Claude에게 다시 보내지 않는다 (구독 사용량을 아끼게)"""
+    write(vault, '00_인박스/20261020090000 예전에 정리한 노트.md',
+          {'id': '20261020090000', 'title': '예전에 정리한 노트', 'type': 'memo', 'status': 'inbox', 'organized': '2026-10-21T07:00:00+09:00'}, '셔츠 세일')
+    run(vault, 'prepare')
+    out = capsys.readouterr().out
+    assert '정리할 노트 3장' in out
+    ids = [c['id'] for c in json.loads((organize.WORK / 'batch.json').read_text(encoding='utf-8'))]
+    assert '20261020090000' not in ids
+    run(vault, 'status')
+    assert '정리 대기 3장' in capsys.readouterr().out
+
+
+def test_nothing_new_means_nothing_sent(vault, capsys):
+    for p in (vault / '00_인박스').glob('*.md'):
+        meta, body = parse_note(p.read_text(encoding='utf-8'))
+        meta['organized'] = '2026-10-21T07:00:00+09:00'
+        p.write_text(serialize_note(meta, body), encoding='utf-8')
+    run(vault, 'prepare')
+    out = capsys.readouterr().out
+    assert '정리할 노트 없음' in out and '3장은 다시 보내지 않아요' in out
+    assert not (organize.WORK / 'batch.md').exists()
+
+
+def test_renamed_drawers_move_files_without_claude(vault, capsys):
+    """앱에서 서랍 이름을 바꾸면(settings.json 의 renames) 정리기는 파일만 옮긴다. Claude가 다시 분류하지 않는다."""
+    (vault / '_시스템').mkdir(exist_ok=True)
+    (vault / '_시스템' / 'settings.json').write_text(json.dumps({
+        'rules': [{'match': '옥스포드', 'drawer': '패션/상의', 'tags': []}],
+        'renames': [{'from': '패션', 'to': '옷장', 'at': '2026-11-01'}, {'from': '요리/레시피', 'to': '요리/만들기'}],
+    }, ensure_ascii=False), encoding='utf-8')
+    run(vault, 'prepare')
+    out = capsys.readouterr().out
+    assert '노트 2장을 새 이름으로 옮겼어요' in out and 'Claude 안 씀' in out
+    moved = vault / '옷장/상의/20260912214510 흰색 옥스포드 셔츠.md'
+    meta, body = parse_note(moved.read_text(encoding='utf-8'))
+    assert meta['category'] == '옷장/상의' and body == '매장에서 입어봄' and 'updated' not in meta
+    assert (vault / '요리/만들기/20261008083522 들기름 막국수.md').exists()
+    assert not (vault / '패션').exists() and not (vault / '요리/레시피').exists(), 'empty old folders removed'
+    md = (organize.WORK / 'batch.md').read_text(encoding='utf-8')
+    assert '옷장/상의 (1)' in md and '패션/상의' not in md, 'Claude sees only new names'
+    assert 'category: 옷장/상의' in md, 'my rules follow the rename'
+    assert '이름 바꿈 2장' in (vault / '_시스템/정리기록.md').read_text(encoding='utf-8')
+    # Claude가 옛 이름을 써도 새 이름으로 들어간다
+    (organize.WORK / 'decisions.json').write_text(json.dumps([{'id': '20261027093012', 'title': '시즌오프', 'category': '패션/상의/셔츠', 'tags': [], 'summary': '', 'links': []}], ensure_ascii=False), encoding='utf-8')
+    run(vault, 'apply')
+    assert (vault / '옷장/상의/셔츠/20261027093012 시즌오프.md').exists()
+    # 두 번째 실행은 옮길 게 없다
+    capsys.readouterr()
+    run(vault, 'prepare')
+    assert '새 이름으로 옮겼어요' not in capsys.readouterr().out
+
+
+def test_builtin_drawer_renames_reach_claude(vault, tmp_path, monkeypatch):
+    """앱의 기본 서랍 이름이 바뀌면(taxonomy.json 의 renamed) Claude에게 보여 주는 기본 서랍도 새 이름"""
+    tax = json.loads(organize.TAXONOMY.read_text(encoding='utf-8'))
+    tax['renamed'] = [{'from': '쇼핑', 'to': '장보기'}, {'from': '쇼핑/가전', 'to': '쇼핑/전자기기'}]
+    alt = tmp_path / 'taxonomy.json'
+    alt.write_text(json.dumps(tax, ensure_ascii=False), encoding='utf-8')
+    monkeypatch.setattr(organize, 'TAXONOMY', alt)
+    run(vault, 'prepare')
+    md = (organize.WORK / 'batch.md').read_text(encoding='utf-8')
+    assert '- 장보기: 전자기기, 생활용품,' in md and '- 쇼핑:' not in md
+
+
+def test_taxonomy_json_names_never_get_lost():
+    """한 번 내보낸 기본 서랍 이름은 지금 이름이거나, renamed 로 지금 이름에 이어져야 한다"""
+    from td_note import rename_path
+    tax = json.loads(organize.TAXONOMY.read_text(encoding='utf-8'))
+    now = {d['name'] for d in tax['drawers']} | {f"{d['name']}/{s}" for d in tax['drawers'] for s in d['subs']}
+    assert [n for n in tax['known'] if rename_path(n, tax['renamed']) not in now] == []
+
+
+def test_rename_rule_matches_the_web_app():
+    from td_note import rename_path
+    cases = json.loads((ROOT.parent / 'tests/fixtures/renames.json').read_text(encoding='utf-8'))['cases']
+    assert [rename_path(c['path'], c['renames']) for c in cases] == [c['want'] for c in cases]
+    from td_note import fold_renames, stable_target
+    folds = json.loads((ROOT.parent / 'tests/fixtures/renames.json').read_text(encoding='utf-8'))['folds']
+    assert [fold_renames(c['list']) for c in folds] == [c['want'] for c in folds]
+    assert stable_target('A', [{'from': 'A', 'to': 'B'}, {'from': 'B', 'to': 'A'}]) == ''
+
+
 def test_merge_links_section_dedupes():
     body = '본문\n\n## 연결\n\n- [[20260101000000 가]] (이유)\n'
     out = merge_links_section(body, [('20260101000000', '가', '중복'), ('20260102000000', '나', '')])

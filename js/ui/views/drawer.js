@@ -16,7 +16,8 @@ import { quickSave, kindOfText } from '../quick.js';
 import { useSlash } from '../parts/slash.js';
 import { preview, GuessLine } from '../parts/guess.js';
 import { openToday, todayKey, findDaily } from '../notebook.js';
-import { categoryOf, guessCategory, drawerList, inDrawer, categoryLook, settingsOf, tagsOf, tagCounts, searchAuto } from '../categories.js';
+import { categoryOf, guessCategory, drawerList, inDrawer, categoryLook, settingsOf, tagsOf, tagCounts, searchAuto, renameDrawer, drawerTargets } from '../categories.js';
+import { nameProblem } from '../../core/renames.js';
 import { search, parseQuery } from '../../core/search.js';
 import { readFilter, applyFilter, activeCount, SORTS } from '../../core/filter.js';
 import { FilterBar, clearFilters } from '../parts/filters.js';
@@ -317,6 +318,41 @@ function pick(lib, scope) {
   return lib.all.filter((n) => inDrawer(n, lib, scope.value));
 }
 
+// 서랍 이름 바꾸기: 노트를 다시 분류하지 않고 이름만 (정리된 노트는 새 이름 폴더로 옮긴다)
+function RenameDialog({ path, close }) {
+  const lib = useLib();
+  const parts = categoryParts(path);
+  const [name, setName] = useState(parts[parts.length - 1] ?? '');
+  const [err, setErr] = useState('');
+  const ref = useRef();
+  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
+  const to = [...parts.slice(0, -1), name.trim()].join('/');
+  const inside = lib.all.filter((n) => inDrawer(n, lib, path));
+  const filed = inside.filter((n) => !categoryOf(n, lib).auto).length;
+  const merge = to !== path && !nameProblem(name) && drawerTargets(lib).includes(to);
+  const save = async () => {
+    const bad = nameProblem(name);
+    if (bad) { setErr(bad); ref.current?.focus(); return; }
+    close();
+    if (to === path) return;
+    const t = toast('서랍 이름을 바꾸는 중', { busy: true });
+    try {
+      const moved = await renameDrawer(lib, path, to, (i, all) => t.update(`노트 옮기는 중 ${i}/${all}`, { busy: true }));
+      t.update(`「${to.replaceAll('/', ' › ')}」(으)로 바꿨어요${moved ? ` · 노트 ${moved}개 옮김` : ''}`);
+      go(folderHref(to));
+    } catch (e) { t.update(e.message, { duration: 6000 }); }
+  };
+  return html`<form class="modal sdlg" role="dialog" aria-label="서랍 이름 바꾸기" onSubmit=${(e) => { e.preventDefault(); save(); }}>
+    <h2>서랍 이름 바꾸기</h2>
+    <label class="fld"><span>${parts.length > 1 ? `${parts.slice(0, -1).join(' › ')} › ` : ''}새 이름</span>
+      <input ref=${ref} class="input" value=${name} onInput=${(e) => { setName(e.target.value); setErr(''); }} aria-label="새 이름" /></label>
+    <p class="sdlg-prev"><span>바꾸면</span>${filed ? `정리된 노트 ${filed}개를 새 이름 폴더로 옮겨요.` : '새 노트부터 새 이름으로 보여요.'}${merge ? ' 이미 있는 서랍과 합쳐요.' : ''}</p>
+    <small class="muted">다시 분류하지 않아요. Claude 사용량도 들지 않아요. 바꾼 이름은 설정에서 볼 수 있어요.</small>
+    ${err && html`<p class="sdlg-err" role="alert">${err}</p>`}
+    <div class="actions"><button type="button" class="btn btn-ghost" onClick=${close}>취소</button><button class="btn btn-primary">바꾸기</button></div>
+  </form>`;
+}
+
 // scope: { kind: 'folder'|'tag'|'star'|'inbox'|'all'|'search', value }, params: 주소의 필터
 export function Shelf({ scope, params }) {
   const lib = useLib();
@@ -355,7 +391,9 @@ export function Shelf({ scope, params }) {
     <${MenuItem} icon=${view === 'wall' ? 'check' : 'blank'} label="포스터" onClick=${() => { close(); setView('wall'); }} />
     <${MenuItem} icon=${view === 'list' ? 'check' : 'blank'} label="목록 (여러 개 고르기)" onClick=${() => { close(); setView('list'); }} />
     <div class="mi-sep"></div>
-    <${MenuItem} icon="tag" label="태그 모아 보기" onClick=${() => { close(); setTimeout(() => popover(anchor, (c2) => html`<${TagList} close=${c2} />`, { width: 260 }), 0); }} />`, { width: 240 });
+    <${MenuItem} icon="tag" label="태그 모아 보기" onClick=${() => { close(); setTimeout(() => popover(anchor, (c2) => html`<${TagList} close=${c2} />`, { width: 260 }), 0); }} />
+    ${scope.kind === 'folder' && html`<div class="mi-sep"></div>
+    <${MenuItem} icon="pen" label="서랍 이름 바꾸기" onClick=${() => { close(); modal((c2) => html`<${RenameDialog} path=${categoryParts(scope.value).join('/')} close=${c2} />`); }} />`}`, { width: 240 });
   const count = filtered ? `${notes.length}개 / 전체 ${base.length}개` : `${base.length}개`;
   return html`<div class="shelf">
     <${PageBar} title=${title} back="#/drawers" right=${html`<button type="button" class="btn btn-ghost view-btn" aria-haspopup="menu" aria-expanded="false" aria-label="보기 설정" onClick=${(e) => menu(e.currentTarget)}><${Icon} name=${view === 'list' ? 'list' : 'grid'} /><span class="hide-m">${sortKey ? SORTS.find(([k]) => k === sortKey)?.[1] : '맞는 순'}</span></button>`} />

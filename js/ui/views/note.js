@@ -292,6 +292,14 @@ export function NoteView({ id, params }) {
         toast('노트를 지웠어요', { action: '되돌리기', duration: 6000, onAction: async () => { await undo(); go(noteHref(n.id)); } });
       } catch (e) { toast(e.message); }
     }} />`);
+  // 한 번 정리한 노트는 Claude에게 다시 보내지 않는다. 이 노트만 다시 맡기고 싶을 때: 정리 표시를 지우고 인박스로.
+  const requeue = () => modal((close) => html`<${ConfirmDialog} close=${close} title="Claude에게 다시 맡길까요?" yes="다시 맡기기"
+    text="이 노트만 다음 정리 때 다시 분류해요. 그때 Claude 사용량이 조금 들어요."
+    onYes=${async () => {
+      const n = await ensureSaved();
+      if (!n) return;
+      try { await lib.update(n, { meta: { organized: undefined, status: 'inbox', category: undefined } }); toast('다음 정리 때 Claude가 다시 봐요'); } catch (e) { toast(e.message); }
+    }} />`);
   const pinned = !!m.pinned;
   const togglePin = () => update({ pinned: pinned ? undefined : true }).then(() => toast(pinned ? '즐겨찾기에서 뺐어요' : '즐겨찾기에 넣었어요'));
   const more = (anchor) => popover(anchor, (close) => html`
@@ -299,6 +307,7 @@ export function NoteView({ id, params }) {
     <${MenuItem} icon="folder" label="서랍 바꾸기" onClick=${() => { close(); pickFolder(anchor); }} />
     ${m.source && html`<${MenuItem} icon="external" label="원문 열기" onClick=${() => { close(); window.open(m.source, '_blank', 'noopener'); }} />`}
     <${MenuItem} icon="copy" label="노트 링크 복사" onClick=${async () => { close(); try { await navigator.clipboard.writeText(location.href); toast('링크를 복사했어요'); } catch { toast('복사하지 못했어요.'); } }} />
+    ${m.organized && html`<${MenuItem} icon="sparkle" label="Claude에게 다시 맡기기" onClick=${() => { close(); requeue(); }} />`}
     <div class="mi-sep"></div>
     <${MenuItem} icon="trash" label="지우기" danger onClick=${() => { close(); remove(); }} />`);
 

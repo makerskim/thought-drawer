@@ -1,5 +1,5 @@
 // 설정: 아이폰 설정처럼 묶음마다 한 줄씩 (이름 왼쪽, 조절 오른쪽, 설명은 이름 아래 작게).
-// 화면 · 입력(이 기기에만) / 자동 분류 · 분류 규칙 · 내 명령어(모든 기기에 함께, 드라이브 _시스템/settings.json) / 데이터 / Claude 자동 정리.
+// 화면 · 입력(이 기기에만) / 자동 분류 · 분류 규칙 · 바꾼 서랍 이름 · 내 명령어(모든 기기에 함께, 드라이브 _시스템/settings.json) / 데이터 / Claude 자동 정리.
 // 계정은 오른쪽 위 사진, 단축키·기본 명령어·도움말은 「사용법」에 있다.
 import { html, useState, useEffect, useLayoutEffect, useRef, cx } from '../h.js';
 import { Icon } from '../icons.js';
@@ -7,7 +7,7 @@ import { app, useLib, usePref, applyAppearance, toast } from '../state.js';
 import { PageBar, Footer } from '../parts/shell.js';
 import { modal } from '../parts/layers.js';
 import { ConfirmDialog } from '../parts/dialogs.js';
-import { settingsOf, drawerTargets } from '../categories.js';
+import { settingsOf, drawerTargets, leftovers, moveLeftovers, forgetRename, ruleTargets, applyRule } from '../categories.js';
 import { normalizeSettings } from '../../core/settings.js';
 import { keyOk, fillVars, BUILTINS } from '../../core/slash.js';
 import { topOf } from '../../core/classify.js';
@@ -155,8 +155,20 @@ function KeywordDialog({ kw, taken, close, onSave }) {
 function Rules() {
   const lib = useLib();
   const [s, save] = useShared(lib);
+  // 저장한 뒤, 이미 정리된 노트 중 이 규칙에 맞는 게 있으면 원할 때만 맞춘다 (새 노트는 저절로 규칙대로)
+  const saved = (r) => {
+    const hits = ruleTargets(lib, r);
+    if (!hits.length) { toast('규칙을 저장했어요'); return; }
+    toast(`규칙을 저장했어요 · 이미 정리된 노트 ${hits.length}개도 맞아요`, {
+      action: r.drawer ? '그 노트도 옮기기' : '태그 달기', duration: 9000,
+      onAction: async () => {
+        const t = toast('맞추는 중', { busy: true });
+        try { const n = await applyRule(lib, r, hits, (k, all) => t.update(`맞추는 중 ${k}/${all}`, { busy: true })); t.update(`노트 ${n}개를 규칙대로 맞췄어요`); } catch (e) { t.update(e.message, { duration: 6000 }); }
+      },
+    });
+  };
   const edit = (rule, i) => modal((close) => html`<${RuleDialog} rule=${rule} close=${close}
-    onSave=${(r) => save({ rules: i == null ? [...s.rules.filter((x) => x.match !== r.match), r] : s.rules.map((x, j) => (j === i ? r : x)) }).then((ok) => ok && toast('규칙을 저장했어요'))} />`);
+    onSave=${(r) => save({ rules: i == null ? [...s.rules.filter((x) => x.match !== r.match), r] : s.rules.map((x, j) => (j === i ? r : x)) }).then((ok) => ok && saved(r))} />`);
   return html`
     ${s.rules.length
       ? s.rules.map((r, i) => html`<div class="sg-row item-row" key=${`${r.match}:${i}`}>
@@ -166,6 +178,29 @@ function Rules() {
         </div>`)
       : html`<div class="sg-row empty-row">없음</div>`}
     <button type="button" class="sg-add" onClick=${() => edit(null)}><${Icon} name="plus" />규칙 추가</button>`;
+}
+
+// 바꾼 서랍 이름 (장부): 옛 이름 → 새 이름. 앱과 Claude 정리기가 이 장부대로 이름만 바꿔 쓴다.
+function Names() {
+  const lib = useLib();
+  const s = settingsOf(lib);
+  const left = leftovers(lib);
+  const label = (p) => p.replaceAll('/', ' › ');
+  const move = async () => {
+    const t = toast('옮기는 중', { busy: true });
+    try { const n = await moveLeftovers(lib, (i, all) => t.update(`옮기는 중 ${i}/${all}`, { busy: true })); t.update(`노트 ${n}개를 새 이름으로 옮겼어요`); } catch (e) { t.update(e.message, { duration: 6000 }); }
+  };
+  const forget = (r) => modal((close) => html`<${ConfirmDialog} close=${close} title="이 기록을 지울까요?" yes="지우기"
+    text=${`옮긴 노트는 그대로예요. 새 노트는 다시 「${label(r.from)}」(으)로 분류돼요.`}
+    onYes=${async () => { try { await forgetRename(lib, r.from); toast('기록을 지웠어요'); } catch (e) { toast(e.message); } }} />`);
+  return html`
+    ${s.renames.length
+      ? s.renames.map((r) => html`<div class="sg-row item-row" key=${r.from}>
+          <div class="item-main"><span class="rl-match rn-from">${label(r.from)}</span><${Icon} name="chevron" /><b class="rl-to">${label(r.to)}</b>${r.at && html`<small class="muted rn-at">${relTime(r.at)}</small>`}</div>
+          <button type="button" class="icon-btn" aria-label=${`${label(r.from)} 바꾼 기록 지우기`} title="기록 지우기" onClick=${() => forget(r)}><${Icon} name="trash" /></button>
+        </div>`)
+      : html`<div class="sg-row empty-row">없음 · 서랍 화면 오른쪽 위 메뉴에서 바꿔요</div>`}
+    ${left.length > 0 && html`<${Row} label=${`남은 노트 ${left.length}개`} desc="옛 이름 서랍에"><button type="button" class="btn btn-sm" onClick=${move}>옮기기</button></${Row}>`}`;
 }
 
 function Keywords() {
@@ -205,7 +240,8 @@ function ClaudeStatus({ token, setToken, secret, setSecret }) {
   const last = lib.index?.generatedAt ?? '';
   const on = !!last;
   const done = lib.all.filter((n) => n.meta.organized);
-  const waiting = lib.all.filter((n) => n.meta.status !== 'organized').length;
+  // Claude에게 보낼 노트: 아직 한 번도 정리되지 않은 인박스 노트만 (한 번 정리한 노트는 다시 보내지 않는다)
+  const waiting = lib.all.filter((n) => n.meta.status !== 'organized' && !n.meta.organized).length;
   // 정리할 노트가 쌓였는데 이틀 넘게 정리가 없으면 예약 작업이 멈췄을 수 있다 (새 노트가 없으면 정리기는 바로 끝나서 시각이 안 바뀐다)
   const stale = on && waiting > 0 && Date.now() - Date.parse(last) > 2 * DAY;
   const recent = [...done].sort((a, b) => String(b.meta.organized).localeCompare(String(a.meta.organized))).slice(0, 3);
@@ -214,6 +250,7 @@ function ClaudeStatus({ token, setToken, secret, setSecret }) {
     ${on && html`<${Row} label="마지막 정리"><span class="cl-val" title=${fullDate(last)}>${relTime(last)}</span></${Row}>`}
     ${on && html`<${Row} label="정리한 노트"><span class="cl-val">${done.length}개</span></${Row}>`}
     <${Row} label="정리 대기"><span class="cl-val">${waiting}개</span></${Row}>
+    <${Row} label="보내는 노트" desc="한 번 정리한 건 제외"><span class="cl-val">새 노트만</span></${Row}>
     <${Row} label="비용"><span class="cl-val">0원 · 구독 안에서</span></${Row}>
     ${stale && html`<div class="banner warn cl-banner"><${Icon} name="alert" /><p>정리 대기 노트가 있는데 이틀 넘게 정리가 없어요. claude.ai/code의 예약 작업 실행 기록을 확인하세요.</p></div>`}
     ${recent.length > 0 && html`<div class="cl-recent"><span class="cl-cap">최근 정리</span>
@@ -306,6 +343,10 @@ export function Settings({ offline, params }) {
 
       <${Group} id="rules" title="분류 규칙" scope="모든 기기" foot="자동 분류보다 먼저 적용">
         <${Rules} />
+      </${Group}>
+
+      <${Group} id="names" title="바꾼 서랍 이름" scope="모든 기기" foot="이름만 바꾸고 다시 분류하지 않아요 · Claude 사용 없음">
+        <${Names} />
       </${Group}>
 
       <${Group} id="keywords" title="내 명령어" scope="모든 기기" foot="입력창에서 /이름">

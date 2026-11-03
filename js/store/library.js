@@ -12,6 +12,7 @@ import { instagramToNote, postKey } from '../core/instagram.js';
 import { linkNote, captureBody, imageExt } from '../core/compose.js';
 import { openStore } from './idb.js';
 import { downscale } from './image.js';
+import { renamesOf, renamePath } from '../core/renames.js';
 
 const SPECIAL_DIRS = new Set([ATTACH_DIR, SYSTEM_DIR]);
 
@@ -176,6 +177,8 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
     if (!note && lib.enrich) {
       try { ({ meta, body } = lib.enrich({ meta, body })); } catch (e) { console.warn('[enrich]', e); }
     }
+    // 이름을 바꾼 서랍(장부)의 옛 이름으로 넣으면 새 이름으로 (js/core/renames.js)
+    if (meta.status !== STATUS.inbox && meta.category) meta = { ...meta, category: renamePath(meta.category, renamesOf(settings)) || meta.category };
     const dir = meta.status === STATUS.inbox ? INBOX_DIR : (meta.category || INBOX_DIR);
     const name = note?.name ?? fileNameFor(meta);
     const text = serializeNote({ meta, body });
@@ -206,6 +209,7 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
     get index() { return index; },
     get settings() { return settings; },
     get version() { return version; },
+    get dirs() { return dirs; }, // 드라이브에 있는 폴더 경로 (빈 폴더 포함)
     get bytes() { return bytes; },
     // 구글 저장 공간 → { limit, used, drive, app } (바이트, limit 0이면 무제한)
     async quota() {
@@ -247,8 +251,10 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
           level = node.children;
         }
       };
-      for (const d of dirs) if (d !== INBOX_DIR && !SPECIAL_DIRS.has(d.split('/')[0])) add(d, 0);
-      for (const n of lib.organized()) if (n.meta.category) add(n.meta.category, 1);
+      // 이름을 바꾼 서랍은 새 이름 아래로 모은다 (옛 폴더가 드라이브에 남아 있어도)
+      const rn = renamesOf(settings);
+      for (const d of dirs) if (d !== INBOX_DIR && !SPECIAL_DIRS.has(d.split('/')[0])) add(renamePath(d, rn), 0);
+      for (const n of lib.organized()) if (n.meta.category) add(renamePath(n.meta.category, rn), 1);
       const toArr = (m) => [...m.values()]
         .map((n) => ({ ...n, children: toArr(n.children) }))
         .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
@@ -314,9 +320,10 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
       const { meta, body: b } = newNote({ type, title, body, taken, ...rest });
       return write(null, { meta, body: b });
     },
-    async update(note, changes) {
+    // touch: false 면 「고친 시각」을 그대로 둔다 (서랍 이름만 바뀌어 옮길 때)
+    async update(note, changes, { touch = true } = {}) {
       const full = await ensureBody(note);
-      const meta = { ...full.meta, ...changes.meta, updated: isoLocal() };
+      const meta = { ...full.meta, ...changes.meta, ...(touch ? { updated: isoLocal() } : {}) };
       for (const k of Object.keys(meta)) if (meta[k] === undefined || meta[k] === '' || (Array.isArray(meta[k]) && !meta[k].length)) delete meta[k];
       if (meta.status === STATUS.organized && !meta.category) meta.status = STATUS.inbox;
       return write(full, { meta, body: changes.body ?? full.body });
@@ -328,6 +335,15 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
       if (!dirs.includes(clean)) dirs = [...dirs, clean];
       emit();
       return clean;
+    },
+    // 비어 버린 폴더를 드라이브 휴지통으로 (깊은 것부터). 지우지 못해도 화면에는 영향 없다.
+    async removeEmptyDirs(paths) {
+      if (!adapter.removeEmptyDir) return;
+      for (const p of [...new Set(paths)].sort((a, b) => b.split('/').length - a.split('/').length)) {
+        try { if (await adapter.removeEmptyDir(p)) dirs = dirs.filter((d) => d !== p && !d.startsWith(`${p}/`)); } catch { /* 남아도 괜찮다 */ }
+      }
+      saveListing();
+      emit();
     },
     pinned() { return lib.all.filter((n) => n.meta.pinned); },
     async moveTo(note, folder) {

@@ -289,7 +289,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   await p.waitForSelector('#s-classify');
   const setText = await p.locator('.set-page').innerText();
   const groups = await p.$$eval('.sg-title', (els) => els.map((e) => e.firstChild.textContent.trim()));
-  ok(JSON.stringify(groups) === JSON.stringify(['화면', '입력', '자동 분류', '분류 규칙', '내 명령어', '데이터', 'Claude 자동 정리']), `settings: grouped like iPhone settings (${groups.join(', ')})`);
+  ok(JSON.stringify(groups) === JSON.stringify(['화면', '입력', '자동 분류', '분류 규칙', '바꾼 서랍 이름', '내 명령어', '데이터', 'Claude 자동 정리']), `settings: grouped like iPhone settings (${groups.join(', ')})`);
   ok(await p.locator('.set-toc, #s-account, #s-keys, #s-help, .set-page .help-table, .set-page .help-keys').count() === 0 && !setText.includes('로그아웃') && !setText.includes('단축키') && !setText.includes('내가·Claude가'), 'settings: no top buttons, account, shortcuts, help or built-in command table');
   const labels0 = await p.$$eval('.sg-label b', (els) => els.map((e) => e.textContent.trim()));
   const descs = await p.$$eval('.sg-label small', (els) => els.map((e) => e.textContent.trim()));
@@ -297,7 +297,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
   // Claude 자동 정리: 켜기 전에는 짧은 상태창 (설정법은 길게 쓰지 않는다)
   const cg = p.locator('#s-claude');
   const cgLabels = await cg.locator('.sg-label b').allInnerTexts();
-  ok(JSON.stringify(cgLabels) === JSON.stringify(['상태', '정리 대기', '비용']) && (await cg.locator('.cl-state').innerText()).includes('꺼짐'), `claude: off → short status (${cgLabels.join(', ')})`);
+  ok(JSON.stringify(cgLabels) === JSON.stringify(['상태', '정리 대기', '보내는 노트', '비용']) && (await cg.locator('.cl-state').innerText()).includes('꺼짐'), `claude: off → short status (${cgLabels.join(', ')})`);
   ok(await cg.locator('.cg-steps, .cg-intro').count() === 0 && (await cg.locator('details summary').allInnerTexts()).join() === '정리기 연결 (토큰 받기)' && await cg.locator('.sg-foot a').count() === 1, 'claude: no long how-to, just token connect and a guide link');
   const kws = await p.$$eval('#s-keywords .item-row code', (els) => els.map((e) => e.textContent));
   ok(['/할일', '/오늘', '/내일', '/어제', '/지금'].every((k) => kws.includes(k)) && await p.locator('#s-keywords .fixed-row code').count() === 5, 'settings: default commands are listed and editable, actions shown as fixed');
@@ -572,9 +572,9 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
       const labels = await c.locator('.sg-label b').allInnerTexts();
       const state = await c.locator('.cl-state').innerText();
       if (label === 'fresh') {
-        ok(JSON.stringify(labels) === JSON.stringify(['상태', '마지막 정리', '정리한 노트', '정리 대기', '비용']) && state.includes('켜짐'), `claude on: status rows (${labels.join(', ')} · ${state.trim()})`);
+        ok(JSON.stringify(labels) === JSON.stringify(['상태', '마지막 정리', '정리한 노트', '정리 대기', '보내는 노트', '비용']) && state.includes('켜짐'), `claude on: status rows (${labels.join(', ')} · ${state.trim()})`);
         const vals = await c.locator('.cl-val').allInnerTexts();
-        ok(vals[1] === '1개' && vals[2] === '1개' && vals[3].startsWith('0원'), `claude on: counts and cost (${vals.join(' / ')})`);
+        ok(vals[1] === '1개' && vals[2] === '1개' && vals[3] === '새 노트만' && vals[4].startsWith('0원'), `claude on: counts and cost (${vals.join(' / ')})`);
         ok((await c.locator('.cl-recent a').innerText()).includes('맥북 에어 비교') && (await c.locator('.cl-recent a').innerText()).includes('쇼핑 › 가전 › 노트북'), 'claude on: recently organized notes');
         ok(await c.locator('.cl-banner').count() === 0, 'claude on: no warning when it ran recently');
       } else {
@@ -583,6 +583,80 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
       ok(q.errors.length === 0, `claude ${label}: no page errors ` + q.errors.join(' | '));
       await q.context().close();
     }
+  }
+
+  // ---- 이미 정리된 노트는 다시 분류하지 않기 · 서랍 이름 바꿈 장부 ----
+  {
+    const { serializeNote, fileNameFor } = await import('../../js/core/note.js');
+    const iso = (ms) => new Date(Date.now() - ms).toISOString().slice(0, 19);
+    const mk = (id, meta, body, dir) => ({ dir, name: fileNameFor({ id, ...meta }), text: serializeNote({ meta: { id, type: 'memo', created: iso(5e6), updated: '2026-10-01T10:00:00', ...meta }, body }) });
+    const q = await open(b, { seedData: { profile: { name: '나', email: 'me@example.com' }, files: [
+      mk('20261101090000', { title: '맥북 에어 비교', status: 'organized', category: '쇼핑/가전/노트북', organized: iso(3600e3) }, '13인치와 15인치', '쇼핑/가전/노트북'),
+      mk('20261101080000', { title: '김치찌개', status: 'organized', category: '요리/레시피' }, '김치찌개 끓이는 법', '요리/레시피'),
+      mk('20261101070000', { title: '예전에 정리한 메모', status: 'inbox', organized: iso(7200e3) }, '자동 분류로 되돌린 노트', '00_인박스'),
+      mk('20261101100000', { title: '새로 넣은 메모', status: 'inbox' }, '아직 정리 전', '00_인박스'),
+      { dir: '_시스템', name: 'settings.json', text: JSON.stringify({ v: 2, rules: [], renames: [{ from: '쇼핑/가전', to: '쇼핑/전자기기', at: iso(86400e3) }] }) },
+      { dir: '_시스템', name: 'index.json', text: JSON.stringify({ version: 1, generatedAt: iso(3600e3), notes: [] }) },
+    ] }, hash: '#/settings?s=names' });
+    const all = () => q.evaluate(() => window.__TD_APP__.lib.all.map((n) => ({ id: n.id, status: n.meta.status, category: n.meta.category ?? '', organized: n.meta.organized ?? '', updated: n.meta.updated ?? '', tags: n.meta.tags ?? [] })));
+    const one = async (id) => (await all()).find((n) => n.id === id);
+    await q.waitForSelector('#s-names .item-row');
+    const groups = await q.$$eval('.sg-title', (els) => els.map((e) => e.firstChild.textContent.trim()));
+    ok(groups.includes('바꾼 서랍 이름') && groups.indexOf('바꾼 서랍 이름') === groups.indexOf('분류 규칙') + 1, `names: ledger sits after 분류 규칙 (${groups.join(', ')})`);
+    ok((await q.locator('#s-names .item-row').innerText()).replace(/\s+/g, ' ').includes('쇼핑 › 가전 쇼핑 › 전자기기'), 'names: ledger shows old → new');
+    // 상태창: 한 번 정리한 노트(인박스로 돌아온 것 포함)는 정리 대기에 안 센다
+    const c = q.locator('#s-claude');
+    const labels = await c.locator('.sg-label b').allInnerTexts();
+    const vals = await c.locator('.cl-val').allInnerTexts();
+    ok(labels.includes('보내는 노트') && vals[labels.indexOf('정리 대기') - 1] === '1개' && vals.includes('새 노트만'), `claude: waits only for new notes (${labels.join(', ')} / ${vals.join(', ')})`);
+    // 옛 이름에 남은 노트: 다시 분류하지 않고 옮기기만
+    ok((await q.locator('#s-names').innerText()).includes('남은 노트 1개'), 'names: counts notes left under the old name');
+    await q.click('#s-names .btn:has-text("옮기기")');
+    await q.waitForSelector('.toast:has-text("새 이름으로 옮겼어요")');
+    const mac = await one('20261101090000');
+    ok(mac.category === '쇼핑/전자기기/노트북' && mac.updated === '2026-10-01T10:00:00' && mac.organized, `names: moved to the new name, edit time and Claude mark kept (${mac.category})`);
+    ok(!(await q.locator('#s-names').innerText()).includes('남은 노트'), 'names: nothing left after moving');
+    // 새 규칙: 이미 정리된 노트에도 원할 때만
+    await q.click('#s-rules .sg-add');
+    await q.fill('.sdlg input[aria-label="낱말 또는 사이트"]', '김치찌개');
+    await q.selectOption('.sdlg select[aria-label="서랍"]', '__new');
+    await q.fill('.sdlg input[aria-label="새 서랍 이름"]', '요리/찌개');
+    await q.click('.sdlg .btn-primary');
+    await q.waitForSelector('.toast:has-text("이미 정리된 노트 1개도 맞아요")');
+    ok((await one('20261101080000')).category === '요리/레시피', 'rule: existing notes stay put until asked');
+    await q.click('.toast button:has-text("그 노트도 옮기기")');
+    await q.waitForSelector('.toast:has-text("규칙대로 맞췄어요")');
+    ok((await one('20261101080000')).category === '요리/찌개', 'rule: one tap applies it to matching notes (no Claude)');
+    // 서랍 이름 바꾸기: 서랍 화면 메뉴 → 이름만 바뀌고, 규칙의 서랍도 따라간다
+    await q.goto(`http://localhost:8080/#/f/${encodeURIComponent('요리')}`);
+    await q.waitForSelector('.page-hero h1');
+    await q.click('.view-btn');
+    await q.click('.pop >> text=서랍 이름 바꾸기');
+    await q.waitForSelector('.sdlg');
+    ok((await q.locator('.sdlg .sdlg-prev').innerText()).includes('정리된 노트 1개'), 'rename: dialog says how many notes move');
+    await q.fill('.sdlg input[aria-label="새 이름"]', '부/엌');
+    await q.click('.sdlg .btn-primary');
+    ok((await q.locator('.sdlg-err').innerText()).includes('/'), 'rename: rejects a slash');
+    await q.fill('.sdlg input[aria-label="새 이름"]', '부엌');
+    await q.click('.sdlg .btn-primary');
+    await q.waitForSelector('.toast:has-text("부엌")');
+    await q.waitForTimeout(200);
+    ok(decodeURIComponent(await q.evaluate(() => location.hash)) === '#/f/부엌' && (await q.locator('.page-hero h1').innerText()) === '부엌.', 'rename: lands on the renamed drawer');
+    ok((await one('20261101080000')).category === '부엌/찌개', 'rename: notes moved to the new folder');
+    const st = await q.evaluate(() => window.__TD_APP__.lib.settings);
+    ok(st.rules[0].drawer === '부엌/찌개' && st.renames.some((r) => r.from === '요리' && r.to === '부엌'), 'rename: rules follow and the ledger records it');
+    ok(!(await q.evaluate(() => window.__TD_APP__.lib.dirs)).some((d) => d === '요리' || d.startsWith('요리/')), 'rename: empty old folders removed');
+    // Claude에게 다시 맡기기: 그 노트만
+    await q.goto(`http://localhost:8080/#/n/20261101090000`);
+    await q.waitForSelector('.ws-bar');
+    await q.click('.ws-bar [aria-label="더 보기"]');
+    await q.click('.pop >> text=Claude에게 다시 맡기기');
+    await q.click('.modal .btn-primary:has-text("다시 맡기기")');
+    await q.waitForSelector('.toast:has-text("Claude가 다시 봐요")');
+    const back = await one('20261101090000');
+    ok(back.status === 'inbox' && !back.organized && !back.category, 'requeue: only that note goes back to Claude');
+    ok(q.errors.length === 0, 'names: no page errors ' + q.errors.join(' | '));
+    await q.context().close();
   }
 
   // ---- 낮 화면, 빈 서랍 ----

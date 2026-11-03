@@ -193,6 +193,13 @@ export function ruleWords(rule) {
   return String(rule?.match ?? '').split(/[,\n]/).map((s) => lc(s.trim())).filter(Boolean);
 }
 
+// 규칙이 이 노트에 맞나 (자동 분류와 같은 기준) → 맞은 낱말, 없으면 ''. 규칙을 이미 정리된 노트에도 적용할 때 쓴다.
+export function ruleHit(rule, { meta = {}, body = '' }) {
+  const text = lc(textOf(meta, body));
+  const host = hostOf(meta.source) || hostOf(/https?:\/\/[^\s)\]>"']+/.exec(String(body ?? ''))?.[0]);
+  return ruleWords(rule).find((w) => has(text, w) || (host && host.includes(w))) ?? '';
+}
+
 // opts: { subs: 세부 서랍·소분류까지(기본 켬), tags: 자동 태그 수(0이면 안 닮), rules: 내 분류 규칙 }
 // → { category, sub, leaf, path, why, score, tags, weak } — weak: 단서가 없어 「메모」로 둔 것
 export function classify({ meta = {}, body = '' }, model = null, opts = {}) {

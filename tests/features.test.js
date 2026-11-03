@@ -254,6 +254,38 @@ test('Claude 정리기가 쓰는 서랍 목록(organizer/taxonomy.json)이 앱 �
   assert.equal(readFileSync(new URL('../organizer/taxonomy.json', import.meta.url), 'utf8'), treeJson(), 'node tools/export-taxonomy.mjs 를 실행하세요');
 });
 
+test('서랍 이름 바꿈 장부: 경로 앞부분만, 긴 것 먼저, 이어진 바꿈, 되돌리기', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { renamePath, addRename, normalizeRenames, renamesOf, nameProblem } = await import('../js/core/renames.js');
+  const fx = JSON.parse(readFileSync(new URL('./fixtures/renames.json', import.meta.url), 'utf8'));
+  for (const c of fx.cases) assert.equal(renamePath(c.path, c.renames), c.want, JSON.stringify(c));
+  const { foldRenames, stableTarget } = await import('../js/core/renames.js');
+  for (const c of fx.folds) assert.deepEqual(foldRenames(c.list).map(({ from, to }) => ({ from, to })), c.want, JSON.stringify(c));
+  // 꼬인 장부(A→B, B→A)여도 파일은 왔다 갔다 하지 않는다
+  assert.equal(stableTarget('A', [{ from: 'A', to: 'B' }, { from: 'B', to: 'A' }]), '');
+  assert.equal(stableTarget('A/x', [{ from: 'A', to: 'B' }]), 'B/x');
+  // A→B 다음 B→C 면 A→C 로 줄이고, A→B 다음 B→A 면 장부가 비어 원래대로
+  assert.deepEqual(addRename([{ from: 'A', to: 'B' }], 'B', 'C').map((r) => `${r.from}>${r.to}`), ['A>C', 'B>C']);
+  assert.deepEqual(addRename([{ from: 'A', to: 'B' }], 'B', 'A').map((r) => `${r.from}>${r.to}`), ['B>A']);
+  assert.deepEqual(addRename([{ from: '쇼핑/가전', to: '쇼핑/전자' }], '쇼핑', '구매').map((r) => `${r.from}>${r.to}`), ['쇼핑/가전>구매/전자', '쇼핑>구매']);
+  assert.deepEqual(normalizeRenames([{ from: 'a', to: 'a' }, { from: '', to: 'b' }, { from: 'x', to: 'y' }, { from: 'x', to: 'z' }]), [{ from: 'x', to: 'z' }]);
+  assert.equal(renamesOf({ renames: [{ from: '쇼핑', to: '구매' }] }).length, 1);
+  assert.equal(nameProblem('구매'), '');
+  for (const bad of ['', 'a/b', '_시스템', '00_인박스', '가'.repeat(21), 'a#b']) assert.ok(nameProblem(bad), bad);
+  // 설정 파일에도 장부가 남는다 (잘못된 줄은 버린다)
+  assert.deepEqual(normalizeSettings({ renames: [{ from: '쇼핑', to: '구매', at: 't' }, { from: 'x' }] }).renames, [{ from: '쇼핑', to: '구매', at: 't' }]);
+  assert.deepEqual(normalizeSettings(null).renames, []);
+});
+
+test('기본 서랍 이름 지킴이: 이름이 사라지면 RENAMED 에 적어야 한다', async () => {
+  const { lostNames } = await import('../tools/export-taxonomy.mjs');
+  const known = ['쇼핑', '쇼핑/가전', '여행'];
+  const now = ['쇼핑', '쇼핑/전자기기', '여행'];
+  assert.deepEqual(lostNames(known, now, []), ['쇼핑/가전']);
+  assert.deepEqual(lostNames(known, now, [{ from: '쇼핑/가전', to: '쇼핑/전자기기' }]), []);
+  assert.deepEqual(lostNames(known, ['구매', '구매/가전', '여행'], [{ from: '쇼핑', to: '구매' }]), []);
+});
+
 test('나만 쓰기: 주인 계정만 통과 (메일 주소는 지문으로만 비교)', async () => {
   const { isOwner } = await import('../js/store/auth.js');
   const { createHash } = await import('node:crypto');

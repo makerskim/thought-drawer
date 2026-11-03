@@ -7,6 +7,12 @@ Claude Code 예약 작업이 이 순서로 부른다 (organizer/ROUTINE.md):
   3) python3 organizer/organize.py apply     결정대로 노트를 고치고 폴더로 옮긴다 (토큰 안 씀)
 
 그 밖에: status (대기 수 보기), index (색인만 다시 만들기)
+
+사용량을 아끼는 약속:
+- 한 번 정리한 노트(머리말에 organized 시각이 있는 것)는 다시 Claude에게 보내지 않는다. 인박스에 되돌아와 있어도.
+  다시 맡기려면 앱의 노트 메뉴 「Claude에게 다시 맡기기」(organized 를 지운다).
+- 서랍 이름이 바뀌면(앱에서 바꾼 이름: _시스템/settings.json 의 renames, 앱이 바꾼 기본 이름: taxonomy.json 의 renamed)
+  prepare 가 파일만 새 이름 폴더로 옮긴다. Claude는 이 일을 하지 않는다.
 저장소는 기본이 구글 드라이브(환경 변수), --local 폴더를 주면 그 폴더를 쓴다.
 """
 from __future__ import annotations
@@ -23,7 +29,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from td_note import (  # noqa: E402
-    file_name_for, iso_local, merge_links_section, parse_note, safe_name, serialize_note, snippet, tokens,
+    file_name_for, fold_renames, iso_local, merge_links_section, parse_note, rename_path, safe_name, serialize_note, snippet, stable_target, tokens,
 )
 
 INBOX = '00_인박스'
@@ -68,32 +74,56 @@ def top(path: str) -> str:
     return (path or '').split('/')[0]
 
 
-def load_rules(store, files):
-    """웹앱 설정(_시스템/settings.json)의 내 분류 규칙. 앱의 자동 분류와 같은 규칙을 Claude도 따른다."""
+def load_settings(store, files) -> dict:
+    """웹앱이 함께 쓰는 설정 (_시스템/settings.json). 없거나 깨졌으면 빈 설정."""
     f = next((x for x in files if x['dir'] == SYSTEM and x['name'] == 'settings.json'), None)
     if not f:
-        return []
+        return {}
     try:
-        rules = json.loads(store.read_text(f['id'])).get('rules') or []
-    except Exception:  # 깨진 파일이면 규칙 없이
-        return []
+        data = json.loads(store.read_text(f['id']))
+        return data if isinstance(data, dict) else {}
+    except Exception:  # 깨진 파일이면 설정 없이
+        return {}
+
+
+def load_taxonomy() -> dict:
+    try:
+        return json.loads(TAXONOMY.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+
+
+def load_renames(settings: dict) -> list[dict]:
+    """서랍 이름 바꿈 장부: 앱이 바꾼 기본 이름 + 내가 앱에서 바꾼 이름 (내 것이 나중이라 이긴다)"""
+    return fold_renames([*(load_taxonomy().get('renamed') or []), *(settings.get('renames') or [])])
+
+
+def load_rules(settings: dict, renames=()):
+    """내 분류 규칙. 앱의 자동 분류와 같은 규칙을 Claude도 따른다. 바뀐 서랍 이름은 새 이름으로."""
+    rules = settings.get('rules') or []
     out = []
     for r in rules:
         match = str(r.get('match', '')).strip()
-        drawer = '/'.join(p.strip() for p in str(r.get('drawer', '')).split('/') if p.strip())
+        drawer = rename_path(r.get('drawer', ''), renames)
         tags = [str(t).strip().lstrip('#') for t in (r.get('tags') or []) if str(t).strip()]
         if match and (drawer or tags):
             out.append({'match': match, 'drawer': drawer, 'tags': tags})
     return out
 
 
-def taxonomy_lines():
-    """앱의 기본 서랍·세부 서랍 (Claude가 앱과 같은 이름을 쓰게)"""
-    try:
-        drawers = json.loads(TAXONOMY.read_text(encoding='utf-8'))['drawers']
-    except (OSError, ValueError, KeyError):
+def taxonomy_lines(renames=()):
+    """앱의 기본 서랍·세부 서랍 (Claude가 앱과 같은 이름을 쓰게). 내가 바꾼 이름이 있으면 새 이름으로."""
+    drawers = load_taxonomy().get('drawers') or []
+    if not drawers:
         return []
-    return ['## 기본 서랍 (대분류: 중분류들)', '', *[f"- {d['name']}: {', '.join(d['subs'])}" for d in drawers], '']
+    tree: dict[str, list[str]] = {}
+    for d in drawers:
+        for sub in d['subs'] or ['']:
+            parts = rename_path(f"{d['name']}/{sub}" if sub else d['name'], renames).split('/')
+            subs = tree.setdefault(parts[0], [])
+            if len(parts) > 1 and parts[1] not in subs:
+                subs.append(parts[1])
+    return ['## 기본 서랍 (대분류: 중분류들)', '', *[f"- {name}: {', '.join(subs)}" for name, subs in tree.items()], '']
 
 
 def rules_lines(rules):
@@ -169,8 +199,8 @@ def candidates(card_tokens: set[str], organized: list[dict], limit: int = 4):
     return [o for _, o in scored[:limit]]
 
 
-def drawer_counts(organized):
-    c = Counter(o['meta'].get('category') for o in organized if o['meta'].get('category'))
+def drawer_counts(organized, renames=()):
+    c = Counter(rename_path(o['meta'].get('category'), renames) for o in organized if o['meta'].get('category'))
     return sorted(c.items(), key=lambda x: (-x[1], x[0]))
 
 
@@ -195,10 +225,48 @@ def thumbnail(store, att_files, name):
     return out
 
 
+def waiting_notes(store, files, cached):
+    """Claude에게 보낼 노트: 인박스에 있고 한 번도 정리되지 않은 것 (organized 시각이 없는 것). 새것부터.
+    → (보낼 것, 한 번 정리돼서 다시 안 보내는 수)"""
+    inbox = read_all_meta(store, [f for f in files if f['dir'] == INBOX], cached)
+    fresh = [o for o in inbox if not o['meta'].get('organized') and o['meta'].get('status') != 'organized']
+    fresh.sort(key=lambda o: o['file']['name'], reverse=True)
+    return fresh, len(inbox) - len(fresh)
+
+
+def migrate_names(store, files, cached, renames):
+    """이름이 바뀐 서랍에 있는 노트를 새 이름 폴더로 옮긴다. 글은 그대로, 머리말의 category 만 바꾼다 (Claude 안 씀).
+    → [(옛 경로, 새 경로, 제목)]"""
+    if not renames:
+        return []
+    moved, old_dirs = [], set()
+    for o in read_all_meta(store, [f for f in files if f['dir'] != INBOX], cached):
+        f, cat = o['file'], o['meta'].get('category') or ''
+        new = stable_target(cat, renames)
+        if o['meta'].get('status') != 'organized' or not cat or not new:
+            continue
+        meta, body = parse_note(store.read_text(f['id']))
+        meta['category'] = new
+        store.write_note(f['id'], new, f['name'], serialize_note(meta, body), from_dir=f['dir'])
+        moved.append((cat, new, meta.get('title') or f['name'][:-3]))
+        old_dirs.add(f['dir'])
+    # 비어 버린 옛 폴더는 드라이브 휴지통으로 (안에 다른 파일이 있으면 그대로 둔다)
+    gone = set()
+    for d in old_dirs:
+        parts = d.split('/')
+        gone.update('/'.join(parts[:i]) for i in range(1, len(parts) + 1) if rename_path('/'.join(parts[:i]), renames) != '/'.join(parts[:i]))
+    for d in sorted(gone, key=lambda x: -x.count('/')):
+        if hasattr(store, 'remove_dir_if_empty'):
+            store.remove_dir_if_empty(d)
+    return moved
+
+
 def cmd_status(store, args):
     files = store.list()
-    inbox = [f for f in note_files(files) if f['dir'] == INBOX]
-    print(f'정리 대기 {len(inbox)}장, 전체 노트 {len(note_files(files))}장')
+    _, cached = load_index(store, files)
+    fresh, again = waiting_notes(store, files, cached)
+    tail = f', 한 번 정리해서 다시 안 보내는 노트 {again}장' if again else ''
+    print(f'정리 대기 {len(fresh)}장, 전체 노트 {len(note_files(files))}장{tail}')
 
 
 def cmd_prepare(store, args):
@@ -209,19 +277,31 @@ def cmd_prepare(store, args):
             p.unlink() if p.is_file() else p.rmdir()
     files = store.list()
     _, cached = load_index(store, files)
-    inbox_files = sorted((f for f in note_files(files) if f['dir'] == INBOX), key=lambda f: f['name'], reverse=True)
-    if not inbox_files:
-        print('정리할 노트 없음. 여기서 끝내세요.')
+    settings = load_settings(store, files)
+    renames = load_renames(settings)
+    # 1) 서랍 이름이 바뀌었으면 파일만 새 이름으로 옮긴다 (Claude 안 씀)
+    moved = migrate_names(store, files, cached, renames)
+    if moved:
+        build_index(store)
+        log_run(store, [(None, f'{t} ({a} → {b})', b) for a, b, t in moved], '이름 바꿈')
+        print(f'서랍 이름이 바뀌어 노트 {len(moved)}장을 새 이름으로 옮겼어요. (Claude 안 씀)')
+        files = store.list()
+        _, cached = load_index(store, files)
+    # 2) 한 번도 정리되지 않은 새 노트만 Claude에게 보낸다
+    waiting, again = waiting_notes(store, files, cached)
+    if not waiting:
+        print('정리할 노트 없음. 여기서 끝내세요.' + (f' (한 번 정리한 노트 {again}장은 다시 보내지 않아요)' if again else ''))
         return
     all_meta = read_all_meta(store, [f for f in files if f['dir'] != INBOX], cached)
     organized = [o for o in all_meta if o['meta'].get('status') == 'organized']
     att_files = {f['name']: f for f in files if f['dir'] == ATTACH}
 
     batch, used = [], 0
-    for f in inbox_files:
+    for o in waiting:
         if len(batch) >= args.max:
             break
-        meta, body = parse_note(store.read_text(f['id']))
+        f = o['file']
+        meta, body = (o['meta'], o['body']) if 'body' in o else parse_note(store.read_text(f['id']))
         meta.setdefault('id', (re.match(r'^(\d{14})', f['name']) or [None, f['name'][:-3]])[1])
         card = {'id': str(meta['id']), 'fileId': f['id'], 'name': f['name'], 'dir': f['dir'], 'type': meta.get('type', 'memo'),
                 'title': meta.get('title', ''), 'tags': meta.get('tags') or [], 'thought': meta.get('thought', ''),
@@ -256,8 +336,8 @@ def cmd_prepare(store, args):
 
     WORK.mkdir(parents=True, exist_ok=True)
     (WORK / 'batch.json').write_text(json.dumps(batch, ensure_ascii=False, indent=1), encoding='utf-8')
-    lines = [f'# 정리할 노트 {len(batch)}장 (전체 대기 {len(inbox_files)}장)', '', RULES, *rules_lines(load_rules(store, files)), *taxonomy_lines(), '## 기존 폴더 (노트 수)', '']
-    drawers = drawer_counts(organized)
+    lines = [f'# 정리할 노트 {len(batch)}장 (전체 대기 {len(waiting)}장)', '', RULES, *rules_lines(load_rules(settings, renames)), *taxonomy_lines(renames), '## 기존 폴더 (노트 수)', '']
+    drawers = drawer_counts(organized, renames)
     lines.append(', '.join(f'{c} ({n})' for c, n in drawers) if drawers else '(아직 없음. 필요한 폴더를 새로 만든다)')
     lines += ['', '## 노트', '']
     kinds = {'memo': '메모', 'capture': '캡처', 'bookmark': '북마크', 'instagram': '인스타'}
@@ -280,7 +360,7 @@ def cmd_prepare(store, args):
             lines += [f"- {x['id']} | {x['title']} | {x['category']} | {', '.join(x['tags'])}" for x in c['candidates']]
         lines.append('')
     (WORK / 'batch.md').write_text('\n'.join(lines), encoding='utf-8')
-    print(f'정리할 노트 {len(batch)}장을 organizer/work/batch.md에 모았어요. (남은 대기 {len(inbox_files) - len(batch)}장)')
+    print(f'정리할 노트 {len(batch)}장을 organizer/work/batch.md에 모았어요. (남은 대기 {len(waiting) - len(batch)}장)')
 
 
 def clean_category(raw: str) -> str:
@@ -339,6 +419,7 @@ def cmd_apply(store, args):
 
     files = store.list()
     _, cached = load_index(store, files)
+    renames = load_renames(load_settings(store, files))
     known_ids = {str(o['meta'].get('id')) for o in read_all_meta(store, [f for f in files if f['dir'] != INBOX], cached)} | set(batch)
     now = iso_local()
     done, backlinks = [], {}
@@ -346,10 +427,10 @@ def cmd_apply(store, args):
         card = batch[str(d['id'])]
         meta, body = parse_note(store.read_text(card['fileId']))
         meta.setdefault('id', card['id'])
-        if meta.get('status') == 'organized':
-            continue  # 그 사이 사용자가 직접 정리했다
+        if meta.get('status') == 'organized' or meta.get('organized'):
+            continue  # 그 사이 사용자가 직접 정리했거나 이미 정리된 노트
         title = meta.get('title') or safe_name(d.get('title'), 60)
-        category = clean_category(d['category'])
+        category = rename_path(clean_category(d['category']), renames) or clean_category(d['category'])
         tags = list(dict.fromkeys([*(meta.get('tags') or []), *[safe_name(t, 20) for t in (d.get('tags') or []) if safe_name(t, 20)]]))[:6]
         links = []
         for l in d.get('links') or []:
@@ -411,11 +492,11 @@ def build_index(store):
     return data
 
 
-def log_run(store, done):
+def log_run(store, done, what=''):
     files = store.list()
     f = next((x for x in files if x['dir'] == SYSTEM and x['name'] == '정리기록.md'), None)
     old = store.read_text(f['id']) if f else '# 정리 기록\n'
-    entry = f"\n## {datetime.now().astimezone().strftime('%Y-%m-%d %H:%M')} ({len(done)}장)\n\n" + '\n'.join(f'- {c}: {t}' for _, t, c in done) + '\n'
+    entry = f"\n## {datetime.now().astimezone().strftime('%Y-%m-%d %H:%M')} ({what + ' ' if what else ''}{len(done)}장)\n\n" + '\n'.join(f'- {c}: {t}' for _, t, c in done) + '\n'
     head, _, rest = old.partition('\n## ')
     runs = ('## ' + rest).split('\n## ') if rest else []
     text = head.rstrip() + '\n' + entry + ('\n## '.join([''] + runs[:49]) if runs else '')

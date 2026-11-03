@@ -210,5 +210,15 @@ export function createDriveAdapter(auth) {
     async quota() { return (await call(`${API}/about?fields=storageQuota`)).storageQuota ?? {}; },
     canOcr: true,
     mkdir: (path) => ensureDir(path),
+    // 비어 있는 폴더만 휴지통으로 (서랍 이름을 바꾼 뒤 남은 옛 폴더). 안에 무엇이든 있으면 그대로 둔다.
+    async removeEmptyDir(path) {
+      const id = path ? dirIds.get(path) : null;
+      if (!id) return false;
+      const p = new URLSearchParams({ q: `'${id}' in parents and trashed=false`, pageSize: '1', fields: 'files(id)', spaces: 'drive' });
+      if ((await call(`${API}/files?${p}`)).files?.length) return false;
+      await call(`${API}/files/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }) });
+      for (const [k, v] of dirIds) if (k === path || k.startsWith(`${path}/`)) { dirIds.delete(k); dirOf.delete(v); }
+      return true;
+    },
   };
 }

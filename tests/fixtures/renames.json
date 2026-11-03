@@ -1,0 +1,21 @@
+{
+ "note": "서랍 이름 바꿈 규칙. js/core/renames.js 와 organizer/td_note.py 가 같은 답을 내야 한다.",
+ "cases": [
+  { "renames": [], "path": "쇼핑/가전", "want": "쇼핑/가전" },
+  { "renames": [{ "from": "쇼핑", "to": "구매" }], "path": "쇼핑", "want": "구매" },
+  { "renames": [{ "from": "쇼핑", "to": "구매" }], "path": "쇼핑/가전/노트북", "want": "구매/가전/노트북" },
+  { "renames": [{ "from": "쇼핑", "to": "구매" }], "path": "쇼핑몰/가전", "want": "쇼핑몰/가전" },
+  { "renames": [{ "from": "쇼핑", "to": "구매" }, { "from": "쇼핑/가전", "to": "쇼핑/전자기기" }], "path": "쇼핑/가전/노트북", "want": "구매/전자기기/노트북" },
+  { "renames": [{ "from": "쇼핑", "to": "구매" }, { "from": "구매", "to": "장보기" }], "path": "쇼핑/식품", "want": "장보기/식품" },
+  { "renames": [{ "from": "가", "to": "나" }, { "from": "나", "to": "가" }], "path": "가/a", "want": "나/a" },
+  { "renames": [{ "from": "요리·맛집/카페", "to": "요리·맛집/맛집" }], "path": " 요리·맛집 / 카페 / 라떼 ", "want": "요리·맛집/맛집/라떼" },
+  { "renames": [{ "from": "여행/국내", "to": "국내 여행/계획/더" }], "path": "여행/국내/제주", "want": "국내 여행/계획/더" },
+  { "renames": [{ "from": "", "to": "x" }, { "from": "a", "to": "a" }], "path": "a/b", "want": "a/b" }
+ ],
+ "folds": [
+  { "list": [{ "from": "A", "to": "B" }, { "from": "B", "to": "A" }], "want": [{ "from": "B", "to": "A" }] },
+  { "list": [{ "from": "A", "to": "B" }, { "from": "B", "to": "C" }], "want": [{ "from": "A", "to": "C" }, { "from": "B", "to": "C" }] },
+  { "list": [{ "from": "쇼핑/가전", "to": "쇼핑/전자" }, { "from": "쇼핑", "to": "구매" }], "want": [{ "from": "쇼핑/가전", "to": "구매/전자" }, { "from": "쇼핑", "to": "구매" }] },
+  { "list": [{ "from": "A", "to": "B" }, { "from": "A", "to": "C" }], "want": [{ "from": "A", "to": "C" }] }
+ ]
+}

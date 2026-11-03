@@ -184,3 +184,71 @@ def tokens(text: str) -> list[str]:
         if len(t) > 1:
             out.append(t)
     return out
+
+
+# ---------- 서랍 이름 바꿈 장부 (js/core/renames.js 와 같은 규칙) ----------
+def clean_path(p) -> str:
+    return '/'.join([x.strip() for x in str(p or '').split('/') if x.strip()][:3])
+
+
+def rename_path(path, renames) -> str:
+    """경로 앞부분이 옛 이름(from)과 같으면 새 이름(to)으로. 긴 옛 이름이 먼저, 이어진 바꿈은 끝까지 따라간다."""
+    cur = clean_path(path)
+    if not cur or not renames:
+        return cur
+    items = []
+    for r in renames:
+        f, t = clean_path((r or {}).get('from')), clean_path((r or {}).get('to'))
+        if f and t and f != t:
+            items.append((f, t))
+    items.sort(key=lambda x: -len(x[0].split('/')))  # sorted 는 안정 정렬: 길이가 같으면 장부 순서
+    seen = {cur}
+    for _ in range(8):
+        hit = next(((f, t) for f, t in items if cur == f or cur.startswith(f + '/')), None)
+        if not hit:
+            break
+        nxt = clean_path(hit[1] + cur[len(hit[0]):])
+        if nxt in seen:  # 돌고 도는 바꿈은 멈춘다
+            break
+        seen.add(nxt)
+        cur = nxt
+    return cur
+
+
+def normalize_renames(items) -> list[dict]:
+    out: dict[str, dict] = {}
+    for r in items if isinstance(items, list) else []:
+        if not isinstance(r, dict):
+            continue
+        f, t = clean_path(r.get('from')), clean_path(r.get('to'))
+        if not f or not t or f == t:
+            continue
+        out.pop(f, None)
+        out[f] = {'from': f, 'to': t}
+    return list(out.values())[-300:]
+
+
+def add_rename(items, f, t) -> list[dict]:
+    """새 바꿈을 더한다. 예전 바꿈의 새 이름도 따라가고(A→B 뒤 B→C 면 A→C), 되돌리면(A→B 뒤 B→A) 지워진다."""
+    f, t = clean_path(f), clean_path(t)
+    now = normalize_renames(items)
+    if not f or not t or f == t:
+        return now
+    kept = [{**r, 'to': rename_path(r['to'], [{'from': f, 'to': t}])} for r in now]
+    kept = [r for r in kept if r['from'] != r['to'] and r['from'] != f]
+    return normalize_renames([*kept, {'from': f, 'to': t}])
+
+
+def fold_renames(items) -> list[dict]:
+    """장부를 차례로 접어 돌고 도는 바꿈이 생기지 않게 (js/core/renames.js 의 foldRenames)"""
+    out: list[dict] = []
+    for r in items if isinstance(items, list) else []:
+        if isinstance(r, dict):
+            out = add_rename(out, r.get('from'), r.get('to'))
+    return out
+
+
+def stable_target(path, renames) -> str:
+    """옮겨도 되는 새 이름: 옮긴 뒤 다시 바뀌지 않아야 한다. 아니면 빈 문자열."""
+    to = rename_path(path, renames)
+    return to if to != clean_path(path) and rename_path(to, renames) == to else ''

@@ -187,6 +187,16 @@ class DriveStore:
             f = self._call('POST', f'{UPLOAD}/files?uploadType=multipart&fields={FIELDS}', body, h)
         return {'id': f['id'], 'name': f['name'], 'dir': dir, 'modifiedTime': f['modifiedTime']}
 
+    def remove_dir_if_empty(self, path: str) -> bool:
+        """비어 있는 폴더만 드라이브 휴지통으로 (서랍 이름을 바꾼 뒤 남은 옛 폴더). 메모 폴더 자체는 건드리지 않는다."""
+        fid = self.dir_ids.get(path)
+        if not path or not fid or self._list(f"'{fid}' in parents and trashed=false"):
+            return False
+        self._call('PATCH', f'{API}/files/{fid}?fields=id', json.dumps({'trashed': True}).encode(), {'Content-Type': 'application/json'})
+        self.dir_ids.pop(path, None)
+        self.dir_of.pop(fid, None)
+        return True
+
     def search_text(self, needle: str) -> list[str]:
         safe = needle.replace("\\", "\\\\").replace("'", "\\'")
         return [f['id'] for f in self._list(f"fullText contains '{safe}' and mimeType='text/markdown' and trashed=false")]
@@ -230,6 +240,13 @@ class LocalStore:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
         return self._info(target)
+
+    def remove_dir_if_empty(self, path: str) -> bool:
+        p = self.root / path
+        if not path or not p.is_dir() or any(p.iterdir()):
+            return False
+        p.rmdir()
+        return True
 
     def search_text(self, needle: str) -> list[str]:
         out = []

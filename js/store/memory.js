@@ -49,5 +49,10 @@ export function createMemoryAdapter(seed = {}) {
     // 시험용 저장 공간: 15GB 중 드라이브 2.1GB, 전체 6.2GB
     async quota() { return seed.quota ?? { limit: String(15 * 1024 ** 3), usage: String(Math.round(6.2 * 1024 ** 3)), usageInDrive: String(Math.round(2.1 * 1024 ** 3)), usageInDriveTrash: '0' }; },
     async mkdir(path) { dirs.add(path); },
+    async removeEmptyDir(path) {
+      if (!dirs.has(path) || [...files.values()].some((f) => f.dir === path || f.dir.startsWith(`${path}/`)) || [...dirs].some((d) => d.startsWith(`${path}/`))) return false;
+      dirs.delete(path);
+      return true;
+    },
   };
 }
