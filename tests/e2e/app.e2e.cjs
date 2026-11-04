@@ -703,6 +703,17 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
     await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => (n.meta.source ?? '').startsWith('https://www.instagram.com/reel/AbC123')));
     await q.waitForSelector('.props');
     ok(decodeURIComponent(await q.evaluate(() => location.hash)).startsWith('#/n/'), 'iphone 메모로 보내기: a shared link is saved with no taps and its note opens');
+    // URL 인코딩 없이 보낸 단축어(…/?text=[단축어 입력]): 공유한 주소 속 & 까지 그대로
+    await q.goto('http://localhost:8080/?text=https://m.blog.naver.com/PostView.naver?blogId=abc&logNo=223');
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://m.blog.naver.com/PostView.naver?blogId=abc&logNo=223'));
+    ok(true, 'iphone 메모로 보내기: works without URL 인코딩 (keeps & in the shared address)');
+    // 잘못 만든 단축어: 무엇을 고칠지 알려 준다
+    for (const [qs, says] of [['?text=', '비어 있어요'], [`?text=${encodeURIComponent('단축어 입력')}`, '글자로 들어갔어요'], ['?text=IMG_1234.PNG', '사진 보내기']]) {
+      await q.goto(`http://localhost:8080/${qs}`);
+      await q.waitForSelector('.empty h3:has-text("저장하지 못했어요")');
+      const t = await q.locator('.empty').innerText();
+      ok(t.includes(says) && await q.locator('.empty .btn:has-text("단축어 만드는 법")').count() === 1, `iphone shortcut set up wrong (${qs}): says what to fix`);
+    }
     await q.goto(`http://localhost:8080/?text=${encodeURIComponent('[네이버지도]\n소금빵 베이커리\n서울 성동구 성수이로\nhttps://naver.me/abcd')}`);
     await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://naver.me/abcd'));
     await q.waitForSelector('.props .mpill.auto');

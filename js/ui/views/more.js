@@ -7,6 +7,7 @@ import { PageBar } from '../parts/shell.js';
 import { Empty } from '../parts/common.js';
 import { capturePhotos } from '../capture.js';
 import { saveQuick } from '../quick.js';
+import { SHORTCUT_OOPS } from '../../core/shortcut.js';
 import { categoryOf, guessCategory } from '../categories.js';
 import { parseBookmarks, isBookmarksFile } from '../../core/bookmarks.js';
 import { parseInstagramFile, mergeSaved } from '../../core/instagram.js';
@@ -230,6 +231,9 @@ export function Share({ params }) {
       const job = saveShared(got, via);
       job.then((n) => (n ? opened(n) : go('#/paste', { replace: true }))).catch((e) => setError(e.message));
     };
+    // 단축어가 잘못 만들어졌을 때: 무엇을 고치면 되는지
+    const oops = params.get('oops');
+    if (oops) { setError(SHORTCUT_OOPS[oops] ?? SHORTCUT_OOPS.empty); return; }
     const shared = params.get('shared');
     if (!shared) {
       const get = (k) => params.get(k) ?? '';
@@ -249,7 +253,9 @@ export function Share({ params }) {
   }, []);
   return html`<${PageBar} title="받는 중" />
     <div class="page narrow">${error
-      ? html`<${Empty} icon="alert" title="저장하지 못했어요" text=${error}><button type="button" class="btn" onClick=${() => go('#/')}>홈으로</button></${Empty}>`
+      ? html`<${Empty} icon="alert" title="저장하지 못했어요" text=${error}>
+          ${params.get('oops') && html`<button type="button" class="btn btn-primary" onClick=${() => go('#/connect')}>단축어 만드는 법</button>`}
+          <button type="button" class="btn" onClick=${() => go('#/')}>홈으로</button></${Empty}>`
       : html`<${Empty} icon="inbox" title="넣는 중" text="잠시만요." />`}</div>`;
 }
 

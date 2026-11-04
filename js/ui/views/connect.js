@@ -92,12 +92,14 @@ export function Connect() {
           <div><h3>안드로이드</h3><p class="small">위처럼 앱을 설치하면 링크·캡처(사진)의 공유 목록에 <b>Thought Drawer</b>가 나와요. 고르면 끝.
             목록에 없으면: 홈 화면의 Thought Drawer를 길게 눌러 지우고, <b>크롬</b>에서 앱 주소를 열어 ⋮ → <b>앱 설치</b>로 다시 설치하세요. 「홈 화면에 추가」(바로가기)로는 공유 목록에 안 나와요.</p></div>
           <div><h3>아이폰</h3><p class="small">아이폰은 웹 앱이 공유 목록에 직접 들어가지 못해서 <b>단축어</b> 두 개를 한 번 만들어 둬요.
-            단축어 앱 → <b>+</b> → 이름 옆 <b>∨</b> → <b>세부사항</b> → <b>공유 시트에서 보기</b> 켜기, 그다음 아래 동작을 검색해 넣어요.</p>
-            <p class="small"><b>메모로 보내기</b> (링크·글, 누를 것 없이 저장)<br />① <b>URL 인코딩</b> ② <b>URL</b>: 아래 주소를 붙여 넣고 바로 뒤에 <b>URL 인코딩된 텍스트</b> 붙이기 ③ <b>URL 열기</b></p>
-            <${Copyable} value=${`${url}?text=`} label="링크용 주소" />
-            <p class="small"><b>사진 보내기</b> (캡처·사진, 붙여넣기 한 번)<br />① <b>클립보드에 복사</b> ② <b>URL 열기</b>: 아래 주소</p>
-            <${Copyable} value=${`${url}?paste=1`} label="사진용 주소" />
-            <p class="small"><a href="https://github.com/makerskim/thought-drawer/blob/main/docs/%EB%8B%A8%EC%B6%95%EC%96%B4.md" target="_blank" rel="noopener">자세한 순서</a></p></div>
+            단축어는 글로 붙여 넣어 만들 수 없어서, 아래 동작을 검색해 하나씩 넣어요. 주소만 복사해서 붙여 넣으면 돼요.</p>
+            <p class="small"><b>① 메모로 보내기</b> (링크·글, 누를 것 없이 저장)<br />
+              <b>URL</b> 동작: 아래 주소를 붙여 넣고, 키보드 위 줄의 <b>단축어 입력</b>을 눌러 끝에 붙이기 → <b>URL 열기</b> 동작</p>
+            <${Copyable} value=${`${url}?text=`} label="메모로 보내기 주소" />
+            <p class="small"><b>② 사진 보내기</b> (캡처·사진, 붙여넣기 한 번)<br />
+              <b>클립보드에 복사</b> 동작 → <b>URL 열기</b> 동작: 아래 주소</p>
+            <${Copyable} value=${`${url}?paste=1`} label="사진 보내기 주소" />
+            <p class="small">둘 다 단축어 <b>ⓘ</b>(세부사항)에서 <b>공유 시트에서 보기</b>를 켜요. <a href="https://github.com/makerskim/thought-drawer/blob/main/docs/%EB%8B%A8%EC%B6%95%EC%96%B4.md" target="_blank" rel="noopener">한 단계씩 자세히</a></p></div>
         </div>
       </section>
       ${installCard}`,

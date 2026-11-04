@@ -280,6 +280,31 @@ test('링크: 주소로 알 수 있으면 그 서랍, 모르면 「링크 › �
   assert.equal(topOf(classify({ meta: { ...ig.meta, author: 'seoul_foodie' }, body: ig.body }).path), '요리·맛집');
 });
 
+test('아이폰 단축어 주소: 인코딩했든 안 했든 ?text= 뒤를 통째로, 잘못 만들었으면 이유를', async () => {
+  const { shareTarget } = await import('../js/core/shortcut.js');
+  const text = (t) => new URLSearchParams(t.split('?')[1]).get('text');
+  // URL 인코딩 없이 보낸 주소: 공유한 주소 속 & 와 # 까지 살린다
+  assert.equal(text(shareTarget('?text=https://m.blog.naver.com/PostView.naver?blogId=abc&logNo=223', '')), 'https://m.blog.naver.com/PostView.naver?blogId=abc&logNo=223');
+  assert.equal(text(shareTarget('?text=https://example.com/a', '#part2')), 'https://example.com/a#part2');
+  assert.equal(text(shareTarget('?text=https://www.instagram.com/reel/AbC/?igsh=x', '')), 'https://www.instagram.com/reel/AbC/?igsh=x');
+  // URL 인코딩해서 보낸 주소
+  assert.equal(text(shareTarget(`?text=${encodeURIComponent('https://a.com/x?b=1&c=2')}`, '')), 'https://a.com/x?b=1&c=2');
+  assert.equal(text(shareTarget(`?text=${encodeURIComponent('[네이버지도]\n소금빵\nhttps://naver.me/x')}`, '')), '[네이버지도]\n소금빵\nhttps://naver.me/x');
+  // 브라우저가 한글·띄어쓰기를 바꿔 둔 주소, 깨진 %
+  assert.equal(text(shareTarget('?text=%EB%A9%94%EB%AA%A8%20%ED%95%98%EB%82%98', '')), '메모 하나');
+  assert.equal(text(shareTarget('?text=100%25 맞음 50%', '')), '100%25 맞음 50%');
+  // 잘못 만든 단축어
+  assert.equal(shareTarget('?text=', ''), '#/share?oops=empty');
+  assert.equal(shareTarget(`?text=${encodeURIComponent('단축어 입력')}`, ''), '#/share?oops=var');
+  assert.equal(shareTarget(`?text=${encodeURIComponent('URL 인코딩된 텍스트')}`, ''), '#/share?oops=var');
+  assert.equal(shareTarget('?text=IMG_1234.PNG', ''), '#/share?oops=photo');
+  // 그 밖: 사진 붙여넣기, 안드로이드 공유, 정리기 토큰, 아무것도 아님
+  assert.equal(shareTarget('?paste=1', ''), '#/paste');
+  assert.equal(shareTarget('?title=%EC%A0%9C%EB%AA%A9&text=https%3A%2F%2Fa.com', ''), '#/share?title=%EC%A0%9C%EB%AA%A9&text=https%3A%2F%2Fa.com');
+  assert.equal(shareTarget('?state=td-code&code=1', ''), '');
+  assert.equal(shareTarget('', '#/settings'), '');
+});
+
 test('Claude 정리기가 쓰는 서랍 목록(organizer/taxonomy.json)이 앱 사전과 같다', async () => {
   const { readFileSync } = await import('node:fs');
   const { treeJson } = await import('../tools/export-taxonomy.mjs');
