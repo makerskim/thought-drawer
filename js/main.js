@@ -1,6 +1,7 @@
 // Thought Drawer 시작점
 import { html, render } from './ui/h.js';
 import { App } from './ui/App.js';
+import { syncFromLocation } from './ui/router.js';
 import { app, applyAppearance, keepAppearance } from './ui/state.js';
 import { createAuth } from './store/auth.js';
 import { GOOGLE_CLIENT_ID } from './config.js';
@@ -34,6 +35,7 @@ applyAppearance();
 keepAppearance();
 adoptSharedImage();
 adoptShareQuery();
+syncFromLocation(); // 화면 고르기가 바뀐 주소(#/share…)를 바로 보게 (안 그러면 동기화가 끝날 때까지 첫 화면에 머문다)
 render(html`<${App} auth=${createAuth(GOOGLE_CLIENT_ID)} />`, document.getElementById('root'));
 
 if ('serviceWorker' in navigator && location.protocol === 'https:' && window.self === window.top && !window.__TD_TEST__) {

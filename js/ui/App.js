@@ -134,7 +134,8 @@ export function App({ auth }) {
     app.lib.enrich = (n) => enrichNew(n, app.lib); // 새 노트에 자동 태그
     if (test) { await app.lib.clearCache(); window.__TD_APP__ = app; }
     const cached = await app.lib.loadCached();
-    if (cached) setPhase('ready');
+    // 공유로 막 열었으면(받기·붙여넣기 화면) 드라이브 전체 목록을 기다리지 않고 바로 저장한다. 맞추기는 뒤에서.
+    if (cached || /^#\/(share|paste)\b/.test(location.hash)) setPhase('ready');
     await sync();
     setPhase('ready');
     syncFromLocation();
