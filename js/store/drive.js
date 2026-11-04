@@ -112,7 +112,16 @@ export function createDriveAdapter(auth) {
     return (await listAll(q))[0] ?? null;
   }
 
+  // 「메모」 폴더를 한 번만 찾는다. 저장이 동기화보다 먼저 시작돼도(공유로 막 열었을 때) 폴더를 찾은 뒤에 쓴다.
+  let rootP = null;
+  function ready() {
+    if (rootId) return Promise.resolve(rootId);
+    rootP ??= findRoot().then((id) => { rootId = id; dirIds.set('', id); dirOf.set(id, ''); return id; }).catch((e) => { rootP = null; throw e; });
+    return rootP;
+  }
+
   async function ensureDir(path) {
+    if (!rootId) await ready();
     if (dirIds.has(path)) return dirIds.get(path);
     const parts = path.split('/').filter(Boolean);
     let cur = '';
@@ -138,12 +147,11 @@ export function createDriveAdapter(auth) {
     kind: 'drive',
     get rootId() { return rootId; }, // 드라이브의 「메모」 폴더 (내 계정 메뉴에서 바로 열기)
     async init() {
-      rootId = await findRoot();
-      dirIds.set('', rootId);
-      dirOf.set(rootId, '');
+      await ready();
       return auth.profile;
     },
     async list() {
+      await ready();
       const folders = await listAll(`mimeType='${FOLDER}' and trashed=false`);
       const byId = new Map(folders.map((f) => [f.id, f]));
       const pathOf = (id, depth = 0) => {

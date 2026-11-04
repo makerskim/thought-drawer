@@ -133,7 +133,7 @@ export function Connect() {
       </section>`,
     photo: html`
       <section class="connect-card">
-        <div class="cc-head"><${Icon} name="capture" /><div><h2>스크린샷과 사진</h2><p>원본 저장, 사진 속 글자도 검색됩니다.</p></div></div>
+        <div class="cc-head"><${Icon} name="capture" /><div><h2>스크린샷과 사진</h2><p>바로 저장. Claude 정리 때 사진 속 이름·글자를 보고 나눠요.</p></div></div>
         <div class="two-col">
           <div><h3>휴대폰</h3><ol class="steps">
             <li><span>맨 위 칸 아래 <b>사진·캡처</b>를 누르고 앨범에서 여러 장 골라요.</span></li>

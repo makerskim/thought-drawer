@@ -338,6 +338,32 @@ test('링크의 사이트 이름과 보이는 이름: 「무신사 상품」「�
   assert.equal(classify({ meta: { type: 'bookmark', source: 'https://blog.naver.com/a/1', site: '네이버 블로그' }, body: '' }).category, '링크');
 });
 
+test('드라이브: 동기화보다 저장이 먼저 시작돼도(공유로 막 열었을 때) 「메모」 폴더를 찾은 뒤 그 안에 쓴다', async () => {
+  const { createDriveAdapter } = await import('../js/store/drive.js');
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = decodeURIComponent(String(url));
+    calls.push(`${opts.method ?? 'GET'} ${u}`);
+    const json = (x) => ({ ok: true, status: 200, json: async () => x });
+    if (u.includes("tdRole")) return json({ files: [{ id: 'ROOT' }] });
+    if (u.includes("'ROOT' in parents")) return json({ files: [] }); // 00_인박스 아직 없음
+    if (u.includes('/upload/')) return json({ id: 'NOTE', name: 'n.md', parents: ['DIR'], modifiedTime: 't' });
+    if ((opts.method ?? 'GET') === 'POST' && u.includes('/drive/v3/files?')) { const b = JSON.parse(opts.body); return json({ id: 'DIR', name: b.name, parents: b.parents }); }
+    return json({ files: [] });
+  };
+  try {
+    const adapter = createDriveAdapter({ token: () => 'x', ready: async () => {}, profile: { email: 'me@example.com' } });
+    // init() 없이 바로 쓴다
+    const f = await adapter.writeNote({ dir: '00_인박스', name: 'n.md', text: 'hi' });
+    assert.equal(f.dir, '00_인박스');
+    assert.ok(calls[0].includes('tdRole'), `먼저 메모 폴더를 찾는다: ${calls[0]}`);
+    const made = calls.find((c) => c.startsWith('POST') && c.includes('/drive/v3/files?') && !c.includes('/upload/'));
+    assert.ok(made, '인박스 폴더를 만든다');
+    assert.ok(!calls.some((c) => c.includes("'null' in parents")), '부모 없는(null) 폴더 찾기를 하지 않는다');
+  } finally { globalThis.fetch = realFetch; }
+});
+
 test('Claude 정리기가 쓰는 서랍 목록(organizer/taxonomy.json)이 앱 사전과 같다', async () => {
   const { readFileSync } = await import('node:fs');
   const { treeJson } = await import('../tools/export-taxonomy.mjs');

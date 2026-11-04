@@ -382,12 +382,8 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
       onStep?.('드라이브에 올리는 중');
       const att = await adapter.uploadAttachment(blob, attName);
       attachments.set(attName, { id: att.id });
-      let ocr = '';
-      if (adapter.canOcr) {
-        onStep?.('사진 속 글자를 읽는 중');
-        try { ocr = await adapter.ocr(blob); } catch { ocr = ''; }
-      }
-      return write(null, { meta: { ...draft.meta, ...extra, attachments: [attName] }, body: captureBody({ attName, memo, ocr }) });
+      // 넣을 때는 사진만 빨리 저장한다. 사진 속 이름·글자는 Claude 정리 때 Claude가 사진을 보고 중요한 것만 적는다.
+      return write(null, { meta: { ...draft.meta, ...extra, attachments: [attName] }, body: captureBody({ attName, memo }) });
     },
     // 노트 안에 넣을 사진만 올린다 (사진 노트를 따로 만들지 않음). 첨부 이름을 돌려준다.
     async attach(file) {

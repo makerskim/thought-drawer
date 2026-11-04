@@ -225,6 +225,30 @@ def test_rename_rule_matches_the_web_app():
     assert stable_target('A', [{'from': 'A', 'to': 'B'}, {'from': 'B', 'to': 'A'}]) == ''
 
 
+def test_photo_notes_get_only_the_important_text(vault, capsys):
+    """사진 노트: Claude가 사진을 보고 고른 중요한 글자만 남긴다 (시계·배터리 같은 화면 글자는 빼고)"""
+    write(vault, '00_인박스/20261104090000.md',
+          {'id': '20261104090000', 'type': 'capture', 'status': 'inbox', 'attachments': ['20261104090000.jpg']},
+          '![[20261104090000.jpg]]\n\n## 사진 속 글자\n\n13:46\n5G 74\n< Safari\n오크우드 린넨 셔츠\n59,000원\n좋아요 1,203개')
+    (vault / '_첨부' / '20261104090000.jpg').write_bytes(b'\xff\xd8fake2')
+    run(vault, 'prepare')
+    md = (organize.WORK / 'batch.md').read_text(encoding='utf-8')
+    assert 'photo_text' in md and '시계·배터리' in md, 'Claude is told to keep only the important text'
+    batch = json.loads((organize.WORK / 'batch.json').read_text(encoding='utf-8'))
+    decisions = [{'id': c['id'], 'title': 't' + c['id'][-4:], 'category': '패션·뷰티/옷/셔츠', 'tags': [], 'summary': '', 'links': [],
+                  **({'photo_text': '오크우드 린넨 셔츠\n59,000원'} if c['id'] == '20261104090000' else {})} for c in batch]
+    (organize.WORK / 'decisions.json').write_text(json.dumps(decisions, ensure_ascii=False), encoding='utf-8')
+    run(vault, 'apply')
+    meta, body = parse_note(next(vault.rglob('20261104090000*.md')).read_text(encoding='utf-8'))
+    assert body.count('## 사진 속 글자') == 1 and '오크우드 린넨 셔츠\n59,000원' in body
+    assert '13:46' not in body and '좋아요' not in body and '![[20261104090000.jpg]]' in body
+
+
+def test_with_photo_text_adds_a_section_when_missing():
+    assert organize.with_photo_text('![[a.jpg]]', '가게 이름') == '![[a.jpg]]\n\n## 사진 속 글자\n\n가게 이름\n'
+    assert organize.with_photo_text('![[a.jpg]]', '') == '![[a.jpg]]'
+
+
 def test_merge_links_section_dedupes():
     body = '본문\n\n## 연결\n\n- [[20260101000000 가]] (이유)\n'
     out = merge_links_section(body, [('20260101000000', '가', '중복'), ('20260102000000', '나', '')])

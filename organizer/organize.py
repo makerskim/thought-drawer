@@ -49,7 +49,7 @@ SHORT_OCR = 20  # 사진 속 글자가 이보다 적으면 사진을 직접 보�
 
 RULES = """## 정리 규칙
 - 노트마다 아래 형식의 결정을 하나씩 쓴다. 결과는 JSON 배열 하나만 `organizer/work/decisions.json`에 저장한다.
-  `{"id": "노트 번호", "title": "제목", "category": "대분류/중분류/소분류", "tags": ["태그"], "summary": "한 문장 요약", "links": [{"id": "번호", "why": "이유"}]}`
+  `{"id": "노트 번호", "title": "제목", "category": "대분류/중분류/소분류", "tags": ["태그"], "summary": "한 문장 요약", "links": [{"id": "번호", "why": "이유"}], "photo_text": "사진 노트만: 중요한 글자"}`
 - title: 30자 이내, 무엇인지 바로 알 수 있게. 사용자가 단 제목이 있으면 그대로 둔다(빈 문자열로 쓴다).
 - category: 한국어, 세 단계 "대분류/중분류/소분류"(예: "쇼핑/가전/노트북", "요리·맛집/레시피/김치찌개", "여행/국내/제주").
   **기존 폴더 목록에 맞는 게 있으면 반드시 그걸 쓴다.** 없으면 아래 "기본 서랍"의 대분류·중분류 이름을 그대로 쓴다(앱 자동 분류와 같은 이름).
@@ -61,6 +61,9 @@ RULES = """## 정리 규칙
 - summary: 80자 이내 한 문장. 나중에 검색할 핵심 단어(브랜드, 가격, 장소, 재료 등)를 넣는다.
 - links: 그 노트의 "연결 후보"나 이번 묶음의 다른 노트 중 정말 관련 있는 것만, 0~3개. why는 15자 이내.
 - 사진 경로가 적힌 노트만 그 사진을 열어 본다. 다른 파일은 열지 않는다.
+- 사진(캡처) 노트: 사진 속 글자와 이름(브랜드, 상품, 가게, 장소, 사람, 작품 등)을 보고 **무엇인지 알아내서** title·category·tags·summary를 정한다.
+  photo_text: 사진 속 **중요한 글자만** 1~3줄(120자 이내). 상품명·브랜드·가격, 가게·장소 이름과 주소, 전화, 행사·예약 날짜, 핵심 문장.
+  시계·배터리·통신사·와이파이, 메뉴·버튼·탭 이름, 좋아요·댓글 수, 광고 문구 같은 화면 글자는 **넣지 않는다**. 중요한 글자가 없으면 빈 문자열.
 """
 
 
@@ -356,7 +359,7 @@ def cmd_prepare(store, args):
         if c['source'] and not (c['caption'] or c['page']) and c['type'] in ('instagram', 'bookmark'):
             lines.append('(링크 내용을 읽지 못함)')
         if c['image']:
-            lines.append(f"사진: {c['image']}  ← 글자가 거의 없어 이 사진을 직접 본다")
+            lines.append(f"사진: {c['image']}  ← 이 사진을 직접 보고 무엇인지 알아낸다 (photo_text 도 쓴다)")
         if c['candidates']:
             lines.append('연결 후보:')
             lines += [f"- {x['id']} | {x['title']} | {x['category']} | {', '.join(x['tags'])}" for x in c['candidates']]
@@ -369,6 +372,15 @@ def clean_category(raw: str) -> str:
     parts = [safe_name(p, 20) for p in str(raw or '').split('/')]
     parts = [p for p in parts if p and not p.startswith('_') and not p.startswith('00_')]
     return '/'.join(parts[:3])
+
+
+def with_photo_text(body: str, text: str) -> str:
+    """사진 노트의 「사진 속 글자」를 Claude가 고른 중요한 글자로 바꾼다 (화면 글자를 통째로 두지 않게)"""
+    text = re.sub(r'\n{2,}', '\n', str(text or '').strip())[:300]
+    if not text:
+        return body
+    rest = re.sub(r'(?ms)^## 사진 속 글자\n.*?(?=^## |\Z)', '', body or '').rstrip()
+    return f"{rest}\n\n## 사진 속 글자\n\n{text}\n"
 
 
 def body_with_fetched(body: str, card: dict) -> str:
@@ -448,6 +460,8 @@ def cmd_apply(store, args):
         titles = {**{c['id']: c.get('title', '') for c in batch.values()}, **{x['id']: x['title'] for c in batch.values() for x in c['candidates']}}
         dec_titles = {str(x.get('id')): x.get('title', '') for x in decisions if isinstance(x, dict)}
         body = body_with_fetched(body, card)
+        if card.get('type') == 'capture' and d.get('photo_text'):
+            body = with_photo_text(body, d['photo_text'])
         body = merge_links_section(body, [(lid, dec_titles.get(lid) or titles.get(lid, ''), why) for lid, why in links])
         old_name = card['name']
         name = file_name_for(meta) if re.fullmatch(r'\d{14}\.md', old_name) else old_name
