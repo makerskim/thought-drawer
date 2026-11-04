@@ -249,6 +249,13 @@ def test_with_photo_text_adds_a_section_when_missing():
     assert organize.with_photo_text('![[a.jpg]]', '') == '![[a.jpg]]'
 
 
+def test_old_instagram_notes_get_the_reel_link_instead_of_the_app_sentence():
+    old = '@homecafe.kim 의 릴스을 저장했어요.\n\n[인스타그램에서 보기](https://www.instagram.com/reel/ABC/?igsh=1)\n\n인스타 컬렉션: 카페'
+    new = organize.tidy_instagram(old, 'https://www.instagram.com/reel/ABC/?igsh=1')
+    assert new.startswith('[instagram.com/reel/ABC](https://www.instagram.com/reel/ABC/?igsh=1)')
+    assert '저장했어요' not in new and '인스타그램에서 보기' not in new and '인스타 컬렉션: 카페' in new
+
+
 def test_merge_links_section_dedupes():
     body = '본문\n\n## 연결\n\n- [[20260101000000 가]] (이유)\n'
     out = merge_links_section(body, [('20260101000000', '가', '중복'), ('20260102000000', '나', '')])

@@ -134,14 +134,11 @@ export function parseInstagramFile(name, text) {
   }
 }
 
+// 본문에는 릴스·게시물 링크가 그대로 보이게 둔다 (instagram.com/reel/…). 캡션·계정 같은 내용은 Claude 정리 때 채운다.
+export const instagramLinkText = (url) => String(url ?? '').replace(/^https?:\/\/(www\.)?/, '').replace(/[?#].*$/, '').replace(/\/$/, '');
 export function instagramToNote(item, taken) {
-  const kindLabel = item.kind === 'reel' ? '릴스' : '게시물';
-  const who = item.author ? `@${item.author}` : '인스타그램';
-  const lines = [
-    `${who}의 ${kindLabel === '릴스' ? '릴스를' : '게시물을'} 저장했어요.`,
-    '',
-    `[인스타그램에서 보기](${item.url})`,
-  ];
+  const lines = [`[${instagramLinkText(item.url)}](${item.url})`];
+  if (item.author) lines.push('', `@${item.author}`);
   if (item.collection) lines.push('', `인스타 컬렉션: ${item.collection}`);
   return newNote({
     type: 'instagram',

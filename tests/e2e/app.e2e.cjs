@@ -707,6 +707,13 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
     await q.goto('http://localhost:8080/?text=https://m.blog.naver.com/PostView.naver?blogId=abc&logNo=223');
     await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://m.blog.naver.com/PostView.naver?blogId=abc&logNo=223'));
     ok(true, 'iphone 메모로 보내기: works without URL 인코딩 (keeps & in the shared address)');
+    // 링크와 함께 온 짧은 글은 제목으로 (네이버 쇼핑 앱 공유 「[네이버 쇼핑] 린넨 셔츠 https://naver.me/…」)
+    await q.goto(`http://localhost:8080/?text=${encodeURIComponent('[네이버 쇼핑] 오버핏 린넨 셔츠 화이트 https://naver.me/Gx1234')}`);
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://naver.me/Gx1234'));
+    const nv = await q.evaluate(() => window.__TD_APP__.lib.all.find((n) => n.meta.source === 'https://naver.me/Gx1234').meta);
+    ok(nv.title === '오버핏 린넨 셔츠 화이트', `share: the item name shared with a link becomes its title (${nv.title})`);
+    await q.waitForSelector('.props .mpill.auto');
+    ok((await q.locator('.props .mpill.auto').innerText()).includes('패션'), 'share: and it is filed by that name (패션)');
     // 잘못 만든 단축어: 무엇을 고칠지 알려 준다
     for (const [qs, says] of [['?text=', '비어 있어요'], [`?text=${encodeURIComponent('단축어 입력')}`, '글자로 들어갔어요'], ['?text=IMG_1234.PNG', '사진 보내기']]) {
       await q.goto(`http://localhost:8080/${qs}`);

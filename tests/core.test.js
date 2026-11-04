@@ -132,6 +132,8 @@ test('html export and note creation', () => {
   assert.equal(n.meta.source, 'https://www.instagram.com/p/Q1w2/');
   assert.equal(n.meta.id, '20260101000000');
   assert.match(n.body, /@shop/);
+  assert.match(n.body, /^\[instagram\.com\/p\/Q1w2\]\(https:\/\/www\.instagram\.com\/p\/Q1w2\/\)/, '릴스·게시물 링크가 그대로 보인다');
+  assert.doesNotMatch(n.body, /저장했어요|인스타그램에서 보기/, '안내 문장은 넣지 않는다');
   assert.equal(postKey('https://www.instagram.com/someone/reel/ZZ/?igsh=1').url, 'https://www.instagram.com/reel/ZZ/');
 });
 

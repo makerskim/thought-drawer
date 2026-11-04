@@ -186,7 +186,7 @@ def main_text(body: str) -> str:
     b = re.sub(r'(?ms)^## (사진 속 글자|연결|캡션|페이지 내용)\n.*?(?=^## |\Z)', '', body or '')
     # 앱이 자동으로 적은 안내 문장과 출처 링크는 빼서 토큰을 아낀다
     b = re.sub(r'(?m)^.*의 (릴스|게시물)(을|를) 저장했어요\.\s*$', '', b)
-    b = re.sub(r'(?m)^\[(인스타그램에서 보기|https?://[^\]]*)\]\([^)]*\)\s*$', '', b)
+    b = re.sub(r'(?m)^\[(인스타그램에서 보기|https?://[^\]]*|(www\.)?instagram\.com/[^\]]*)\]\([^)]*\)\s*$', '', b)
     b = re.sub(r'(?m)^인스타 컬렉션: .*$', '', b)
     b = re.sub(r'!\[\[[^\]]*\]\]', '[사진]', b)
     return re.sub(r'\n{2,}', '\n', b).strip()
@@ -383,6 +383,14 @@ def with_photo_text(body: str, text: str) -> str:
     return f"{rest}\n\n## 사진 속 글자\n\n{text}\n"
 
 
+def tidy_instagram(body: str, url: str) -> str:
+    """예전 인스타 노트의 안내 문장(「…의 릴스를 저장했어요」「인스타그램에서 보기」)을 릴스 링크 한 줄로 바꾼다"""
+    text = re.sub(r'^https?://(www\.)?', '', url or '').split('?')[0].split('#')[0].rstrip('/')
+    b = re.sub(r'(?m)^.*의 (릴스|게시물)(을|를) 저장했어요\.\s*\n?', '', body or '')
+    b = re.sub(r'(?m)^\[인스타그램에서 보기\]\(([^)]*)\)', lambda m: f'[{text or m.group(1)}]({m.group(1)})', b)
+    return re.sub(r'^\s+', '', b)
+
+
 def body_with_fetched(body: str, card: dict) -> str:
     got = card.get('fetched')
     if not got:
@@ -459,6 +467,8 @@ def cmd_apply(store, args):
         meta['links'] = list(dict.fromkeys([*(meta.get('links') or []), *[l[0] for l in links]]))
         titles = {**{c['id']: c.get('title', '') for c in batch.values()}, **{x['id']: x['title'] for c in batch.values() for x in c['candidates']}}
         dec_titles = {str(x.get('id')): x.get('title', '') for x in decisions if isinstance(x, dict)}
+        if card.get('type') == 'instagram':
+            body = tidy_instagram(body, card.get('source', ''))
         body = body_with_fetched(body, card)
         if card.get('type') == 'capture' and d.get('photo_text'):
             body = with_photo_text(body, d['photo_text'])

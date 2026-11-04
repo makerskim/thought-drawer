@@ -208,14 +208,15 @@ export function saveShared({ title = '', text = '', url = '' }, via = 'phone') {
   if (!url) {
     const m = /https?:\/\/\S+/.exec(text);
     if (m) { url = m[0]; text = `${text.slice(0, m.index)}${text.slice(m.index + m[0].length)}`.trim(); }
+    // 링크와 함께 온 글의 첫 줄이 짧으면 그게 무엇인지(상품·가게·글 이름)라 제목으로 (「[네이버 쇼핑] 린넨 셔츠」 같은 머리말은 뗀다)
     if (m && !title) {
-      const lines = text.split('\n').map((l) => l.trim()).filter((l) => l && !/^\[[^\]]{1,15}\]$/.test(l));
-      if (lines.length > 1 && lines[0].length <= 40) { title = lines[0]; text = lines.slice(1).join('\n'); } else text = lines.join('\n');
+      const lines = text.split('\n').map((l) => l.replace(/^\[[^\]]{1,15}\]\s*/, '').trim()).filter(Boolean);
+      if (lines.length && lines[0].length <= 60) { title = lines[0]; text = lines.slice(1).join('\n'); } else text = lines.join('\n');
     }
   }
   if (text === title) text = '';
-  // 페이지 제목 끝의 사이트 이름은 뗀다 (「… : 네이버 블로그」「… - YouTube」)
-  title = title.replace(/\s*[:|·\-–—]\s*(네이버\s?블로그|네이버\s?카페|네이버\s?포스트|티스토리|브런치(스토리)?|YouTube|유튜브|Instagram|인스타그램)\s*$/i, '').trim();
+  // 제목 끝의 사이트 이름은 뗀다 (「… : 네이버 블로그」「… - YouTube」「… : 네이버쇼핑」)
+  title = title.replace(/\s*[:|·\-–—]\s*(네이버\s?블로그|네이버\s?카페|네이버\s?포스트|네이버\s?쇼핑|스마트스토어|티스토리|브런치(스토리)?|YouTube|유튜브|Instagram|인스타그램)\s*$/i, '').trim();
   const full = [url, text].filter(Boolean).join('\n').trim();
   if (!full) return Promise.resolve(null);
   return url ? app.lib.addLink(url, text, title, { via }) : saveQuick(full, { via });
