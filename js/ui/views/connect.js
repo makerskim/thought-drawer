@@ -82,7 +82,7 @@ export function Connect() {
         <div class="cc-head"><${Icon} name="paste" /><div><h2>링크 복사 → 붙여넣기</h2><p>어느 앱이든, 설정 없이.</p></div></div>
         <ol class="steps">
           <li><span>앱에서 <b>공유</b> → <b>링크 복사</b>(또는 글을 길게 눌러 복사)를 눌러요.</span></li>
-          <li><span>Thought Drawer를 열고 넣는 칸의 <b>+</b> → <b>붙여넣기</b>를 눌러요. 아이폰이 물으면 「붙여넣기 허용」.</span></li>
+          <li><span>Thought Drawer를 열고 넣는 칸의 <b>+</b> → <b>붙여넣기</b>를 눌러요. 아이폰은 그 위에 뜨는 작은 「붙여넣기」를 한 번 더.</span></li>
           <li><span><b>넣기</b>를 누르면 링크 노트가 돼요. 주소로 알 수 있으면 그 서랍에, 모르면 <b>링크</b> 서랍에 두었다가 Claude 정리 때 내용을 읽고 옮겨요.</span></li>
         </ol>
       </section>
@@ -96,7 +96,7 @@ export function Connect() {
               <li><span>단축어 앱 → <b>+</b> → 이름 <b>메모로 보내기</b> → 이름 옆 <b>∨</b> → <b>세부사항</b> → <b>공유 시트에서 보기</b> 켜기.</span></li>
               <li><span>아래 검색에서 <b>클립보드에 복사</b>를 눌러 넣어요.</span></li>
               <li><span>다시 검색에서 <b>URL 열기</b>를 넣고, 주소 칸에 아래 주소를 붙여 넣어요. <b>완료</b>.</span></li>
-              <li><span>쓸 때: 공유 → <b>메모로 보내기</b> → 열린 화면에서 <b>붙여넣기</b> → <b>붙여넣기 허용</b>. 링크·글·사진 모두.</span></li>
+              <li><span>쓸 때: 공유 → <b>메모로 보내기</b> → 열린 화면의 파란 <b>붙여넣기</b> → 그 바로 위에 뜨는 작은 말풍선 <b>「붙여넣기」</b>. 링크·글·사진 모두.</span></li>
             </ol>
             <${Copyable} value=${`${url}?paste=1`} label="단축어 주소" />
             <p class="small"><a href="https://github.com/makerskim/thought-drawer/blob/main/docs/%EB%8B%A8%EC%B6%95%EC%96%B4.md" target="_blank" rel="noopener">그림 없이 자세한 순서</a></p></div>

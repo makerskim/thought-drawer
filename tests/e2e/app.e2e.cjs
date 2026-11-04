@@ -700,20 +700,31 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
     await q.waitForSelector('.hero');
     await q.evaluate(() => navigator.clipboard.writeText('https://www.musinsa.com/products/777'));
     await q.goto('http://localhost:8080/?paste=1');
-    await q.waitForSelector('.empty .btn-primary:has-text("붙여넣기")');
-    ok(decodeURIComponent(await q.evaluate(() => location.hash)) === '#/paste' && (await q.locator('.empty').innerText()).includes('링크·글·사진'), 'iphone shortcut: ?paste=1 opens the paste screen for links, text and photos');
-    await q.click('.empty .btn-primary');
+    await q.waitForSelector('.paste-go');
+    const ptext = await q.locator('.paste-page').innerText();
+    ok(decodeURIComponent(await q.evaluate(() => location.hash)) === '#/paste' && ptext.includes('링크·글·사진') && ptext.includes('바로 위') && await q.locator('.paste-box').count() === 1, 'iphone shortcut: ?paste=1 opens the paste screen that explains the small 「붙여넣기」 bubble');
+    await q.click('.paste-go');
     await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://www.musinsa.com/products/777'));
     await q.waitForSelector('.props .mpill.auto');
     ok((await q.locator('.props .mpill.auto').innerText()).includes('패션'), 'iphone shortcut: a pasted link becomes a link note in its drawer');
     await q.evaluate(() => navigator.clipboard.writeText('내일 3시 치과 예약'));
     await q.goto('http://localhost:8080/?paste=1');
-    await q.click('.empty .btn-primary:has-text("붙여넣기")');
+    await q.click('.paste-go');
     await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => (n.body ?? '').includes('내일 3시 치과 예약')));
     ok(true, 'iphone shortcut: pasted text becomes a memo');
+    // 말풍선을 놓쳤을 때: 칸을 길게 눌러 붙여넣기(붙여넣기 이벤트)로도 저장
+    await q.goto('http://localhost:8080/?paste=1');
+    await q.waitForSelector('.paste-box');
+    await q.evaluate(() => {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', 'https://www.mangoplate.com/restaurants/zz');
+      document.querySelector('.paste-box').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    });
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://www.mangoplate.com/restaurants/zz'));
+    ok(true, 'iphone shortcut: long-press paste into the box also saves');
     await q.evaluate(() => navigator.clipboard.writeText(''));
     await q.goto('http://localhost:8080/?paste=1');
-    await q.click('.empty .btn-primary:has-text("붙여넣기")');
+    await q.click('.paste-go');
     await q.waitForSelector('.toast:has-text("없어요")');
     ok(true, 'iphone shortcut: says so when nothing was copied');
     ok(q.errors.length === 0, 'iphone shortcut: no page errors ' + q.errors.join(' | '));
