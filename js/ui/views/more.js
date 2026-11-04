@@ -199,30 +199,35 @@ export async function takeShared(id) {
   return { ...info, files };
 }
 
+// 공유로 받은 글·링크 저장 → 노트 (받기 화면, 붙여넣기 화면이 함께 쓴다)
+// 안드로이드 공유는 주소를 글(text) 속에 넣고 페이지 제목(title)을 따로 보낸다: 제목을 살려 링크로 (분류에 큰 단서)
+export function saveShared({ title = '', text = '', url = '' }, via = 'phone') {
+  title = title.trim(); text = text.trim(); url = url.trim();
+  if (!url && title) {
+    const m = /https?:\/\/\S+/.exec(text);
+    if (m) { url = m[0]; text = `${text.slice(0, m.index)}${text.slice(m.index + m[0].length)}`.trim(); }
+  }
+  if (text === title) text = '';
+  // 페이지 제목 끝의 사이트 이름은 뗀다 (「… : 네이버 블로그」「… - YouTube」)
+  title = title.replace(/\s*[:|·\-–—]\s*(네이버\s?블로그|네이버\s?카페|네이버\s?포스트|티스토리|브런치(스토리)?|YouTube|유튜브|Instagram|인스타그램)\s*$/i, '').trim();
+  const full = [url, text].filter(Boolean).join('\n').trim();
+  if (!full) return Promise.resolve(null);
+  return url ? app.lib.addLink(url, text, title, { via }) : saveQuick(full, { via });
+}
+const opened = (n) => { toast(`${categoryOf(n, app.lib).name} 서랍에 넣었어요`); go(noteHref(n.id), { replace: true }); };
+
 // 단축어 「메모로 보내기」가 여는 주소: ?text=... 또는 #/share?url=...&text=...
 // 안드로이드 공유(설치한 앱): 글·링크는 ?title=&text=&url=, 사진은 #/share?shared=번호
 export function Share({ params }) {
   const [error, setError] = useState(null);
   useEffect(() => {
-    const saveText = ({ title = '', text = '', url = '' }, via) => {
-      const full = [url, text].filter(Boolean).join('\n').trim();
-      if (!full) { go('#/paste', { replace: true }); return; }
-      // 안드로이드 공유는 주소를 글(text) 속에 넣고 페이지 제목(title)을 따로 보낸다: 제목을 살려 링크로 (분류에 큰 단서)
-      if (!url && title) {
-        const m = /https?:\/\/\S+/.exec(text);
-        if (m) { url = m[0]; text = `${text.slice(0, m.index)}${text.slice(m.index + m[0].length)}`.trim(); }
-      }
-      if (text === title) text = '';
-      // 페이지 제목 끝의 사이트 이름은 뗀다 (「… : 네이버 블로그」「… - YouTube」)
-      title = title.replace(/\s*[:|·\-–—]\s*(네이버\s?블로그|네이버\s?카페|네이버\s?포스트|티스토리|브런치(스토리)?|YouTube|유튜브|Instagram|인스타그램)\s*$/i, '').trim();
-      // 브라우저 단추·공유는 주소, 제목, 고른 글을 따로 보낸다
-      (url ? app.lib.addLink(url, text, title, { via }) : saveQuick(full, { via }))
-        .then((n) => { toast(`${categoryOf(n, app.lib).name} 서랍에 넣었어요`); go(noteHref(n.id), { replace: true }); })
-        .catch((e) => setError(e.message));
+    const saveText = (got, via) => {
+      const job = saveShared(got, via);
+      job.then((n) => (n ? opened(n) : go('#/paste', { replace: true }))).catch((e) => setError(e.message));
     };
     const shared = params.get('shared');
     if (!shared) {
-      const get = (k) => (params.get(k) ?? '').trim();
+      const get = (k) => params.get(k) ?? '';
       saveText({ title: get('title'), text: get('text'), url: get('url') }, params.get('via') || 'phone');
       return;
     }
@@ -243,31 +248,46 @@ export function Share({ params }) {
       : html`<${Empty} icon="inbox" title="넣는 중" text="잠시만요." />`}</div>`;
 }
 
-// 단축어가 사진을 복사해 두고 여는 화면
+// 아이폰 단축어 「메모로 보내기」가 공유한 것(링크·글·사진)을 복사해 두고 여는 화면: 붙여넣기 한 번이면 저장
 export function Paste() {
+  const save = async ({ files = [], text = '' }) => {
+    if (files.length) {
+      const made = await capturePhotos(files);
+      if (made[0]) go(made.length === 1 ? noteHref(made[0].id) : '#/', { replace: true });
+      return;
+    }
+    if (!text.trim()) { toast('복사해 둔 링크·글·사진이 없어요. 한 번 더 공유해 주세요.'); return; }
+    try { const n = await saveShared({ text }, 'phone'); if (n) opened(n); } catch (e) { toast(e.message); }
+  };
   useEffect(() => {
     const onPaste = (e) => {
       const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
-      if (files.length) { e.preventDefault(); capturePhotos(files).then((made) => made[0] && go(noteHref(made[0].id), { replace: true })); }
+      const text = e.clipboardData?.getData('text/plain') ?? '';
+      if (files.length || text.trim()) { e.preventDefault(); save({ files, text }); }
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
   }, []);
   const fromClipboard = async () => {
+    const files = [];
+    let text = '';
     try {
-      const files = [];
-      for (const item of await navigator.clipboard.read()) {
-        const type = item.types.find((t) => t.startsWith('image/'));
-        if (type) files.push(new File([await item.getType(type)], `paste.${type.split('/')[1]}`, { type }));
+      if (navigator.clipboard?.read) {
+        for (const item of await navigator.clipboard.read()) {
+          const img = item.types.find((t) => t.startsWith('image/'));
+          if (img) { files.push(new File([await item.getType(img)], `paste.${img.split('/')[1]}`, { type: img })); continue; }
+          const tt = item.types.includes('text/plain') ? 'text/plain' : item.types.includes('text/uri-list') ? 'text/uri-list' : '';
+          if (tt && !text) text = (await (await item.getType(tt)).text()).split('\n').filter((l) => !(tt === 'text/uri-list' && l.startsWith('#'))).join('\n');
+        }
+      } else {
+        text = await navigator.clipboard.readText();
       }
-      if (!files.length) { toast('복사해 둔 사진이 없어요.'); return; }
-      const made = await capturePhotos(files);
-      if (made[0]) go(noteHref(made[0].id), { replace: true });
-    } catch { toast('붙여넣기를 허용하거나 길게 눌러 붙여 넣으세요.'); }
+    } catch { toast('붙여넣기를 허용해 주세요. 아이폰이 묻는 「붙여넣기」를 누르면 돼요.'); return; }
+    await save({ files, text });
   };
-  return html`<${PageBar} title="사진 붙여넣기" />
+  return html`<${PageBar} title="붙여넣기" />
     <div class="page narrow">
-      <${Empty} icon="paste" title="복사한 사진을 붙여 넣어요" text="버튼을 누르고, 아이폰이 묻는 '붙여넣기'를 한 번 더 누르면 저장돼요.">
+      <${Empty} icon="paste" title="공유한 것을 넣어요" text="아래 버튼을 누르고, 아이폰이 묻는 「붙여넣기」를 한 번 더 누르면 저장돼요. 링크·글·사진 모두.">
         <button type="button" class="btn btn-primary btn-lg" onClick=${fromClipboard}><${Icon} name="paste" />붙여넣기</button>
       </${Empty}>
     </div>`;

@@ -693,6 +693,32 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
     ok(q.errors.length === 0, 'share: no page errors ' + q.errors.join(' | '));
     await q.context().close();
   }
+  // 아이폰 단축어 「메모로 보내기」: 공유한 것을 복사해 두고 ?paste=1 로 연다 → 붙여넣기 한 번이면 링크·글도 저장
+  {
+    const q = await open(b, { hash: '' });
+    await q.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://localhost:8080' });
+    await q.waitForSelector('.hero');
+    await q.evaluate(() => navigator.clipboard.writeText('https://www.musinsa.com/products/777'));
+    await q.goto('http://localhost:8080/?paste=1');
+    await q.waitForSelector('.empty .btn-primary:has-text("붙여넣기")');
+    ok(decodeURIComponent(await q.evaluate(() => location.hash)) === '#/paste' && (await q.locator('.empty').innerText()).includes('링크·글·사진'), 'iphone shortcut: ?paste=1 opens the paste screen for links, text and photos');
+    await q.click('.empty .btn-primary');
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://www.musinsa.com/products/777'));
+    await q.waitForSelector('.props .mpill.auto');
+    ok((await q.locator('.props .mpill.auto').innerText()).includes('패션'), 'iphone shortcut: a pasted link becomes a link note in its drawer');
+    await q.evaluate(() => navigator.clipboard.writeText('내일 3시 치과 예약'));
+    await q.goto('http://localhost:8080/?paste=1');
+    await q.click('.empty .btn-primary:has-text("붙여넣기")');
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => (n.body ?? '').includes('내일 3시 치과 예약')));
+    ok(true, 'iphone shortcut: pasted text becomes a memo');
+    await q.evaluate(() => navigator.clipboard.writeText(''));
+    await q.goto('http://localhost:8080/?paste=1');
+    await q.click('.empty .btn-primary:has-text("붙여넣기")');
+    await q.waitForSelector('.toast:has-text("없어요")');
+    ok(true, 'iphone shortcut: says so when nothing was copied');
+    ok(q.errors.length === 0, 'iphone shortcut: no page errors ' + q.errors.join(' | '));
+    await q.context().close();
+  }
   // 서비스 워커: 공유 POST 를 받아 사진은 저장하고 받기 화면으로, 글만 오면 주소에 실어 보낸다
   {
     const ctx = await b.newContext();
