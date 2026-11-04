@@ -72,7 +72,7 @@ export function Connect() {
       <div><h3>안드로이드</h3><ol class="steps">
         <li><span><b>크롬</b>으로 앱 주소를 열어요.</span></li>
         <li><span>⋮ 메뉴 → <b>앱 설치</b>(또는 홈 화면에 추가).</span></li>
-        <li><span>설치하면 다른 앱의 <b>공유</b> 목록에 Thought Drawer가 생겨요.</span></li></ol></div>
+        <li><span>설치하면 다른 앱의 <b>공유</b> 목록에 Thought Drawer가 생겨요. 링크도 캡처(사진)도.</span></li></ol></div>
     </div>
   </section>`;
 
@@ -83,13 +83,14 @@ export function Connect() {
         <ol class="steps">
           <li><span>앱에서 <b>공유</b> → <b>링크 복사</b>(또는 글을 길게 눌러 복사)를 눌러요.</span></li>
           <li><span>Thought Drawer를 열고 넣는 칸의 <b>+</b> → <b>붙여넣기</b>를 눌러요. 아이폰이 물으면 「붙여넣기 허용」.</span></li>
-          <li><span><b>넣기</b>를 누르면 링크 노트가 되고, 사이트를 보고 서랍에 들어가요.</span></li>
+          <li><span><b>넣기</b>를 누르면 링크 노트가 돼요. 주소로 알 수 있으면 그 서랍에, 모르면 <b>링크</b> 서랍에 두었다가 Claude 정리 때 내용을 읽고 옮겨요.</span></li>
         </ol>
       </section>
       <section class="connect-card">
         <div class="cc-head"><${Icon} name="external" /><div><h2>공유 버튼에서 바로 넣기</h2><p>공유 한 번으로.</p></div></div>
         <div class="two-col">
-          <div><h3>안드로이드</h3><p class="small">위처럼 앱을 설치하면 공유 목록에 <b>Thought Drawer</b>가 바로 나와요. 고르면 끝.</p></div>
+          <div><h3>안드로이드</h3><p class="small">위처럼 앱을 설치하면 링크·캡처(사진)의 공유 목록에 <b>Thought Drawer</b>가 나와요. 고르면 끝.
+            목록에 없으면: 홈 화면의 Thought Drawer를 길게 눌러 지우고, <b>크롬</b>에서 앱 주소를 열어 ⋮ → <b>앱 설치</b>로 다시 설치하세요. 「홈 화면에 추가」(바로가기)로는 공유 목록에 안 나와요.</p></div>
           <div><h3>아이폰</h3><p class="small">아이폰은 웹 앱이 공유 목록에 직접 들어가지 못해서, 단축어 「메모로 보내기」를 한 번 만들어 두면 공유 목록에서 바로 넣을 수 있어요. <a href="https://github.com/makerskim/thought-drawer/blob/main/docs/%EB%8B%A8%EC%B6%95%EC%96%B4.md" target="_blank" rel="noopener">만드는 순서 (3분)</a></p>
             <${Copyable} value=${`${url}?text=`} label="단축어 주소" /></div>
         </div>

@@ -4,7 +4,8 @@
 // 글에서 가장 구체적인 낱말을 소분류로 삼는다. 「기타」는 없다: 아무 단서가 없으면 모르는 사이트는 주소로 짐작하고,
 // 그것도 없으면 「생각·기록 › 메모」에 글의 첫 낱말을 소분류로 둔다. 왜 그렇게 골랐는지와 자동 태그도 함께 돌려준다.
 import { tokenize } from './search.js';
-import { CATEGORIES, BLOCKERS, PLATFORMS, SITES, BRAND_SKIP, HOST_HINTS, STARTS } from './taxonomy.js';
+import { CATEGORIES, BLOCKERS, PLATFORMS, SITES, BRAND_SKIP, HOST_HINTS, STARTS, LINK_DRAWER, SHOP_PATH, URL_WORDS } from './taxonomy.js';
+export { LINK_DRAWER };
 
 export { CATEGORIES, SITES };
 // 예전 버전이 쓰던 「기타」 (이제 자동 분류는 쓰지 않지만, 그 이름의 폴더를 만든 사람이 있을 수 있다)
@@ -200,16 +201,40 @@ export function ruleHit(rule, { meta = {}, body = '' }) {
   return ruleWords(rule).find((w) => has(text, w) || (host && host.includes(w))) ?? '';
 }
 
+// 영어 낱말을 사전의 한국어 낱말로 (dresses → 원피스). 한글 낱말은 그대로 둔다.
+const enWords = (s) => String(s ?? '').split(/[^0-9A-Za-z가-힣]+/)
+  .map((t) => (/[가-힣]/.test(t) ? t : URL_WORDS[t.toLowerCase()] ?? '')).filter(Boolean).join(' ');
+
+// 주소 속 낱말: 경로와 검색어를 풀어 읽는다. …/product/린넨-오버핏-셔츠/123 → 린넨 오버핏 셔츠, …/women-dresses → 원피스
+export function urlWords(url) {
+  let u;
+  try { u = new URL(url); } catch { return ''; }
+  let path = u.pathname;
+  try { path = decodeURIComponent(path); } catch { /* 깨진 주소는 그대로 */ }
+  const query = [...u.searchParams].filter(([k]) => /^(q|query|keyword|search|title|name|k|cate\w*)$/i.test(k)).map(([, v]) => v);
+  return enWords([path, ...query].join(' '));
+}
+
+// 앱이 스스로 적은 문장은 분류에 쓰지 않는다: 인스타 노트의 「…의 릴스를 저장했어요」「인스타그램에서 보기」, 주소만 적힌 링크 글자
+const APP_LINES = /^(?:@\S+|인스타그램)의 (?:릴스|게시물)(?:을|를) 저장했어요\.\s*$|^\[인스타그램에서 보기\]\([^)]*\)\s*$/gm;
+function ownText(meta, body) {
+  const b = String(body ?? '').replace(APP_LINES, '').replace(/^인스타 컬렉션: /gm, '')
+    .replace(/\[([^\]]*)\]\((https?:[^)]*)\)/g, (m, t) => (/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(t.trim()) ? ' ' : t));
+  const tags = meta.type === 'instagram' ? (meta.tags ?? []).filter((t) => t !== '릴스') : meta.tags;
+  return textOf({ ...meta, tags }, b);
+}
+
 // opts: { subs: 세부 서랍·소분류까지(기본 켬), tags: 자동 태그 수(0이면 안 닮), rules: 내 분류 규칙 }
-// → { category, sub, leaf, path, why, score, tags, weak } — weak: 단서가 없어 「메모」로 둔 것
+// → { category, sub, leaf, path, why, score, tags, weak } — weak: 단서가 없어 「메모」나 「링크」로 둔 것
 export function classify({ meta = {}, body = '' }, model = null, opts = {}) {
   const { subs: wantSubs = true, tags: maxTags = 4, rules = [] } = opts;
   const raw = textOf(meta, body);
   const text = lc(raw);
   // 출처가 없어도 글 속 첫 주소의 사이트를 본다 (「청소기 비교 https://coupang.com/…」)
-  const host = hostOf(meta.source) || hostOf(/https?:\/\/[^\s)\]>"']+/.exec(String(body ?? ''))?.[0]);
-  // 주소는 낱말을 찾을 때 빼고 본다 (주소 속 영어가 낱말로 걸리지 않게)
-  const words0 = text.replace(/https?:\/\/[^\s)\]>"']+/g, ' ');
+  const url = meta.source || /https?:\/\/[^\s)\]>"']+/.exec(String(body ?? ''))?.[0] || '';
+  const host = hostOf(url);
+  // 주소는 그대로 찾지 않고(주소 속 영어가 낱말로 걸리지 않게), 풀어 읽은 낱말과 인스타 계정 이름의 낱말을 보탠다
+  const words0 = `${lc(ownText(meta, body)).replace(/https?:\/\/[^\s)\]>"']+/g, ' ')}\n${lc([urlWords(url), enWords(meta.author)].join(' '))}`;
   const existing = model?.names ?? [];
   const scores = new Map();
   const whys = new Map();
@@ -283,11 +308,13 @@ export function classify({ meta = {}, body = '' }, model = null, opts = {}) {
   const ctx = { text: words0, found, places, host, model, words, forced, existing, sigs, meta, body, ruleTags, maxTags, wantSubs };
   if (best && best.score >= 0.5) return finish(best.category, best.score, whys.get(best.category) ?? '', ctx);
 
-  // 단서가 없을 때: 모르는 사이트는 주소로 짐작하고(쇼핑몰·신문·블로그…), 아니면 메모
+  // 단서가 없을 때: 주소로 알 수 있으면 짐작하고(쇼핑몰·패션·음식·신문…, 상품 페이지 꼴 → 쇼핑)
   if (host) {
-    const hint = HOST_HINTS.find(([re]) => re.test(host));
-    const [top, sub] = hint ? [hint[1], hint[2]] : ['공부·자료', '아티클'];
-    return finish(resolveName(defOf(top), existing), 0.4, `${host} 링크`, { ...ctx, prefer: sub, siteLeaf: true });
+    const hint = HOST_HINTS.find(([re]) => re.test(host)) ?? (SHOP_PATH.test(url) ? [null, '쇼핑', '위시리스트'] : null);
+    if (hint) return finish(resolveName(defOf(hint[1]), existing), 0.4, `${host} 링크`, { ...ctx, prefer: hint[2], siteLeaf: true });
+    // 주소만으로는 모르는 링크(블로그·카페·SNS·짧은 주소·처음 보는 사이트): 「링크 › 사이트 이름」에 모아 두고 Claude 정리 때 내용을 읽어 나눈다
+    const sub = wantSubs ? siteLabel(host) || host : '';
+    return { category: LINK_DRAWER, sub, leaf: '', path: [LINK_DRAWER, sub].filter(Boolean).join('/'), why: `${host} 링크`, score: 0.2, weak: true, tags: pickTags({ ...ctx, top: LINK_DRAWER, sub }) };
   }
   if (meta.type === 'capture' && !String(body ?? '').replace(/!\[\[[^\]]*\]\]|^#+.*$/gm, '').trim()) {
     return finish(resolveName(defOf('생각·기록'), existing), 0.3, '사진', { ...ctx, prefer: '캡처', weak: true });
@@ -441,6 +468,7 @@ function pickTags({ text, found, places, host, top, sub, ruleTags, model, maxTag
 export function categoryLook(name) {
   const def = CATEGORIES.find((d) => d.name === name || d.aliases.includes(name));
   if (def) return { icon: def.icon, tone: def.tone };
+  if (name === LINK_DRAWER) return { icon: 'link', tone: 0 };
   if (name === OTHER) return { icon: 'drawer', tone: 6 };
   let h = 0;
   for (const ch of String(name)) h = (h * 31 + ch.codePointAt(0)) >>> 0;

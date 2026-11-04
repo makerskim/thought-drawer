@@ -18,6 +18,7 @@ import { preview, GuessLine } from '../parts/guess.js';
 import { openToday, todayKey, findDaily } from '../notebook.js';
 import { categoryOf, guessCategory, drawerList, inDrawer, categoryLook, settingsOf, tagsOf, tagCounts, searchAuto, renameDrawer, drawerTargets } from '../categories.js';
 import { nameProblem } from '../../core/renames.js';
+import { LINK_DRAWER } from '../../core/classify.js';
 import { search, parseQuery } from '../../core/search.js';
 import { readFilter, applyFilter, activeCount, SORTS } from '../../core/filter.js';
 import { FilterBar, clearFilters } from '../parts/filters.js';
@@ -406,7 +407,9 @@ export function Shelf({ scope, params }) {
       : html`<div class="page-hero">
           <h1 class=${top ? 'with-fold' : ''}>${top && html`<${FolderIcon} glyph=${categoryLook(top).icon} size=${54} />`}${title}.</h1>
           <p class="sh-count">${count}${prog ? ` · 할 일 확인 중 ${prog[0]}/${prog[1]}` : ''}</p>
-          ${autoN > 0 && html`<p class="sh-note"><${Icon} name="sparkle" /><span>자동 분류 ${autoN}개. 노트에서 서랍을 바꿀 수 있습니다.</span></p>`}
+          ${autoN > 0 && (top === LINK_DRAWER
+            ? html`<p class="sh-note"><${Icon} name="link" /><span>주소만으로는 몰라서 모아 둔 링크예요. Claude 자동 정리가 내용을 읽고 제자리로 옮겨요.</span></p>`
+            : html`<p class="sh-note"><${Icon} name="sparkle" /><span>자동 분류 ${autoN}개. 노트에서 서랍을 바꿀 수 있습니다.</span></p>`)}
           ${subs.length > 0 && html`<nav class="chip-row sub-chips" style="margin-top:16px" aria-label="세부 서랍">
             <a class="chip" href=${folderHref(top)} aria-current=${scope.value === top ? 'page' : undefined}>${top} 전체</a>
             ${subs.map(([name, c]) => html`<a key=${name} class="chip" href=${folderHref(`${top}/${name}`)} aria-current=${scope.value === `${top}/${name}` ? 'page' : sub === name ? 'true' : undefined}>${name}<span class="n">${c}</span></a>`)}

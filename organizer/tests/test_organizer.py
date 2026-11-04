@@ -61,6 +61,7 @@ def test_prepare_builds_compact_batch(vault, capsys):
     assert '저장했어요' not in md and '인스타그램에서 보기' not in md, 'boilerplate stripped'
     assert '20260912214510 | 흰색 옥스포드 셔츠' in md, 'link candidate by shared words'
     assert '## 기본 서랍' in md and '- 쇼핑: 가전,' in md and '- 생각·기록: 메모,' in md, 'app drawer names for consistent folders'
+    assert '내용**(제목, 페이지, 캡션, 사진)으로 서랍을 정한다' in md and '「링크」는 쓰지 않는다' in md, 'links are filed by content, 링크 is only a waiting drawer'
     batch = json.loads((organize.WORK / 'batch.json').read_text(encoding='utf-8'))
     assert [c['id'] for c in batch] == ['20261027093012', '20261026213300', '20261025180000'], 'newest first'
 

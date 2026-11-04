@@ -55,7 +55,8 @@ export const CATEGORIES = [
       { name: '위시리스트', aliases: ['위시', '사고 싶은 것'], words: ['위시리스트', '위시', '~사고 싶', '~사고싶', '~갖고 싶', '~갖고싶', '탐나', '장바구니', '~지를까', '~살까', '언젠가 살', '찜해 둔', '찜한'] },
     ] },
   { name: '패션·뷰티', icon: 'shirt', tone: 3, aliases: ['패션', '뷰티', '옷', '코디', '스타일', '화장품'], base: '옷',
-    hosts: ['musinsa', '29cm', 'wconcept', 'zigzag', 'a-bly', 'ably', 'kream', 'uniqlo', 'zara', 'cos.com', 'hm.com', 'nike', 'adidas', 'newbalance', 'spao', 'topten', 'hfashionmall', 'ssfshop', 'lfmall'],
+    hosts: ['musinsa', '29cm', 'wconcept', 'zigzag', 'a-bly', 'ably', 'kream', 'uniqlo', 'zara', 'cos.com', 'hm.com', 'nike', 'adidas', 'newbalance', 'spao', 'topten', 'hfashionmall', 'ssfshop', 'lfmall',
+      'stylenanda', 'brandi', 'hiver', '4910.kr', 'posty', 'queenit', 'thehandsome', 'sivillage', 'abcmart', 'a-rt.com', 'shoemarker', 'crocs', 'converse', 'vans', 'arket', 'mixxo', 'kasina', 'eqlstore', 'gu-global', 'mango.com', 'massimodutti', 'pullandbear', 'stussy', 'patagonia', 'thenorthface', 'discovery-expedition', 'covernat', 'thisisneverthat'],
     words: ['패션', '코디', '스타일', '룩북', '사이즈', '~입을', '착용', '핏'],
     subs: [
       { name: '옷', aliases: ['의류', '상의', '하의'],
@@ -74,7 +75,7 @@ export const CATEGORIES = [
           가방: ['가방', '가방 정리', '백팩', '토트백', '에코백', '크로스백', '숄더백', '클러치', '파우치', '지갑', '카드지갑'],
         },
         words: [] },
-      { name: '뷰티', aliases: ['화장품', '스킨케어'], hosts: ['oliveyoung', 'hwahae', 'amoremall'],
+      { name: '뷰티', aliases: ['화장품', '스킨케어'], hosts: ['oliveyoung', 'hwahae', 'amoremall', 'glowpick', 'chicor', 'sephora', 'innisfree', 'aritaum', 'lalavla', 'aesop', 'kiehls', 'clinique', 'esteelauder', 'lancome', 'sulwhasoo', 'hera.com', 'romand', 'clio'],
         groups: {
           스킨케어: ['스킨케어', '토너', '세럼', '앰플', '로션', '수분크림', '선크림', '썬크림', '클렌징', '폼클렌징', '마스크팩', '피부', '여드름', '모공', '각질'],
           메이크업: ['메이크업', '화장', '쿠션', '파운데이션', '립스틱', '틴트', '아이섀도', '마스카라', '블러셔', '컨실러', '아이라이너', '화장품'],
@@ -103,7 +104,7 @@ export const CATEGORIES = [
           간단요리: ['에어프라이어 요리', '전자레인지 요리', '자취 요리', '간단 요리', '술안주', '안주', '샌드위치', '떡볶이', '샐러드 만들기', '토스트'],
         },
         words: ['레시피', 'recipe', '재료', '만드는 법', '만드는 방법', '끓이는 법', '굽는 법', '손질', '밀프렙', '집밥'] },
-      { name: '맛집', aliases: ['식당'], hosts: ['mangoplate', 'diningcode', 'catchtable', 'siksin'],
+      { name: '맛집', aliases: ['식당'], hosts: ['mangoplate', 'diningcode', 'catchtable', 'siksin', 'bluer.co.kr', 'poing', 'tabling', 'kakaomap.com/place', 'michelin'],
         groups: {
           한식: ['한식', '국밥', '냉면', '고깃집', '삼겹살집', '갈비', '백반', '한정식', '칼국수', '곱창', '족발'],
           일식: ['일식', '초밥', '스시', '오마카세', '라멘', '돈까스', '돈카츠', '우동집', '이자카야'],
@@ -174,7 +175,7 @@ export const CATEGORIES = [
         words: ['시험', 'exam', '자격증', '기출', '모의고사', '수능', '공무원', '컴활', '한국사', '정보처리기사', '자격증 시험', '합격', '불합격', '시험 범위', '시험 접수', '필기시험', '실기'] },
       { name: '학교', aliases: ['학업', '대학'],
         words: ['학교', '대학', '대학교', '대학원', '수강신청', '학점', '졸업', '과제', '레포트', '리포트', '교수님', '학기', '중간고사', '기말고사', '학원', '숙제', '동아리', '장학금', '휴학', '복학'] },
-      { name: '아티클', aliases: ['읽을거리', '칼럼'], hosts: ['brunch.co.kr', 'medium.com', 'substack', 'publy', 'careerly', 'eopla', 'blog', 'tistory', 'post.naver'],
+      { name: '아티클', aliases: ['읽을거리', '칼럼'], hosts: ['brunch.co.kr', 'medium.com', 'substack', 'publy', 'careerly', 'eopla'],
         words: ['아티클', '칼럼', '인사이트', '뉴스레터', '읽을거리', '논문', '나중에 읽기', '읽어볼', '읽어 볼', '트렌드', '인터뷰', '롱리드'] },
     ] },
   { name: '지식·상식', icon: 'sparkle', tone: 2, aliases: ['지식', '상식', '교양'], base: '상식',
@@ -517,7 +518,7 @@ for (const [key, add] of Object.entries(MORE)) {
 export const BLOCKERS = ['시계열', '회의적', '회의감', '주식회사', '네이버 카페', '다음 카페', '여행사 직원', '책임', '아로마', '아프리카tv', '이사장', '이모티콘', '아기자기', '웹서핑', '수도권', '메모리', '보고 싶', '보고싶', '청소년', '오리지널', '귀여우', '귀여워', '주먹', '라면서', '이라면', '다면', '쓰레기 같', '쓰레기같', '막바지', '스마트', '블록버스터', '블럭버스터', '옴니버스', '핫요가', '사고방식', '사고력', '아이유', '대시보드', '온라인', '오프라인', '자기소개', '자기계발'];
 
 // 무엇이든 올라오는 글 플랫폼: 사이트만으로는 약하게 친다
-export const PLATFORMS = ['brunch.co.kr', 'medium.com', 'substack', 'velog', 'tistory', 'publy', 'careerly', 'wikipedia', 'namu.wiki', 'blog', 'post.naver', 'go.kr', 'weather'];
+export const PLATFORMS = ['brunch.co.kr', 'medium.com', 'substack', 'velog', 'tistory', 'publy', 'careerly', 'wikipedia', 'namu.wiki', 'blog', 'post.naver', 'go.kr', 'weather', 'youtube.com', 'youtu.be', 'tiktok'];
 
 // 사이트 → 태그·소분류로 쓰는 이름
 export const SITES = {
@@ -536,6 +537,8 @@ export const SITES = {
   steampowered: '스팀', nintendo: '닌텐도', 'op.gg': 'OP.GG', 'comic.naver': '네이버 웹툰', 'webtoon.kakao': '카카오웹툰', 'page.kakao': '카카오페이지',
   'gov.kr': '정부24', hometax: '홈택스', zigbang: '직방', 'land.naver': '네이버 부동산', hogangnono: '호갱노노', 'sports.naver': '네이버 스포츠',
   'twitter.com': 'X', 'threads.net': '스레드', 'facebook.com': '페이스북', 'pinterest': '핀터레스트', 'reddit.com': '레딧',
+  stylenanda: '스타일난다', brandi: '브랜디', hiver: '하이버', posty: '포스티', queenit: '퀸잇', thehandsome: '더한섬닷컴', abcmart: 'ABC마트', glowpick: '글로우픽', chicor: '시코르',
+  'bluer.co.kr': '블루리본', diningcode: '다이닝코드', siksin: '식신', tabling: '테이블링', 'naver.me': '네이버 공유', 'link.coupang': '쿠팡', 'kko.to': '카카오 공유',
 };
 
 // 사이트의 한국어 이름 중 뜻이 여럿이라 글에서는 신호로 치지 않는 것 (멜론=과일, 크림, 브런치=식사…)
@@ -543,7 +546,11 @@ export const BRAND_SKIP = new Set(['멜론', '크림', '웨이브', '알리', '�
 
 // 모르는 사이트: 주소에 든 말로 짐작한다 (위에서 못 찾았을 때만)
 export const HOST_HINTS = [
-  [/instagram|pinterest|behance|dribbble|threads|twitter|facebook|(^|\.)x\.com$/, '생각·기록', '아이디어'],
+  [/pinterest|behance|dribbble/, '생각·기록', '아이디어'],
+  [/beauty|cosme|makeup|skin/, '패션·뷰티', '뷰티'],
+  [/fashion|style|wear|cloth|apparel|outfit|closet|denim|knit/, '패션·뷰티', '옷'],
+  [/shoe|sneaker/, '패션·뷰티', '신발·가방'],
+  [/restaurant|dining|bistro|bakery|coffee|pizza|burger|sushi|steak/, '요리·맛집', '맛집'],
   [/shop|store|mall|market|buy|deal|outlet/, '쇼핑', '위시리스트'],
   [/news|ilbo|daily|times|press|journal|herald|media/, '뉴스·이슈', '사회'],
   [/recipe|food|cook|kitchen|eat/, '요리·맛집', '레시피'],
@@ -559,8 +566,39 @@ export const HOST_HINTS = [
   [/job|career|recruit|hire/, '일·업무', '커리어'],
   [/(^|\.)go\.kr$|gov/, '정보·서류', '서류·행정'],
   [/github|gitlab|dev|docs|api|code/, '디지털·IT', '개발·코딩'],
-  [/beauty|cosme|fashion|style|wear/, '패션·뷰티', '옷'],
   [/home|living|interior|furniture/, '집·생활', '인테리어'],
-  [/blog|post|wiki|brunch|medium|substack|note/, '공부·자료', '아티클'],
-  [/cafe\.naver|cafe\.daum|community|forum|clien|dcinside|fmkorea|theqoo|ppomppu/, '취미·여가', '놀거리'],
+  [/wiki/, '지식·상식', '상식'],
+  [/brunch|medium|substack/, '공부·자료', '아티클'],
 ];
+
+// 주소만으로는 무엇인지 모르는 링크(블로그, 카페, 인스타 같은 SNS, 짧은 주소, 처음 보는 사이트)를 모아 두는 서랍.
+// 사이트 이름으로 나눠 두고(링크 › 네이버 블로그), Claude 자동 정리가 내용을 읽어 제자리로 옮긴다.
+export const LINK_DRAWER = '링크';
+
+// 상품 페이지 주소의 꼴 (/product/…, /goods/…, ?product_no=…): 단서가 없을 때 쇼핑으로
+export const SHOP_PATH = /\/(products?|goods|items?|shop|store|dp|prd)(\/|\.|$)|[?&](product_?no|goods_?no|goodsno|item_?id|productid|prdno)=/i;
+
+// 주소 속 영어 낱말 → 사전의 한국어 낱말 (주소의 dress, shirts 를 원피스, 셔츠처럼 읽는다)
+export const URL_WORDS = {
+  fashion: '패션', clothing: '옷', clothes: '옷', apparel: '의류', outfit: '코디', ootd: '코디', dress: '원피스', dresses: '원피스', onepiece: '원피스',
+  shirt: '셔츠', shirts: '셔츠', tshirt: '티셔츠', tee: '티셔츠', blouse: '블라우스', knit: '니트', sweater: '니트', cardigan: '가디건', hoodie: '후드티',
+  sweatshirt: '맨투맨', jacket: '자켓', coat: '코트', padding: '패딩', puffer: '패딩', outer: '자켓', outerwear: '자켓', vest: '조끼',
+  pants: '바지', trousers: '바지', slacks: '슬랙스', jeans: '청바지', denim: '청바지', skirt: '치마', leggings: '레깅스', underwear: '속옷', pajamas: '잠옷',
+  shoes: '신발', sneakers: '운동화', runners: '운동화', boots: '부츠', sandals: '샌들', loafers: '로퍼', heels: '구두',
+  bag: '가방', bags: '가방', backpack: '백팩', wallet: '지갑', hat: '모자', cap: '모자', scarf: '목도리', jewelry: '주얼리', necklace: '목걸이', earrings: '귀걸이', bracelet: '팔찌',
+  beauty: '뷰티', cosmetics: '화장품', cosmetic: '화장품', skincare: '스킨케어', makeup: '메이크업', lipstick: '립스틱', cushion: '쿠션', sunscreen: '선크림', perfume: '향수', fragrance: '향수', nail: '네일', shampoo: '샴푸',
+  food: '음식', foodie: '맛집', recipe: '레시피', recipes: '레시피', cooking: '레시피', cook: '레시피', kitchen: '레시피', restaurant: '맛집', restaurants: '맛집', dining: '식당', eatery: '식당',
+  cafe: '카페', coffee: '커피', bakery: '빵집', bread: '베이커리', dessert: '디저트', cake: '케이크', pizza: '피자', burger: '햄버거', chicken: '치킨', pasta: '파스타',
+  sushi: '초밥', ramen: '라멘', steak: '스테이크', bbq: '고깃집', brunch: '브런치', wine: '와인', beer: '맥주', whisky: '위스키', whiskey: '위스키', cocktail: '칵테일', delivery: '배달',
+  travel: '여행', trip: '여행', tour: '투어', hotel: '호텔', hotels: '호텔', resort: '리조트', flight: '항공권', flights: '항공권', airline: '항공권', camping: '캠핑', glamping: '글램핑', beach: '해변',
+  movie: '영화', movies: '영화', drama: '드라마', music: '음악', concert: '콘서트', exhibition: '전시회', game: '게임', games: '게임', book: '책', books: '책', webtoon: '웹툰',
+  course: '강의', lecture: '강의', study: '공부', english: '영어', exam: '시험', career: '이직', job: '채용', jobs: '채용', recruit: '채용', hiring: '채용',
+  stock: '주식', stocks: '주식', invest: '투자', investing: '투자', etf: 'ETF', crypto: '코인', bitcoin: '비트코인', loan: '대출', insurance: '보험', tax: '세금', apartment: '아파트', realestate: '부동산',
+  interior: '인테리어', furniture: '가구', sofa: '소파', bed: '침대', desk: '책상', chair: '의자', lamp: '조명', lighting: '조명', cleaning: '청소',
+  pet: '반려동물', pets: '반려동물', dog: '강아지', dogs: '강아지', puppy: '강아지', cat: '고양이', cats: '고양이',
+  baby: '아기', kids: '어린이', parenting: '육아', car: '자동차', cars: '자동차', ev: '전기차',
+  laptop: '노트북', notebook: '노트북', macbook: '맥북', iphone: '아이폰', galaxy: '갤럭시', smartphone: '스마트폰', phone: '휴대폰', tablet: '태블릿', ipad: '아이패드', camera: '카메라',
+  headphones: '헤드폰', earbuds: '이어폰', airpods: '에어팟', monitor: '모니터', keyboard: '키보드', tv: 'TV', appliance: '가전', appliances: '가전',
+  health: '건강', fitness: '헬스', gym: '헬스', workout: '운동', yoga: '요가', pilates: '필라테스', running: '러닝', diet: '다이어트', hospital: '병원', clinic: '병원', dental: '치과', vitamin: '영양제',
+  news: '뉴스', weather: '날씨', ai: 'AI', chatgpt: 'ChatGPT', coding: '코딩', developer: '개발', programming: '프로그래밍', python: '파이썬', javascript: '자바스크립트',
+};

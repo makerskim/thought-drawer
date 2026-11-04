@@ -180,20 +180,62 @@ export function Bookmarks() {
     </div>`;
 }
 
+// 폰의 「공유」로 보낸 사진: 서비스 워커(sw.js)가 잠시 저장해 둔 것을 꺼내고 지운다
+export async function takeShared(id) {
+  if (!('caches' in window) || !/^[a-z0-9]+$/.test(id)) return null;
+  const cache = await caches.open('td-share');
+  const base = new URL(`__share/${id}/`, new URL('./', location.href)).href;
+  const res = await cache.match(`${base}info`);
+  if (!res) return null;
+  const info = await res.json();
+  const files = [];
+  for (let i = 0; i < info.files; i++) {
+    const r = await cache.match(`${base}${i}`);
+    if (!r) continue;
+    const blob = await r.blob();
+    files.push(new File([blob], decodeURIComponent(r.headers.get('x-name') || `shared-${i}.jpg`), { type: blob.type || 'image/jpeg' }));
+  }
+  for (const k of await cache.keys()) if (k.url.startsWith(base)) await cache.delete(k);
+  return { ...info, files };
+}
+
 // 단축어 「메모로 보내기」가 여는 주소: ?text=... 또는 #/share?url=...&text=...
+// 안드로이드 공유(설치한 앱): 글·링크는 ?title=&text=&url=, 사진은 #/share?shared=번호
 export function Share({ params }) {
   const [error, setError] = useState(null);
   useEffect(() => {
-    const text = (params.get('text') ?? '').trim();
-    const url = (params.get('url') ?? '').trim();
-    const title = (params.get('title') ?? '').trim();
-    const full = [url, text].filter(Boolean).join('\n').trim();
-    if (!full) { go('#/paste', { replace: true }); return; }
-    // 브라우저 단추·공유는 주소, 제목, 고른 글을 따로 보낸다
-    const via = params.get('via') || 'phone';
-    (url ? app.lib.addLink(url, text, title, { via }) : saveQuick(full, { via }))
-      .then((n) => { toast(`${categoryOf(n, app.lib).name} 서랍에 넣었어요`); go(noteHref(n.id), { replace: true }); })
-      .catch((e) => setError(e.message));
+    const saveText = ({ title = '', text = '', url = '' }, via) => {
+      const full = [url, text].filter(Boolean).join('\n').trim();
+      if (!full) { go('#/paste', { replace: true }); return; }
+      // 안드로이드 공유는 주소를 글(text) 속에 넣고 페이지 제목(title)을 따로 보낸다: 제목을 살려 링크로 (분류에 큰 단서)
+      if (!url && title) {
+        const m = /https?:\/\/\S+/.exec(text);
+        if (m) { url = m[0]; text = `${text.slice(0, m.index)}${text.slice(m.index + m[0].length)}`.trim(); }
+      }
+      if (text === title) text = '';
+      // 페이지 제목 끝의 사이트 이름은 뗀다 (「… : 네이버 블로그」「… - YouTube」)
+      title = title.replace(/\s*[:|·\-–—]\s*(네이버\s?블로그|네이버\s?카페|네이버\s?포스트|티스토리|브런치(스토리)?|YouTube|유튜브|Instagram|인스타그램)\s*$/i, '').trim();
+      // 브라우저 단추·공유는 주소, 제목, 고른 글을 따로 보낸다
+      (url ? app.lib.addLink(url, text, title, { via }) : saveQuick(full, { via }))
+        .then((n) => { toast(`${categoryOf(n, app.lib).name} 서랍에 넣었어요`); go(noteHref(n.id), { replace: true }); })
+        .catch((e) => setError(e.message));
+    };
+    const shared = params.get('shared');
+    if (!shared) {
+      const get = (k) => (params.get(k) ?? '').trim();
+      saveText({ title: get('title'), text: get('text'), url: get('url') }, params.get('via') || 'phone');
+      return;
+    }
+    (async () => {
+      const got = shared === 'fail' ? null : await takeShared(shared).catch(() => null);
+      if (!got) { setError('공유한 내용을 받지 못했어요. 한 번 더 공유해 주세요.'); return; }
+      if (!got.files.length) { saveText(got, 'phone'); return; }
+      // 사진과 함께 온 글·주소는 첫 사진의 메모로
+      const memo = [got.title, got.text, got.url].filter((x, i, a) => x && a.indexOf(x) === i).join('\n');
+      const made = await capturePhotos(got.files, memo);
+      if (made[0]) go(made.length === 1 ? noteHref(made[0].id) : '#/', { replace: true });
+      else setError('사진을 넣지 못했어요.');
+    })();
   }, []);
   return html`<${PageBar} title="받는 중" />
     <div class="page narrow">${error

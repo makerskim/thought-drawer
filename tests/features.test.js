@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classify, learn } from '../js/core/classify.js';
+import { classify, learn, topOf } from '../js/core/classify.js';
 import { readFilter, writeFilter, applyFilter, dateRange, facets, noteDate } from '../js/core/filter.js';
 import { triggerAt, applyInsert, takeTokens, fillVars, matchSlash, BUILTINS, ALIASES, isLine, keyOk } from '../js/core/slash.js';
 import { normalizeSettings, DEFAULT_SETTINGS, BASE_KEYWORDS } from '../js/core/settings.js';
@@ -246,6 +246,38 @@ test('search also finds notes by their auto drawer, 소분류 and auto tags', as
   assert.deepEqual(search(notes, '휴대폰', { auto }).map((r) => r.note.id), ['1']);
   assert.deepEqual(search(notes, '서랍:여행', { auto }).map((r) => r.note.id), ['2']);
   assert.deepEqual(search(notes, '과학', { auto }).map((r) => r.note.id), ['3']);
+});
+
+test('링크: 주소로 알 수 있으면 그 서랍, 모르면 「링크 › 사이트」(Claude 정리 때 내용을 읽어 나눈다)', async () => {
+  const { linkNote } = await import('../js/core/compose.js');
+  const { urlWords } = await import('../js/core/classify.js');
+  const at = (url, title = '') => classify(linkNote({ url, title })).path;
+  // 주소만으로는 모르는 곳 → 링크 › 사이트 이름 (공부·자료로 보내지 않는다)
+  assert.equal(at('https://blog.naver.com/foodie123/223456789012'), '링크/네이버 블로그');
+  assert.equal(at('https://xxx.tistory.com/123'), '링크/티스토리');
+  assert.equal(at('https://www.instagram.com/reel/C1abcDEF/'), '링크/인스타그램', '앱이 적은 「릴스를 저장했어요」로 분류하지 않는다');
+  assert.equal(at('https://naver.me/5abcdEF'), '링크/네이버 공유');
+  assert.equal(at('https://cafe.naver.com/joonggonara/123'), '링크/네이버 카페');
+  assert.equal(at('https://example.com/a'), '링크/example');
+  // 사이트로 아는 곳
+  assert.equal(topOf(at('https://www.musinsa.com/products/1234567')), '패션·뷰티');
+  assert.equal(topOf(at('https://www.stylenanda.com/product/detail.html?product_no=12345')), '패션·뷰티');
+  assert.equal(topOf(at('https://www.bluer.co.kr/restaurants/123')), '요리·맛집');
+  assert.equal(topOf(at('https://www.coupang.com/vp/products/123')), '쇼핑');
+  assert.equal(at('https://unknown-mall.co.kr/product/detail.html?product_no=9'), '쇼핑/위시리스트/unknown-mall', '상품 페이지 꼴은 쇼핑');
+  // 주소 속 낱말: 한글 상품명, 영어 낱말
+  assert.equal(urlWords('https://a.co.kr/product/%EB%A6%B0%EB%84%A8-%EC%85%94%EC%B8%A0/1'), '린넨 셔츠');
+  assert.equal(urlWords('https://shop.example.com/collections/women-dresses/products/linen-midi-dress?utm=x'), '원피스 원피스');
+  assert.equal(topOf(at('https://www.somebrand.co.kr/product/%EB%A6%B0%EB%84%A8-%EC%98%A4%EB%B2%84%ED%95%8F-%EC%85%94%EC%B8%A0/123/')), '패션·뷰티');
+  assert.equal(topOf(at('https://www.allbirds.co.kr/products/mens-tree-runners')), '패션·뷰티');
+  // 공유로 온 제목이 있으면 내용이 먼저 (블로그 맛집 글 → 맛집, 유튜브 레시피 → 레시피)
+  assert.equal(at('https://blog.naver.com/abc/1', '성수동 파스타 맛집 솔직 후기 : 네이버 블로그').split('/').slice(0, 2).join('/'), '요리·맛집/맛집');
+  assert.equal(topOf(at('https://blog.naver.com/abc/2', '가을 출근룩 코디 추천, 니트 가디건')), '패션·뷰티');
+  assert.equal(at('https://www.youtube.com/watch?v=1', '10분 김치찌개 레시피').split('/').slice(0, 2).join('/'), '요리·맛집/레시피');
+  assert.equal(at('https://www.youtube.com/watch?v=2'), '영상·음악/영상/유튜브', '글이 없으면 영상');
+  // 인스타: 컬렉션 이름과 계정 이름의 낱말
+  const ig = linkNote({ url: 'https://www.instagram.com/p/BBB/' });
+  assert.equal(topOf(classify({ meta: { ...ig.meta, author: 'seoul_foodie' }, body: ig.body }).path), '요리·맛집');
 });
 
 test('Claude 정리기가 쓰는 서랍 목록(organizer/taxonomy.json)이 앱 사전과 같다', async () => {

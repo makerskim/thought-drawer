@@ -659,6 +659,69 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
     await q.context().close();
   }
 
+  // ---- 폰 「공유」로 받기 (안드로이드 설치 앱: 글·링크는 주소로, 사진은 서비스 워커가 잠시 저장) ----
+  {
+    const q = await open(b, { hash: '#/' });
+    await q.waitForSelector('.hero');
+    const list = () => q.evaluate(() => window.__TD_APP__.lib.all.map((n) => ({ id: n.id, type: n.meta.type, title: n.meta.title ?? '', source: n.meta.source ?? '', body: n.body ?? '' })));
+    // 안드로이드는 주소를 글(text) 속에, 페이지 제목을 title 로 보낸다 → 제목을 살려 링크로, 분류도 제목으로
+    await q.evaluate(() => { location.hash = '#/share?title=' + encodeURIComponent('성수동 파스타 맛집 솔직 후기 : 네이버 블로그') + '&text=' + encodeURIComponent('https://blog.naver.com/abc/223'); });
+    await q.waitForSelector('.props');
+    const blog = (await list()).find((n) => n.source === 'https://blog.naver.com/abc/223');
+    ok(blog && blog.type === 'bookmark' && blog.title.includes('파스타 맛집'), `share: page title kept with the link (${blog?.title})`);
+    ok((await q.locator('.props .mpill.auto').innerText()).includes('요리'), 'share: blog post about pasta lands in 요리·맛집, not 공부');
+    // 제목 없이 주소만: 블로그는 「링크」 서랍에
+    await q.evaluate(() => { location.hash = '#/share?text=' + encodeURIComponent('https://xxx.tistory.com/77'); });
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://xxx.tistory.com/77'));
+    await q.waitForSelector('.props .mpill.auto');
+    ok((await q.locator('.props .mpill.auto').innerText()).includes('링크'), 'share: a bare blog link waits in 링크 for Claude');
+    // 사진 공유: 서비스 워커가 저장해 둔 것을 받기 화면이 꺼내 사진 노트로
+    await q.evaluate(async () => {
+      const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP4z8DwnwEKmBioDQDJPgP9pNMHlAAAAABJRU5ErkJggg=='), (c) => c.charCodeAt(0));
+      const cache = await caches.open('td-share');
+      const base = new URL('__share/t1/', new URL('./', location.href)).href;
+      await cache.put(base + '0', new Response(new Blob([png], { type: 'image/png' }), { headers: { 'content-type': 'image/png', 'x-name': 'shot.png' } }));
+      await cache.put(base + 'info', new Response(JSON.stringify({ title: '', text: '오크우드 세일 캡처', url: '', files: 1 })));
+      location.hash = '#/share?shared=t1';
+    });
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.type === 'capture' && (n.body ?? '').includes('오크우드 세일 캡처')), null, { timeout: 15000 });
+    ok(true, 'share: a shared screenshot becomes a photo note with its text');
+    ok(await q.evaluate(async () => (await (await caches.open('td-share')).keys()).length === 0), 'share: the temporary copy is removed after taking it');
+    await q.evaluate(() => { location.hash = '#/share?shared=nothing'; });
+    await q.waitForSelector('.empty:has-text("받지 못했어요")');
+    ok(true, 'share: says so when nothing is waiting');
+    ok(q.errors.length === 0, 'share: no page errors ' + q.errors.join(' | '));
+    await q.context().close();
+  }
+  // 서비스 워커: 공유 POST 를 받아 사진은 저장하고 받기 화면으로, 글만 오면 주소에 실어 보낸다
+  {
+    const ctx = await b.newContext();
+    const w = await ctx.newPage();
+    await w.goto('http://localhost:8080/privacy.html');
+    await w.evaluate(async () => { await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready; });
+    await w.reload();
+    await w.waitForFunction(() => !!navigator.serviceWorker.controller);
+    const r = await w.evaluate(async () => {
+      const fd = new FormData();
+      fd.append('title', '캡처');
+      fd.append('files', new File([new Uint8Array([137, 80, 78, 71])], 'a.png', { type: 'image/png' }));
+      const res = await fetch('share-target', { method: 'POST', body: fd, redirect: 'manual' });
+      const keys = (await (await caches.open('td-share')).keys()).map((k) => k.url.replace(location.origin, ''));
+      return { type: res.type, keys };
+    });
+    ok(r.type === 'opaqueredirect' && r.keys.some((k) => /^\/__share\/[a-z0-9]+\/0$/.test(k)) && r.keys.some((k) => k.endsWith('/info')), `sw: shared photo kept for the app and sent on (${r.keys.join(', ')})`);
+    // 안드로이드처럼 화면 이동으로 보내면: 글만 오면 앱 주소에 실어서
+    await w.evaluate(() => {
+      const f = Object.assign(document.createElement('form'), { method: 'POST', action: 'share-target', enctype: 'multipart/form-data' });
+      for (const [k, v] of [['title', '제목'], ['text', 'https://example.com/x']]) f.appendChild(Object.assign(document.createElement('input'), { name: k, value: v }));
+      document.body.appendChild(f);
+      f.submit();
+    });
+    await w.waitForURL(/title=/);
+    ok(decodeURIComponent(w.url()).includes('title=제목') && decodeURIComponent(w.url()).includes('text=https://example.com/x'), `sw: text-only share opens the app with it (${decodeURIComponent(w.url())})`);
+    await ctx.close();
+  }
+
   // ---- 낮 화면, 빈 서랍 ----
   p = await open(b, { seedData: { profile: { name: '나', email: 'me@example.com' }, files: [], quota: { limit: String(15 * 1024 ** 3), usage: String(14 * 1024 ** 3), usageInDrive: String(3 * 1024 ** 3) } } });
   await p.evaluate(() => { localStorage.setItem('td.theme', '"light"'); });
