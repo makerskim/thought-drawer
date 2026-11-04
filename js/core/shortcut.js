@@ -59,4 +59,4 @@ export function imageFromBase64(raw) {
   return type ? { bytes, type } : null;
 }
 
-SHORTCUT_OOPS.img = '사진을 받지 못했어요. 「사진 보내기」 단축어에서 「Base64 인코딩」의 줄 바꿈이 「없음」인지, URL 칸이 「…/#img=」 뒤에 파란 「Base64 인코딩된 텍스트」인지 확인해 주세요. 안 되면 붙여넣기 방식으로 바꿔 쓸 수 있어요.';
+SHORTCUT_OOPS.img = '사진을 받지 못했어요. 「사진 보내기」 단축어의 URL 칸이 「…/#img=」 바로 뒤에 파란 「URL 인코딩됨」(또는 「Base64로 인코딩됨」)인지 확인해 주세요. 안 되면 붙여넣기 방식으로 바꿔 쓸 수 있어요.';
