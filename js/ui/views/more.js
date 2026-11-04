@@ -203,9 +203,14 @@ export async function takeShared(id) {
 // 안드로이드 공유는 주소를 글(text) 속에 넣고 페이지 제목(title)을 따로 보낸다: 제목을 살려 링크로 (분류에 큰 단서)
 export function saveShared({ title = '', text = '', url = '' }, via = 'phone') {
   title = title.trim(); text = text.trim(); url = url.trim();
-  if (!url && title) {
+  // 글 속에 주소가 있으면 링크로: 주소를 꺼내고 나머지는 메모 (지도 앱 공유 「[네이버지도] 가게 이름 / 주소 / 링크」)
+  if (!url) {
     const m = /https?:\/\/\S+/.exec(text);
     if (m) { url = m[0]; text = `${text.slice(0, m.index)}${text.slice(m.index + m[0].length)}`.trim(); }
+    if (m && !title) {
+      const lines = text.split('\n').map((l) => l.trim()).filter((l) => l && !/^\[[^\]]{1,15}\]$/.test(l));
+      if (lines.length > 1 && lines[0].length <= 40) { title = lines[0]; text = lines.slice(1).join('\n'); } else text = lines.join('\n');
+    }
   }
   if (text === title) text = '';
   // 페이지 제목 끝의 사이트 이름은 뗀다 (「… : 네이버 블로그」「… - YouTube」)
@@ -248,31 +253,23 @@ export function Share({ params }) {
       : html`<${Empty} icon="inbox" title="넣는 중" text="잠시만요." />`}</div>`;
 }
 
-// 아이폰 단축어 「메모로 보내기」가 공유한 것(링크·글·사진)을 복사해 두고 여는 화면.
-// 사파리는 복사해 둔 것을 사이트가 혼자 읽지 못한다: 버튼을 누르면 그 위에 작은 「붙여넣기」 말풍선이 뜨고, 그걸 눌러야 읽힌다.
-// 말풍선을 놓쳐도 되게, 길게 눌러 「붙여넣기」하는 칸도 함께 둔다.
+// 아이폰 단축어 「사진 보내기」가 사진을 복사해 두고 여는 화면 (링크·글이 복사돼 있어도 넣는다).
+// 사파리는 복사해 둔 것을 사이트가 혼자 읽지 못한다: 버튼을 누르면 그 위에 작은 「붙여넣기」가 뜨고, 그걸 눌러야 읽힌다.
 export function Paste() {
-  const [step, setStep] = useState('ready'); // ready → wait(말풍선을 누르기를 기다림) → saving
   const save = async ({ files = [], text = '' }) => {
-    if (!files.length && !text.trim()) { setStep('ready'); toast('복사해 둔 링크·글·사진이 없어요. 한 번 더 공유해 주세요.'); return; }
-    setStep('saving');
-    try {
-      if (files.length) {
-        const made = await capturePhotos(files);
-        if (made[0]) { go(made.length === 1 ? noteHref(made[0].id) : '#/', { replace: true }); return; }
-      } else {
-        const n = await saveShared({ text }, 'phone');
-        if (n) { opened(n); return; }
-      }
-    } catch (e) { toast(e.message); }
-    setStep('ready');
+    if (files.length) {
+      const made = await capturePhotos(files);
+      if (made[0]) go(made.length === 1 ? noteHref(made[0].id) : '#/', { replace: true });
+      return;
+    }
+    if (!text.trim()) { toast('복사해 둔 사진이 없어요. 한 번 더 공유해 주세요.'); return; }
+    try { const n = await saveShared({ text }, 'phone'); if (n) opened(n); } catch (e) { toast(e.message); }
   };
   useEffect(() => {
     const onPaste = (e) => {
       const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
-      const text = e.clipboardData?.getData('text/plain') || e.clipboardData?.getData('text/uri-list') || '';
-      e.preventDefault();
-      save({ files, text });
+      const text = e.clipboardData?.getData('text/plain') ?? '';
+      if (files.length || text.trim()) { e.preventDefault(); save({ files, text }); }
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
@@ -280,7 +277,7 @@ export function Paste() {
   const fromClipboard = async () => {
     const files = [];
     let text = '';
-    setStep('wait');
+    const hint = toast('바로 위에 뜬 「붙여넣기」를 눌러 주세요', { duration: 5000 });
     try {
       if (navigator.clipboard?.read) {
         for (const item of await navigator.clipboard.read()) {
@@ -292,25 +289,14 @@ export function Paste() {
       } else {
         text = await navigator.clipboard.readText();
       }
-    } catch {
-      setStep('ready');
-      toast('버튼 위에 뜬 작은 「붙여넣기」를 눌러야 저장돼요. 다시 해 볼까요?', { duration: 6000 });
-      return;
-    }
+    } catch { hint.update('버튼 위에 뜨는 「붙여넣기」를 눌러야 넣을 수 있어요.', { duration: 5000 }); return; }
+    hint.close();
     await save({ files, text });
   };
-  return html`<${PageBar} title="붙여넣기" />
-    <div class="page narrow paste-page">
-      <h1>공유한 것을 넣어요</h1>
-      <ol class="paste-steps">
-        <li class=${step === 'ready' ? 'now' : 'done'}><b>1</b><span>아래 파란 <b>붙여넣기</b> 버튼을 눌러요.</span></li>
-        <li class=${step === 'wait' ? 'now' : ''}><b>2</b><span>버튼 <b>바로 위</b>에 뜨는 작은 검은 말풍선 <b>「붙여넣기」</b>를 한 번 더 눌러요.</span></li>
-      </ol>
-      ${step === 'wait' && html`<p class="paste-wait" role="status">↑ 위에 뜬 「붙여넣기」를 눌러 주세요</p>`}
-      <button type="button" class="btn btn-primary btn-lg paste-go" onClick=${fromClipboard} disabled=${step === 'saving'}>
-        <${Icon} name="paste" />${step === 'saving' ? '넣는 중…' : '붙여넣기'}</button>
-      <div class="paste-or">말풍선이 안 보이면</div>
-      <div class="paste-box" contenteditable="true" inputmode="none" role="textbox" aria-label="여기를 길게 눌러 붙여넣기"><span>여기를 <b>길게</b> 눌러 <b>붙여넣기</b></span></div>
-      <p class="muted paste-note">링크·글·사진 모두 돼요. 사파리 보안 때문에 이 한 번의 누름이 필요해요.</p>
+  return html`<${PageBar} title="사진 붙여넣기" />
+    <div class="page narrow">
+      <${Empty} icon="paste" title="복사한 사진을 붙여 넣어요" text="버튼을 누르고, 바로 위에 뜨는 「붙여넣기」를 한 번 더 누르면 저장돼요.">
+        <button type="button" class="btn btn-primary btn-lg" onClick=${fromClipboard}><${Icon} name="paste" />붙여넣기</button>
+      </${Empty}>
     </div>`;
 }

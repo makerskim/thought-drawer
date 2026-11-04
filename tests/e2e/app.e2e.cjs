@@ -693,40 +693,42 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
     ok(q.errors.length === 0, 'share: no page errors ' + q.errors.join(' | '));
     await q.context().close();
   }
-  // 아이폰 단축어 「메모로 보내기」: 공유한 것을 복사해 두고 ?paste=1 로 연다 → 붙여넣기 한 번이면 링크·글도 저장
+  // 아이폰 단축어: 「메모로 보내기」는 링크·글을 ?text=(URL 인코딩)로 열어 누를 것 없이 저장, 「사진 보내기」는 복사 후 ?paste=1
   {
     const q = await open(b, { hash: '' });
     await q.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://localhost:8080' });
     await q.waitForSelector('.hero');
-    await q.evaluate(() => navigator.clipboard.writeText('https://www.musinsa.com/products/777'));
-    await q.goto('http://localhost:8080/?paste=1');
-    await q.waitForSelector('.paste-go');
-    const ptext = await q.locator('.paste-page').innerText();
-    ok(decodeURIComponent(await q.evaluate(() => location.hash)) === '#/paste' && ptext.includes('링크·글·사진') && ptext.includes('바로 위') && await q.locator('.paste-box').count() === 1, 'iphone shortcut: ?paste=1 opens the paste screen that explains the small 「붙여넣기」 bubble');
-    await q.click('.paste-go');
-    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://www.musinsa.com/products/777'));
+    const shared = 'https://www.instagram.com/reel/AbC123/?igsh=xYz&utm_source=ig';
+    await q.goto(`http://localhost:8080/?text=${encodeURIComponent(shared)}`);
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => (n.meta.source ?? '').startsWith('https://www.instagram.com/reel/AbC123')));
+    await q.waitForSelector('.props');
+    ok(decodeURIComponent(await q.evaluate(() => location.hash)).startsWith('#/n/'), 'iphone 메모로 보내기: a shared link is saved with no taps and its note opens');
+    await q.goto(`http://localhost:8080/?text=${encodeURIComponent('[네이버지도]\n소금빵 베이커리\n서울 성동구 성수이로\nhttps://naver.me/abcd')}`);
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://naver.me/abcd'));
     await q.waitForSelector('.props .mpill.auto');
-    ok((await q.locator('.props .mpill.auto').innerText()).includes('패션'), 'iphone shortcut: a pasted link becomes a link note in its drawer');
-    await q.evaluate(() => navigator.clipboard.writeText('내일 3시 치과 예약'));
+    ok((await q.locator('.props .mpill.auto').innerText()).includes('요리'), 'iphone 메모로 보내기: map share with a place name lands in 요리·맛집');
+    // 사진 보내기: 붙여넣기 화면은 원래 모양 (서랍이, 제목, 버튼 하나)
     await q.goto('http://localhost:8080/?paste=1');
-    await q.click('.paste-go');
-    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => (n.body ?? '').includes('내일 3시 치과 예약')));
-    ok(true, 'iphone shortcut: pasted text becomes a memo');
-    // 말풍선을 놓쳤을 때: 칸을 길게 눌러 붙여넣기(붙여넣기 이벤트)로도 저장
+    await q.waitForSelector('.empty .btn-primary:has-text("붙여넣기")');
+    ok(decodeURIComponent(await q.evaluate(() => location.hash)) === '#/paste' && await q.locator('.empty .mascot').count() === 1 && (await q.locator('.empty').innerText()).includes('바로 위'), 'iphone 사진 보내기: paste screen keeps the usual look and says where to tap');
+    await q.evaluate(() => navigator.clipboard.writeText('https://www.musinsa.com/products/777'));
+    await q.click('.empty .btn-primary');
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://www.musinsa.com/products/777'));
+    ok(true, 'iphone 사진 보내기: a copied link is still saved if that is what was copied');
     await q.goto('http://localhost:8080/?paste=1');
-    await q.waitForSelector('.paste-box');
+    await q.waitForSelector('.empty .btn-primary');
     await q.evaluate(() => {
       const dt = new DataTransfer();
-      dt.setData('text/plain', 'https://www.mangoplate.com/restaurants/zz');
-      document.querySelector('.paste-box').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      dt.setData('text/plain', '내일 3시 치과 예약');
+      document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
     });
-    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://www.mangoplate.com/restaurants/zz'));
-    ok(true, 'iphone shortcut: long-press paste into the box also saves');
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => (n.body ?? '').includes('내일 3시 치과 예약')));
+    ok(true, 'iphone 사진 보내기: a paste event also saves');
     await q.evaluate(() => navigator.clipboard.writeText(''));
     await q.goto('http://localhost:8080/?paste=1');
-    await q.click('.paste-go');
+    await q.click('.empty .btn-primary');
     await q.waitForSelector('.toast:has-text("없어요")');
-    ok(true, 'iphone shortcut: says so when nothing was copied');
+    ok(true, 'iphone 사진 보내기: says so when nothing was copied');
     ok(q.errors.length === 0, 'iphone shortcut: no page errors ' + q.errors.join(' | '));
     await q.context().close();
   }
