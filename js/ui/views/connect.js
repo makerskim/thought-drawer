@@ -97,7 +97,7 @@ export function Connect() {
               <b>URL</b> 동작: 아래 주소를 붙여 넣고, 키보드 위 줄의 <b>단축어 입력</b>을 눌러 끝에 붙이기 → <b>URL 열기</b> 동작</p>
             <${Copyable} value=${`${url}?text=`} label="메모로 보내기 주소" />
             <p class="small"><b>② 사진 보내기</b> (캡처·사진, 누를 것 없이 저장)<br />
-              <b>이미지 크기 조절</b> → <b>이미지 변환</b>(JPEG) → <b>Base64 인코딩</b>(줄 바꿈: 없음) → <b>URL</b>: 아래 주소 + 키보드 위 줄의 <b>Base64 인코딩된 텍스트</b> → <b>URL 열기</b></p>
+              <b>이미지 크기 조절</b> → <b>이미지 변환</b>(JPEG) → <b>Base64 인코딩</b>(<b>(&gt;)</b>를 눌러 줄 바꿈: <b>없음</b>) → <b>URL</b>: 아래 주소 + 키보드 위 줄의 <b>Base64 인코딩된 텍스트</b> → <b>URL 열기</b></p>
             <${Copyable} value=${`${url}#img=`} label="사진 보내기 주소" />
             <p class="small">둘 다 단축어 <b>ⓘ</b>(세부사항)에서 <b>공유 시트에서 보기</b>를 켜요. <a href="https://github.com/makerskim/thought-drawer/blob/main/docs/%EB%8B%A8%EC%B6%95%EC%96%B4.md" target="_blank" rel="noopener">한 단계씩 자세히</a></p></div>
         </div>
