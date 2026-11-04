@@ -13,6 +13,7 @@ import { linkNote, captureBody, imageExt } from '../core/compose.js';
 import { openStore } from './idb.js';
 import { downscale } from './image.js';
 import { renamesOf, renamePath } from '../core/renames.js';
+import { siteOf } from '../core/classify.js';
 
 const SPECIAL_DIRS = new Set([ATTACH_DIR, SYSTEM_DIR]);
 
@@ -398,7 +399,8 @@ export function createLibrary(adapter, { cacheName = 'td-cache' } = {}) {
       return name;
     },
     async addLink(url, memo = '', title = '', extra = {}) {
-      return write(null, linkNote({ url, title, memo, taken, ...extra }));
+      // 어느 사이트인지 노트에 남긴다 (site: 무신사). 분류에는 쓰지 않고 보여 주기·찾기에만
+      return write(null, linkNote({ url, title, memo, taken, site: siteOf(url) || undefined, ...extra }));
     },
     // 이미 가져온 게시물은 건너뛴다
     async importInstagram(items, onProgress) {

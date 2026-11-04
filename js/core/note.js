@@ -14,7 +14,7 @@ export const STATUS = { inbox: 'inbox', organized: 'organized' };
 
 const KEY_ORDER = [
   'id', 'title', 'type', 'status', 'category', 'tags', 'summary', 'thought',
-  'source', 'author', 'collection', 'created', 'updated', 'organized',
+  'source', 'site', 'author', 'collection', 'created', 'updated', 'organized',
   'links', 'attachments',
 ];
 
@@ -193,6 +193,24 @@ export function snippet(body, max = 140) {
   return plain.length > max ? `${plain.slice(0, max - 1)}…` : plain;
 }
 
+// 제목 없는 링크의 보이는 이름: 「무신사 상품 · 린넨 셔츠」「네이버 블로그 글」「유튜브 영상」 (사이트 이름은 meta.site, 없으면 주소)
+export function linkTitle(meta) {
+  let u;
+  try { u = new URL(meta.source); } catch { return ''; }
+  const host = u.hostname.replace(/^(www|m)\./, '');
+  const p = u.pathname + u.search;
+  const kind = /youtube\.com|youtu\.be/.test(host) ? (/\/shorts\//.test(p) ? '쇼츠' : '영상')
+    : /(^|\.)cafe\.(naver|daum)/.test(host) ? '카페 글'
+    : /blog|tistory|brunch|medium|velog|post\.naver|substack/.test(host) ? '글'
+    : /(^|\.)(map|maps|place)\.|\/maps?\/|\/place\//.test(`${host}${u.pathname}`) ? '장소'
+    : /news|ilbo|times|press|daily|herald|journal/.test(host) ? '기사'
+    : /\/(products?|goods|items?|dp|prd)(\/|\.|$)|[?&](product_?no|goods_?no|goodsno|item_?id|productid|prdno)=/i.test(p) ? '상품'
+    : '링크';
+  let words = '';
+  try { words = (decodeURIComponent(u.pathname).match(/[가-힣][가-힣0-9]*/g) ?? []).join(' ').slice(0, 30).trim(); } catch { /* 깨진 주소 */ }
+  return `${meta.site || host} ${kind}${words ? ` · ${words}` : ''}`;
+}
+
 export function displayTitle(meta, body) {
   if (meta.title) return meta.title;
   if (meta.type === 'instagram') {
@@ -200,7 +218,8 @@ export function displayTitle(meta, body) {
     return meta.author ? `@${meta.author}의 ${kind}` : `인스타 ${kind}`;
   }
   if (meta.type === 'bookmark' && meta.source) {
-    try { const u = new URL(meta.source); return (u.hostname.replace(/^www\./, '') + u.pathname).replace(/\/$/, '').slice(0, 60); } catch { /* 주소가 아님 */ }
+    const t = linkTitle(meta);
+    if (t) return t;
   }
   const first = snippet(body, 34);
   if (first) return first;

@@ -31,3 +31,32 @@ export const SHORTCUT_OOPS = {
   var: '단축어의 URL 칸에 「단축어 입력」이 글자로 들어갔어요. 그 글자를 지우고, 키보드 바로 위 줄에 뜨는 「단축어 입력」을 눌러 파란 덩어리로 넣어 주세요.',
   photo: '사진은 「사진 보내기」 단축어로 보내 주세요. 「메모로 보내기」는 링크·글용이에요.',
 };
+
+// ---------- 아이폰 단축어 「사진 보내기」: 사진을 Base64 글자로 바꿔 주소 #img= 뒤에 실어 보낸다 (붙여넣기 없이) ----------
+// 주소의 # 뒤는 서버로 가지 않아 길어도 된다. 앱은 열리자마자 그 글자를 이 탭의 sessionStorage 로 옮기고 주소를 #/share?img=1 로 바꾼다.
+export const SHARE_IMG = 'td.shareImg';
+
+const sniff = (b) => {
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return 'image/gif';
+  if (b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'image/webp';
+  if (b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70) return 'image/heic';
+  return '';
+};
+
+// Base64 글자 → { bytes, type } (사진이 아니면 null). 줄 바꿈, %인코딩, URL용 Base64(-_), data: 머리말도 받는다.
+export function imageFromBase64(raw) {
+  let s = String(raw ?? '');
+  if (/%[0-9a-f]{2}/i.test(s)) { try { s = decodeURIComponent(s); } catch { /* 그대로 */ } }
+  s = s.replace(/^data:[^,]*,/, '').replace(/[\r\n\t]/g, '').replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
+  if (s.length < 16 || /[^A-Za-z0-9+/]/.test(s)) return null;
+  s += '='.repeat((4 - (s.length % 4)) % 4);
+  let bin;
+  try { bin = atob(s); } catch { return null; }
+  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  const type = sniff(bytes);
+  return type ? { bytes, type } : null;
+}
+
+SHORTCUT_OOPS.img = '사진을 받지 못했어요. 「사진 보내기」 단축어에서 「Base64 인코딩」의 줄 바꿈이 「없음」인지, URL 칸이 「…/#img=」 뒤에 파란 「Base64 인코딩된 텍스트」인지 확인해 주세요. 안 되면 붙여넣기 방식으로 바꿔 쓸 수 있어요.';

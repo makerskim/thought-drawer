@@ -10,7 +10,7 @@ from datetime import datetime
 
 KEY_ORDER = [
     'id', 'title', 'type', 'status', 'category', 'tags', 'summary', 'thought',
-    'source', 'author', 'collection', 'created', 'updated', 'organized',
+    'source', 'site', 'author', 'collection', 'created', 'updated', 'organized',
     'links', 'attachments',
 ]
 

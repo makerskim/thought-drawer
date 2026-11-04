@@ -122,6 +122,8 @@ export function siteName(host) {
   const k = Object.keys(SITES).find((s) => host.includes(s));
   return k ? SITES[k] : '';
 }
+// 링크의 사이트 이름 (노트의 site 에 남긴다): 무신사, 네이버 블로그, 모르면 주소의 이름 부분
+export const siteOf = (url) => { const h = hostOf(url); return h ? siteLabel(h) || h : ''; };
 // 이름을 모르는 사이트는 주소의 이름 부분(example.co.kr → example)
 const siteLabel = (host) => siteName(host) || (host.replace(/^(m|mobile|www\d?)\./, '').split('.').filter((p) => !/^(com|net|org|co|or|go|ac|kr|io|me|app|dev|so|ai|jp|us|uk|info|biz)$/.test(p)).pop() ?? '');
 

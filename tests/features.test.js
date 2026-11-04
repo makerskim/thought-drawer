@@ -305,6 +305,39 @@ test('아이폰 단축어 주소: 인코딩했든 안 했든 ?text= 뒤를 통�
   assert.equal(shareTarget('', '#/settings'), '');
 });
 
+test('아이폰 「사진 보내기」: 주소에 실려 온 Base64 사진을 읽는다 (줄 바꿈·%인코딩·URL용 글자도)', async () => {
+  const { imageFromBase64 } = await import('../js/core/shortcut.js');
+  const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP4z8DwnwEKmBioDQDJPgP9pNMHlAAAAABJRU5ErkJggg==';
+  const ok = (raw) => imageFromBase64(raw)?.type;
+  assert.equal(ok(PNG), 'image/png');
+  assert.equal(ok(PNG.replace(/(.{20})/g, '$1\n')), 'image/png', '76자마다 줄 바꿈이 있어도');
+  assert.equal(ok(encodeURIComponent(PNG)), 'image/png', '%인코딩돼도');
+  assert.equal(ok(PNG.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')), 'image/png', 'URL용 Base64');
+  assert.equal(ok(PNG.replace(/\+/g, ' ')), 'image/png', '+ 가 띄어쓰기로 바뀌어도');
+  assert.equal(ok(`data:image/png;base64,${PNG}`), 'image/png');
+  assert.equal(ok(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1, 1, 0, 0, 1]).toString('base64')), 'image/jpeg');
+  assert.equal(imageFromBase64('Base64 인코딩된 텍스트'), null);
+  assert.equal(imageFromBase64(Buffer.from('hello world, not an image').toString('base64')), null);
+  assert.equal(imageFromBase64(''), null);
+});
+
+test('링크의 사이트 이름과 보이는 이름: 「무신사 상품」「네이버 블로그 글」', async () => {
+  const { siteOf } = await import('../js/core/classify.js');
+  const { displayTitle } = await import('../js/core/note.js');
+  assert.equal(siteOf('https://www.musinsa.com/products/1'), '무신사');
+  assert.equal(siteOf('https://blog.naver.com/a/1'), '네이버 블로그');
+  assert.equal(siteOf('https://shop.unknown-brand.co.kr/x'), 'unknown-brand');
+  const t = (source, site = '') => displayTitle({ type: 'bookmark', source, site }, '');
+  assert.equal(t('https://www.musinsa.com/products/1', '무신사'), '무신사 상품');
+  assert.equal(t('https://blog.naver.com/a/1', '네이버 블로그'), '네이버 블로그 글');
+  assert.equal(t('https://www.youtube.com/watch?v=1', '유튜브'), '유튜브 영상');
+  assert.equal(t('https://a.co.kr/product/%EB%A6%B0%EB%84%A8-%EC%85%94%EC%B8%A0/1', 'a'), 'a 상품 · 린넨 셔츠');
+  assert.equal(t('https://example.com/a'), 'example.com 링크');
+  assert.equal(displayTitle({ type: 'bookmark', source: 'https://a.com', title: '직접 단 제목' }, ''), '직접 단 제목');
+  // 사이트 이름은 분류에 쓰지 않는다 (블로그는 그대로 「링크」에서 기다린다)
+  assert.equal(classify({ meta: { type: 'bookmark', source: 'https://blog.naver.com/a/1', site: '네이버 블로그' }, body: '' }).category, '링크');
+});
+
 test('Claude 정리기가 쓰는 서랍 목록(organizer/taxonomy.json)이 앱 사전과 같다', async () => {
   const { readFileSync } = await import('node:fs');
   const { treeJson } = await import('../tools/export-taxonomy.mjs');

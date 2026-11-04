@@ -307,7 +307,7 @@ def cmd_prepare(store, args):
         meta.setdefault('id', (re.match(r'^(\d{14})', f['name']) or [None, f['name'][:-3]])[1])
         card = {'id': str(meta['id']), 'fileId': f['id'], 'name': f['name'], 'dir': f['dir'], 'type': meta.get('type', 'memo'),
                 'title': meta.get('title', ''), 'tags': meta.get('tags') or [], 'thought': meta.get('thought', ''),
-                'source': meta.get('source', ''), 'author': meta.get('author', ''), 'collection': meta.get('collection', ''),
+                'source': meta.get('source', ''), 'site': meta.get('site', ''), 'author': meta.get('author', ''), 'collection': meta.get('collection', ''),
                 'text': re.sub(r'^\[사진\]$', '', main_text(body))[:BODY_LIMIT], 'ocr': section(body, '사진 속 글자')[:OCR_LIMIT],
                 'caption': section(body, '캡션')[:FETCH_LIMIT], 'page': section(body, '페이지 내용')[:FETCH_LIMIT], 'fetched': None, 'image': None}
         if card['source'] and not (card['caption'] or card['page']):
@@ -345,7 +345,7 @@ def cmd_prepare(store, args):
     kinds = {'memo': '메모', 'capture': '캡처', 'bookmark': '북마크', 'instagram': '인스타'}
     for c in batch:
         lines.append(f"### {c['id']} [{kinds.get(c['type'], c['type'])}]")
-        for label, key in (('사용자 제목', 'title'), ('내 생각', 'thought'), ('출처', 'source'), ('계정', 'author'), ('인스타 컬렉션', 'collection')):
+        for label, key in (('사용자 제목', 'title'), ('내 생각', 'thought'), ('출처', 'source'), ('사이트', 'site'), ('계정', 'author'), ('인스타 컬렉션', 'collection')):
             if c[key]:
                 lines.append(f'{label}: {c[key]}')
         if c['tags']:

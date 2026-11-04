@@ -7,7 +7,7 @@ import { PageBar } from '../parts/shell.js';
 import { Empty } from '../parts/common.js';
 import { capturePhotos } from '../capture.js';
 import { saveQuick } from '../quick.js';
-import { SHORTCUT_OOPS } from '../../core/shortcut.js';
+import { SHORTCUT_OOPS, SHARE_IMG, imageFromBase64 } from '../../core/shortcut.js';
 import { categoryOf, guessCategory } from '../categories.js';
 import { parseBookmarks, isBookmarksFile } from '../../core/bookmarks.js';
 import { parseInstagramFile, mergeSaved } from '../../core/instagram.js';
@@ -220,7 +220,13 @@ export function saveShared({ title = '', text = '', url = '' }, via = 'phone') {
   if (!full) return Promise.resolve(null);
   return url ? app.lib.addLink(url, text, title, { via }) : saveQuick(full, { via });
 }
-const opened = (n) => { toast(`${categoryOf(n, app.lib).name} 서랍에 넣었어요`); go(noteHref(n.id), { replace: true }); };
+// 공유로 넣은 뒤: 그 노트를 열고 「저장한 이유」 칸으로 (넣으면서 한마디 적을 수 있게)
+const askMemo = () => setTimeout(() => document.querySelector('.thought-note textarea')?.focus(), 450);
+const opened = (n) => {
+  toast(`${categoryOf(n, app.lib).name} 서랍에 넣었어요 · 「저장한 이유」에 메모를 적을 수 있어요`, { duration: 5000 });
+  go(noteHref(n.id), { replace: true });
+  askMemo();
+};
 
 // 단축어 「메모로 보내기」가 여는 주소: ?text=... 또는 #/share?url=...&text=...
 // 안드로이드 공유(설치한 앱): 글·링크는 ?title=&text=&url=, 사진은 #/share?shared=번호
@@ -234,6 +240,20 @@ export function Share({ params }) {
     // 단축어가 잘못 만들어졌을 때: 무엇을 고치면 되는지
     const oops = params.get('oops');
     if (oops) { setError(SHORTCUT_OOPS[oops] ?? SHORTCUT_OOPS.empty); return; }
+    // 아이폰 「사진 보내기」: 주소에 실려 온 사진 (main.js 가 이 탭에 옮겨 둠)
+    if (params.get('img')) {
+      let raw = null;
+      try { raw = sessionStorage.getItem(SHARE_IMG); sessionStorage.removeItem(SHARE_IMG); } catch { /* 없음 */ }
+      const got = raw ? imageFromBase64(raw) : null;
+      if (!got) { setError(SHORTCUT_OOPS.img); return; }
+      capturePhotos([new File([got.bytes], `shared.${got.type.split('/')[1]}`, { type: got.type })]).then((made) => {
+        if (!made[0]) { setError('사진을 넣지 못했어요.'); return; }
+        go(noteHref(made[0].id), { replace: true });
+        toast('「저장한 이유」에 메모를 적을 수 있어요', { duration: 5000 });
+        askMemo();
+      });
+      return;
+    }
     const shared = params.get('shared');
     if (!shared) {
       const get = (k) => params.get(k) ?? '';
@@ -254,7 +274,7 @@ export function Share({ params }) {
   return html`<${PageBar} title="받는 중" />
     <div class="page narrow">${error
       ? html`<${Empty} icon="alert" title="저장하지 못했어요" text=${error}>
-          ${params.get('oops') && html`<button type="button" class="btn btn-primary" onClick=${() => go('#/connect')}>단축어 만드는 법</button>`}
+          ${(params.get('oops') || params.get('img')) && html`<button type="button" class="btn btn-primary" onClick=${() => go('#/connect')}>단축어 만드는 법</button>`}
           <button type="button" class="btn" onClick=${() => go('#/')}>홈으로</button></${Empty}>`
       : html`<${Empty} icon="inbox" title="넣는 중" text="잠시만요." />`}</div>`;
 }
@@ -265,7 +285,7 @@ export function Paste() {
   const save = async ({ files = [], text = '' }) => {
     if (files.length) {
       const made = await capturePhotos(files);
-      if (made[0]) go(made.length === 1 ? noteHref(made[0].id) : '#/', { replace: true });
+      if (made[0]) { go(made.length === 1 ? noteHref(made[0].id) : '#/', { replace: true }); if (made.length === 1) askMemo(); }
       return;
     }
     if (!text.trim()) { toast('복사해 둔 사진이 없어요. 한 번 더 공유해 주세요.'); return; }

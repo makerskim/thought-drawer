@@ -718,6 +718,24 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
     await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://naver.me/abcd'));
     await q.waitForSelector('.props .mpill.auto');
     ok((await q.locator('.props .mpill.auto').innerText()).includes('요리'), 'iphone 메모로 보내기: map share with a place name lands in 요리·맛집');
+    // 사진 보내기(자동): 단축어가 사진을 Base64 로 바꿔 #img= 뒤에 실어 보낸다 → 붙여넣기 없이 사진 노트, 「저장한 이유」로
+    const PNG64 = 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP4z8DwnwEKmBioDQDJPgP9pNMHlAAAAABJRU5ErkJggg==';
+    const before = await q.evaluate(() => window.__TD_APP__.lib.all.filter((n) => n.meta.type === 'capture').length);
+    await q.goto(`http://localhost:8080/#img=${PNG64}`);
+    await q.waitForFunction((b) => window.__TD_APP__.lib.all.filter((n) => n.meta.type === 'capture').length > b, before, { timeout: 15000 });
+    await q.waitForSelector('.thought-note textarea');
+    await q.waitForTimeout(600);
+    ok(decodeURIComponent(await q.evaluate(() => location.hash)).startsWith('#/n/') && !(await q.evaluate(() => location.href)).includes('iVBOR'), 'iphone 사진 보내기(자동): photo in the address is saved without pasting, and the long address is cleared');
+    ok(await q.evaluate(() => document.activeElement?.closest('.thought-note') !== null) && await q.locator('.toast:has-text("저장한 이유")').count() >= 1, 'iphone 사진 보내기(자동): opens 「저장한 이유」 to add a memo');
+    await q.goto('http://localhost:8080/#img=Base64%20%EC%9D%B8%EC%BD%94%EB%94%A9%EB%90%9C%20%ED%85%8D%EC%8A%A4%ED%8A%B8');
+    await q.waitForSelector('.empty h3:has-text("저장하지 못했어요")');
+    ok((await q.locator('.empty').innerText()).includes('Base64'), 'iphone 사진 보내기(자동): a wrong shortcut says what to fix');
+    // 링크: 사이트 이름을 남기고, 제목이 없으면 「사이트 + 종류」로 보인다
+    await q.goto(`http://localhost:8080/?text=${encodeURIComponent('https://www.musinsa.com/products/4242')}`);
+    await q.waitForFunction(() => window.__TD_APP__.lib.all.some((n) => n.meta.source === 'https://www.musinsa.com/products/4242'));
+    const mus = await q.evaluate(() => window.__TD_APP__.lib.all.find((n) => n.meta.source === 'https://www.musinsa.com/products/4242').meta);
+    await q.waitForSelector('.thought-note textarea');
+    ok(mus.site === '무신사', `link: site name kept (${mus.site})`);
     // 사진 보내기: 붙여넣기 화면은 원래 모양 (서랍이, 제목, 버튼 하나)
     await q.goto('http://localhost:8080/?paste=1');
     await q.waitForSelector('.empty .btn-primary:has-text("붙여넣기")');

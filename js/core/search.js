@@ -89,7 +89,7 @@ export function docFor(note) {
     category: normalize(m.category),
     summary: normalize(m.summary),
     thought: normalize(m.thought),
-    author: normalize(m.author),
+    author: normalize([m.author, m.site].filter(Boolean).join(' ')),
     body: normalize(note.body ?? note.snippet ?? ''),
     tagList: (m.tags ?? []).map(normalize),
     type: m.type,
