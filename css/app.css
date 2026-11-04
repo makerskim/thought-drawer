@@ -1097,3 +1097,15 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 .rn-from { color: var(--text-2); font-weight: 500; }
 .rn-at { flex: none; margin-left: auto; font-size: 12px; white-space: nowrap; }
 
+
+/* ---- 폰: 첫 화면 서랍이 말풍선이 위의 소개 글에 닿지 않게 (작게, 넣는 칸과 소개 글 사이를 조금 더) ---- */
+@media (max-width: 860px) {
+  .capbar { margin-top: 104px; }
+  .cm-bubble { margin-bottom: 26px; max-width: min(260px, calc(100vw - 132px)); padding: 6px 10px; border-radius: 14px 14px 14px 4px; font-size: 12.5px; line-height: 1.4; }
+}
+
+/* ---- PC: 서랍이 말풍선이 두세 줄이어도 위의 소개 글에 닿지 않게 ---- */
+@media (min-width: 861px) {
+  .capbar { margin-top: 100px; }
+  .cm-bubble { max-width: min(460px, 56vw); }
+}

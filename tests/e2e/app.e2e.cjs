@@ -790,6 +790,19 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR
     await ctx.close();
   }
 
+  // ---- 첫 화면 서랍이 말풍선: 길어져도 위의 소개 글에 닿지 않는다 (폰·PC) ----
+  for (const vp of [{ width: 360, height: 780 }, { width: 390, height: 844 }, { width: 1024, height: 768 }, { width: 1440, height: 900 }]) {
+    const q = await open(b, { viewport: vp });
+    await q.waitForSelector('.cm-bubble');
+    const gap = await q.evaluate(() => {
+      const bub = document.querySelector('.cm-bubble');
+      bub.textContent = '생각·기록 › 메모 › 양자역학에 넣었어요. 더 맞는 서랍이 생기면 옮겨 둘게요. 더 맞는 서랍이 생기면';
+      return Math.round(bub.getBoundingClientRect().top - document.querySelector('.hero-sub').getBoundingClientRect().bottom);
+    });
+    ok(gap >= 16, `mascot bubble keeps clear of the intro line at ${vp.width}px (${gap}px)`);
+    await q.context().close();
+  }
+
   // ---- 낮 화면, 빈 서랍 ----
   p = await open(b, { seedData: { profile: { name: '나', email: 'me@example.com' }, files: [], quota: { limit: String(15 * 1024 ** 3), usage: String(14 * 1024 ** 3), usageInDrive: String(3 * 1024 ** 3) } } });
   await p.evaluate(() => { localStorage.setItem('td.theme', '"light"'); });
