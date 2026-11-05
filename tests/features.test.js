@@ -321,6 +321,15 @@ test('아이폰 「사진 보내기」: 주소에 실려 온 Base64 사진을 �
   assert.equal(imageFromBase64(''), null);
 });
 
+test('사진을 받지 못했을 때 받은 것으로 고칠 곳을 짚는다', async () => {
+  const { photoTrouble } = await import('../js/core/shortcut.js');
+  assert.match(photoTrouble('', 0), /0자.*URL 인코딩됨/);
+  assert.match(photoTrouble(null, 250000), /250,000자.*너무 커서/);
+  assert.match(photoTrouble('IMG_1234.PNG', 12), /사진 대신 「IMG_1234\.PNG」.*Base64로 인코딩됨/);
+  assert.match(photoTrouble(encodeURIComponent('스크린샷 2026-11-05 오전 10.00.00'), 60), /사진 대신 「스크린샷/);
+  assert.match(photoTrouble('A'.repeat(5000), 5000), /5,000자.*사진으로 읽지 못했어요/);
+});
+
 test('링크의 사이트 이름과 보이는 이름: 「무신사 상품」「네이버 블로그 글」', async () => {
   const { siteOf } = await import('../js/core/classify.js');
   const { displayTitle } = await import('../js/core/note.js');

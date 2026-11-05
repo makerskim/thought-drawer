@@ -5,12 +5,12 @@ import { syncFromLocation } from './ui/router.js';
 import { app, applyAppearance, keepAppearance } from './ui/state.js';
 import { createAuth } from './store/auth.js';
 import { GOOGLE_CLIENT_ID } from './config.js';
-import { shareTarget, SHARE_IMG } from './core/shortcut.js';
+import { shareTarget, SHARE_IMG, SHARE_IMG_LEN } from './core/shortcut.js';
 
 // 아이폰 단축어 「사진 보내기」: #img=Base64 로 온 사진은 이 탭에 옮겨 두고, 긴 주소는 바로 지운다 (구글에 다녀와도 남게)
 function adoptSharedImage(live = false) {
   if (!location.hash.startsWith('#img=')) return;
-  try { sessionStorage.setItem(SHARE_IMG, location.hash.slice(5)); } catch { /* 너무 크면 받기 화면이 알려 준다 */ }
+  try { sessionStorage.removeItem(SHARE_IMG); sessionStorage.setItem(SHARE_IMG_LEN, String(location.hash.length - 5)); sessionStorage.setItem(SHARE_IMG, location.hash.slice(5)); } catch { /* 너무 크면 받기 화면이 알려 준다 */ }
   const target = `${location.pathname}#/share?img=${Date.now().toString(36)}`;
   // 이미 열려 있던 탭이면(주소의 # 뒤만 바뀜) 화면도 받기 화면으로 옮긴다
   if (live) location.replace(target); else history.replaceState(null, '', target);

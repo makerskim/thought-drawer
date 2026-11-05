@@ -7,7 +7,7 @@ import { PageBar } from '../parts/shell.js';
 import { Empty } from '../parts/common.js';
 import { capturePhotos } from '../capture.js';
 import { saveQuick } from '../quick.js';
-import { SHORTCUT_OOPS, SHARE_IMG, imageFromBase64 } from '../../core/shortcut.js';
+import { SHORTCUT_OOPS, SHARE_IMG, SHARE_IMG_LEN, imageFromBase64, photoTrouble } from '../../core/shortcut.js';
 import { categoryOf, guessCategory } from '../categories.js';
 import { parseBookmarks, isBookmarksFile } from '../../core/bookmarks.js';
 import { parseInstagramFile, mergeSaved } from '../../core/instagram.js';
@@ -244,9 +244,11 @@ export function Share({ params }) {
     // 아이폰 「사진 보내기」: 주소에 실려 온 사진 (main.js 가 이 탭에 옮겨 둠)
     if (params.get('img')) {
       let raw = null;
-      try { raw = sessionStorage.getItem(SHARE_IMG); sessionStorage.removeItem(SHARE_IMG); } catch { /* 없음 */ }
+      let arrived = 0;
+      try { raw = sessionStorage.getItem(SHARE_IMG); arrived = Number(sessionStorage.getItem(SHARE_IMG_LEN)) || 0; sessionStorage.removeItem(SHARE_IMG); sessionStorage.removeItem(SHARE_IMG_LEN); } catch { /* 없음 */ }
       const got = raw ? imageFromBase64(raw) : null;
-      if (!got) { setError(SHORTCUT_OOPS.img); return; }
+      // 받지 못했으면 실제로 받은 것(글자 수·앞부분)으로 고칠 곳을 알려 준다
+      if (!got) { setError(photoTrouble(raw, arrived)); return; }
       capturePhotos([new File([got.bytes], `shared.${got.type.split('/')[1]}`, { type: got.type })]).then((made) => {
         if (!made[0]) { setError('사진을 넣지 못했어요.'); return; }
         go(noteHref(made[0].id), { replace: true });

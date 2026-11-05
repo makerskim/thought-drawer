@@ -35,6 +35,7 @@ export const SHORTCUT_OOPS = {
 // ---------- 아이폰 단축어 「사진 보내기」: 사진을 Base64 글자로 바꿔 주소 #img= 뒤에 실어 보낸다 (붙여넣기 없이) ----------
 // 주소의 # 뒤는 서버로 가지 않아 길어도 된다. 앱은 열리자마자 그 글자를 이 탭의 sessionStorage 로 옮기고 주소를 #/share?img=1 로 바꾼다.
 export const SHARE_IMG = 'td.shareImg';
+export const SHARE_IMG_LEN = 'td.shareImgLen'; // 주소로 받은 글자 수 (저장하지 못했을 때 원인을 찾으려고)
 
 const sniff = (b) => {
   if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
@@ -60,3 +61,18 @@ export function imageFromBase64(raw) {
 }
 
 SHORTCUT_OOPS.img = '사진을 받지 못했어요. 「사진 보내기」 단축어의 URL 칸이 「…/#img=」 바로 뒤에 파란 「URL 인코딩됨」(또는 「Base64로 인코딩됨」)인지 확인해 주세요. 안 되면 붙여넣기 방식으로 바꿔 쓸 수 있어요.';
+
+// 사진을 받지 못했을 때: 실제로 받은 것(글자 수·앞부분)으로 고칠 곳을 짚는다
+// raw: 이 탭에 옮겨 둔 글자(못 옮겼으면 null), arrived: 주소로 온 글자 수
+export function photoTrouble(raw, arrived = 0) {
+  const n = Number(arrived) || (raw ? raw.length : 0);
+  if (!n) return '단축어가 사진 글자를 보내지 않았어요(받은 글자 0자). 「사진 보내기」 URL 칸의 「#img=」 바로 뒤에 파란 「URL 인코딩됨」이 붙어 있는지 확인해 주세요. 붙어 있는데도 0자면 아이폰이 긴 주소를 잘랐을 수 있어요. 「이미지 크기 변경」의 640을 400으로 줄여 보세요.';
+  if (raw == null) return `사진 글자 ${n.toLocaleString()}자를 받았지만 너무 커서 담지 못했어요. 「이미지 크기 변경」의 640을 400으로 줄여 보세요.`;
+  let text = raw;
+  try { text = decodeURIComponent(raw); } catch { /* 그대로 */ }
+  const head = text.replace(/\s+/g, ' ').slice(0, 24);
+  if (n < 300 || /\.(png|jpe?g|heic|heif|gif|webp)$/i.test(text.trim())) {
+    return `사진 대신 「${head}」(${n.toLocaleString()}자)이(가) 왔어요. 「URL 인코딩」 상자가 「Base64로 인코딩됨」을 받는지(「단축어 입력」이 아니라), URL 칸 끝이 파란 「URL 인코딩됨」인지 확인해 주세요.`;
+  }
+  return `사진 글자 ${n.toLocaleString()}자를 받았지만 사진으로 읽지 못했어요(앞부분 「${head}」). 「이미지 변환」이 JPEG인지, 「Base64 인코딩」의 파란 「인코딩」이 「디코딩」으로 바뀌지 않았는지 확인해 주세요.`;
+}
