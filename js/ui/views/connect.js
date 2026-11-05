@@ -94,12 +94,12 @@ export function Connect() {
           <div><h3>아이폰</h3><p class="small">아이폰은 웹 앱이 공유 목록에 직접 들어가지 못해서 <b>단축어</b> 두 개를 한 번 만들어 둬요.
             단축어는 글로 붙여 넣어 만들 수 없어서, 아래 동작을 검색해 하나씩 넣어요. 주소만 복사해서 붙여 넣으면 돼요.</p>
             <p class="small"><b>① 메모로 보내기</b> (링크·글, 누를 것 없이 저장)<br />
-              <b>Base64 인코딩</b>(단축어 입력) → <b>URL 인코딩</b> → <b>URL</b>: 아래 주소 바로 뒤에 키보드 위 줄의 <b>URL 인코딩된 텍스트</b>(빈칸·줄 바꿈 없이) → <b>웹 페이지 보기</b></p>
+              <b>Base64 인코딩</b>(단축어 입력) → <b>URL 인코딩</b> → <b>URL</b>: 아래 주소 바로 뒤에 키보드 위 줄의 <b>URL 인코딩된 텍스트</b>(빈칸·줄 바꿈 없이) → <b>URL 열기</b></p>
             <${Copyable} value=${`${url}#t=`} label="메모로 보내기 주소" />
             <p class="small"><b>② 사진 보내기</b> (캡처·사진, 붙여넣기 한 번)<br />
-              <b>클립보드에 복사</b> → <b>웹 페이지 보기</b>: 아래 주소</p>
+              <b>클립보드에 복사</b> → <b>URL 열기</b>: 아래 주소</p>
             <${Copyable} value=${`${url}?paste=1`} label="사진 보내기 주소" />
-            <p class="small">「웹 페이지 보기」는 사파리에 탭을 만들지 않고 잠깐 떴다가 「완료」로 닫혀요. 처음 한 번 그 안에서 로그인해요.</p>
+            <p class="small">사파리에 탭이 하나씩 생겨요. 설정 → 앱 → Safari → 탭 닫기 → 하루 후로 저절로 닫히게 해요.</p>
             <p class="small">둘 다 단축어 <b>ⓘ</b>(세부사항)에서 <b>공유 시트에서 보기</b>를 켜요. <a href="https://github.com/makerskim/thought-drawer/blob/main/docs/%EB%8B%A8%EC%B6%95%EC%96%B4.md" target="_blank" rel="noopener">한 단계씩 자세히</a></p></div>
         </div>
       </section>
