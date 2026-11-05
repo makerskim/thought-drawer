@@ -333,6 +333,8 @@ test('아이폰 「메모로 보내기」(Base64): #t= 로 온 글을 읽는다 
   assert.equal(text(`#t=${encodeURIComponent(b64(memo))}`), memo, '한글과 줄 바꿈');
   assert.equal(textFromBase64(encodeURIComponent('그냥 글자')), '그냥 글자', 'Base64 가 아니면 그대로');
   assert.equal(shareTarget('', '#t='), '#/share?oops=empty');
+  assert.equal(new URLSearchParams(shareTarget(`?t=${encodeURIComponent(b64(ig))}`, '').split('?')[1]).get('text'), ig, '?t= 로 와도');
+  assert.equal(new URLSearchParams(shareTarget(`?t=${b64(ig)}`, '').split('?')[1]).get('text'), ig, '?t= 에 인코딩 없는 + / = 가 있어도');
   assert.equal(shareTarget('', `#t=${b64('IMG_0001.PNG')}`), '#/share?oops=photo');
 });
 

@@ -31,6 +31,8 @@ function textTarget(text) {
 export function shareTarget(search = '', hash = '') {
   if (String(hash).startsWith('#t=')) return textTarget(textFromBase64(hash.slice(3)));
   const q = new URLSearchParams(search);
+  // ?t=Base64 (아이폰이 # 뒤 긴 글자를 막을 때): 주소 그대로 읽는다 (+ 가 띄어쓰기로 바뀌지 않게)
+  if (q.has('t') && !q.has('text')) { const m = /[?&]t=([^&#]*)/.exec(search); return textTarget(textFromBase64(m ? m[1] : '')); }
   if (q.get('state') === 'td-code') return ''; // 정리기 토큰 받기에서 돌아온 경우
   if (q.has('paste')) return '#/paste';
   if (!q.has('url') && !q.has('text')) return '';
