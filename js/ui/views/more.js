@@ -207,7 +207,8 @@ export function saveShared({ title = '', text = '', url = '' }, via = 'phone') {
   // 글 속에 주소가 있으면 링크로: 주소를 꺼내고 나머지는 메모 (지도 앱 공유 「[네이버지도] 가게 이름 / 주소 / 링크」)
   if (!url) {
     const m = /https?:\/\/\S+/.exec(text);
-    if (m) { url = m[0]; text = `${text.slice(0, m.index)}${text.slice(m.index + m[0].length)}`.trim(); }
+    // 단축어가 여러 개(링크 + 웹 페이지)를 이어 보내면 같은 링크가 또 나온다: 한 번만 남긴다
+    if (m) { url = m[0]; text = text.split(url).join(' ').replace(/[ \t]+/g, ' ').replace(/^\s+|\s+$/gm, '').trim(); }
     // 링크와 함께 온 글의 첫 줄이 짧으면 그게 무엇인지(상품·가게·글 이름)라 제목으로 (「[네이버 쇼핑] 린넨 셔츠」 같은 머리말은 뗀다)
     if (m && !title) {
       const lines = text.split('\n').map((l) => l.replace(/^\[[^\]]{1,15}\]\s*/, '').trim()).filter(Boolean);
