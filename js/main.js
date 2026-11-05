@@ -15,7 +15,11 @@ function adoptSharedImage(live = false) {
   // 이미 열려 있던 탭이면(주소의 # 뒤만 바뀜) 화면도 받기 화면으로 옮긴다
   if (live) location.replace(target); else history.replaceState(null, '', target);
 }
-window.addEventListener('hashchange', () => adoptSharedImage(true));
+// 이미 열려 있던 탭에서 주소의 # 뒤만 바뀐 공유(#img=, #t=)도 받는다
+window.addEventListener('hashchange', () => {
+  adoptSharedImage(true);
+  if (location.hash.startsWith('#t=')) location.replace(`${location.pathname}${shareTarget('', location.hash)}`);
+});
 
 // 단축어·공유가 ?text=... 처럼 쿼리로 열었을 때도 받기 화면으로 보낸다 (js/core/shortcut.js)
 function adoptShareQuery() {

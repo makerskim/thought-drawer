@@ -26,7 +26,7 @@ import { enrichNew } from './categories.js';
 import { createLibrary } from '../store/library.js';
 import { createDriveAdapter } from '../store/drive.js';
 import { createMemoryAdapter } from '../store/memory.js';
-import { AuthRequired, isStandalone, isOwner, OWNER_ONLY } from '../store/auth.js';
+import { AuthRequired, prefersRedirect, isOwner, OWNER_ONLY } from '../store/auth.js';
 import { OWNERS } from '../config.js';
 import { DriveError } from '../store/drive.js';
 
@@ -163,7 +163,7 @@ export function App({ auth }) {
   // 아이폰 홈 화면 앱은 창 대신, 앱으로 돌아올 때 구글에 잠깐 다녀온다(적던 글이 없을 때만).
   useEffect(() => {
     if (phase !== 'ready' || app.lib?.adapter.kind !== 'drive') return undefined;
-    const standalone = isStandalone();
+    const standalone = prefersRedirect(); // 아이폰은 작은 창 대신 앱으로 돌아올 때 구글에 다녀온다
     let want = false;
     const check = () => {
       want = auth.msLeft < 5 * 60_000;

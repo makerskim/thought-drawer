@@ -5,8 +5,31 @@
 const VAR_NAMES = /^(단축어\s?입력|URL\s?인코딩된\s?텍스트|Shortcut\s?Input|URL\s?Encoded\s?Text|Provided\s?Input|제공된\s?입력)$/i;
 const IMAGE_NAME = /^[^\s/]+\.(png|jpe?g|heic|heif|gif|webp)$/i;
 
+// 아이폰 단축어 「메모로 보내기」(Base64 방식): 공유한 글을 Base64로 바꿔 #t= 뒤에 싣는다.
+// 글 속 주소(https://…)가 그대로 있으면 아이폰이 주소를 둘로 읽어 탭이 두 개 열리고 앱은 빈 내용을 받아서, 주소처럼 보이는 글자가 없게 한다.
+export function textFromBase64(raw) {
+  let s = String(raw ?? '');
+  if (/%[0-9a-f]{2}/i.test(s)) { try { s = decodeURIComponent(s); } catch { /* 그대로 */ } }
+  const b = s.replace(/[\r\n\t]/g, '').replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
+  if (!b || /[^A-Za-z0-9+/]/.test(b)) return s; // Base64 가 아니면(단축어 입력을 바로 넣었으면) 글 그대로
+  try {
+    const bin = atob(b + '='.repeat((4 - (b.length % 4)) % 4));
+    return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+  } catch { return s; }
+}
+
+// 받은 글 → 받기 화면 주소 (비었거나 단축어를 잘못 만들었으면 이유를 붙인다)
+function textTarget(text) {
+  text = String(text ?? '').trim();
+  if (!text) return '#/share?oops=empty';
+  if (VAR_NAMES.test(text)) return '#/share?oops=var';
+  if (IMAGE_NAME.test(text)) return '#/share?oops=photo';
+  return `#/share?text=${encodeURIComponent(text)}`;
+}
+
 // search: location.search ('?text=…'), hash: location.hash → 받기 화면 주소 '#/share?…' / '#/paste', 해당 없으면 ''
 export function shareTarget(search = '', hash = '') {
+  if (String(hash).startsWith('#t=')) return textTarget(textFromBase64(hash.slice(3)));
   const q = new URLSearchParams(search);
   if (q.get('state') === 'td-code') return ''; // 정리기 토큰 받기에서 돌아온 경우
   if (q.has('paste')) return '#/paste';
@@ -18,11 +41,7 @@ export function shareTarget(search = '', hash = '') {
   const raw = all.slice(all.indexOf('text=') + 5);
   let text = raw;
   try { text = decodeURIComponent(raw); } catch { /* 인코딩하지 않은 % 가 섞였으면 그대로 */ }
-  text = text.trim();
-  if (!text) return '#/share?oops=empty';
-  if (VAR_NAMES.test(text)) return '#/share?oops=var';
-  if (IMAGE_NAME.test(text)) return '#/share?oops=photo';
-  return `#/share?text=${encodeURIComponent(text)}`;
+  return textTarget(text);
 }
 
 // 받기 화면이 보여 줄 안내 (단축어가 잘못 만들어졌을 때)

@@ -166,6 +166,22 @@ const secs = (p) => ((Date.now() - p.t0) / 1000).toFixed(1);
     await p.click('button:has-text("Google")');
     const n = await until(() => inboxNote(drive, (t) => t.includes('coupang.com/vp/products/77')));
     ok(!!n, 'not signed in: after signing in, the shared link is saved');
+    ok(s.ctx.pages().length === 1, `not signed in: signing in on iPhone opens no extra tab (${s.ctx.pages().length} tab)`);
+    await s.ctx.close();
+  }
+
+  // 8b) 메모로 보내기(Base64 방식): 공유한 글을 Base64 → URL 인코딩해 #t= 로 (주소 속 https:// 가 둘로 읽히지 않게)
+  {
+    const drive = fakeDrive(); drive.seed(20);
+    const s = await safari(b, { drive });
+    const b64 = (t) => Buffer.from(t, 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n');
+    const p = await s.tab(`#t=${encodeURIComponent(b64('https://www.instagram.com/reel/DQrs456/?igsh=abc=='))}`);
+    const n = await until(() => inboxNote(drive, (t) => t.includes('instagram.com/reel/DQrs456')));
+    ok(!!n && s.ctx.pages().length === 1, `memo (Base64 #t=): instagram reel saved in ${secs(p)}s, one tab`);
+    // 같은 탭에서 메모 앱 글 하나 더 (주소의 # 뒤만 바뀜)
+    await p.evaluate((h) => { location.hash = h; }, `#t=${encodeURIComponent(b64('[네이버지도]\n소금빵 베이커리\n서울 성동구\nhttps://naver.me/zz99'))}`);
+    const m = await until(() => inboxNote(drive, (t) => t.includes('naver.me/zz99')));
+    ok(m && /title: "소금빵 베이커리"/.test(m.text), 'memo (Base64 #t=): a second share in the same tab, place name as title');
     await s.ctx.close();
   }
 

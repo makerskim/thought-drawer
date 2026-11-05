@@ -321,6 +321,21 @@ test('아이폰 「사진 보내기」: 주소에 실려 온 Base64 사진을 �
   assert.equal(imageFromBase64(''), null);
 });
 
+test('아이폰 「메모로 보내기」(Base64): #t= 로 온 글을 읽는다 (주소 속 https:// 가 둘로 읽히지 않게)', async () => {
+  const { shareTarget, textFromBase64 } = await import('../js/core/shortcut.js');
+  const b64 = (t) => Buffer.from(t, 'utf8').toString('base64');
+  const text = (h) => new URLSearchParams(shareTarget('', h).split('?')[1]).get('text');
+  const ig = 'https://www.instagram.com/reel/DAbc123/?igsh=MTc4bW9xZGxyZGx6Nw==';
+  assert.equal(text(`#t=${encodeURIComponent(b64(ig))}`), ig, 'Base64 → URL 인코딩');
+  assert.equal(text(`#t=${b64(ig)}`), ig, 'URL 인코딩 없이');
+  assert.equal(text(`#t=${encodeURIComponent(b64(ig).replace(/(.{8})/g, '$1\r\n'))}`), ig, '76자마다 줄 바꿈이 있어도');
+  const memo = '[네이버지도]\n소금빵 베이커리\nhttps://naver.me/abcd';
+  assert.equal(text(`#t=${encodeURIComponent(b64(memo))}`), memo, '한글과 줄 바꿈');
+  assert.equal(textFromBase64(encodeURIComponent('그냥 글자')), '그냥 글자', 'Base64 가 아니면 그대로');
+  assert.equal(shareTarget('', '#t='), '#/share?oops=empty');
+  assert.equal(shareTarget('', `#t=${b64('IMG_0001.PNG')}`), '#/share?oops=photo');
+});
+
 test('사진을 받지 못했을 때 받은 것으로 고칠 곳을 짚는다', async () => {
   const { photoTrouble } = await import('../js/core/shortcut.js');
   assert.match(photoTrouble('', 0), /0자.*줄 바꿈.*변환된 이미지/);

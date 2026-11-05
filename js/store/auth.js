@@ -48,6 +48,12 @@ const write = (v) => { try { v ? localStorage.setItem(KEY, JSON.stringify(v)) : 
 export function isStandalone() {
   return window.navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches;
 }
+// 작은 창(팝업) 대신 화면 이동으로 구글에 다녀올 곳: 홈 화면 앱, 그리고 아이폰·아이패드 브라우저
+// (아이폰 사파리는 작은 창을 새 탭으로 열어 탭이 쌓이고, 단축어의 「웹 페이지 보기」 안에서는 작은 창이 안 열린다)
+export function prefersRedirect() {
+  const ua = navigator.userAgent || '';
+  return isStandalone() || /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
 
 export function createAuth(clientId) {
   let state = read();
@@ -150,7 +156,7 @@ export function createAuth(clientId) {
     get hasDrive() { return !state?.scope || state.scope.includes(DRIVE_SCOPE); },
     async signIn(opts = {}) {
       if (renewing && !opts.consent) return renewing;
-      if (isStandalone()) return signInRedirect(opts);
+      if (prefersRedirect()) return signInRedirect(opts);
       return signInPopup(opts);
     },
     signInRedirect,
